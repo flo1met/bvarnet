@@ -40,5 +40,7 @@ bvar <- function(id_col,
                               chains = chains,
                               parallel_chains = cores)
 
-  return(stanfit)
+  out <- list(fit = stanfit, standata = standata)
+  class(out) <- "bvarnet"
+  out
 }
