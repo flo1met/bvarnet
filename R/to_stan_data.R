@@ -6,20 +6,21 @@
 
 # dont remove first row, but set lags to 0?
 
-to_stan_data <- function(data, 
-                         id_col, 
-                         time_col, 
-                         y_cols, 
+to_stan_data <- function(data,
+                         id_col,
+                         time_col,
+                         y_cols,
                          x_cols,
                          center_x = F, # grand-mean centering of covmat X
                          fe_interactions = NULL,
                          re_interactions = NULL,
-                         re_cols = character(0), 
+                         re_cols = character(0),
                          re_temporal = FALSE,
-                         K) {
+                         K,
+                         na_action = c("listwise")) { # add automatic LW deletion
   ## Input
   # df: data in "long" format, cols: id, time, y, covariates
-  
+
   ## Output
   # list with
   #(
@@ -38,56 +39,56 @@ to_stan_data <- function(data,
   # B: design matrix lags
   # Z: design matrix RE
   #)
-  
+
   K <- as.integer(K) # ensure its an integer to not break fun
-  
+
   ## ensure the data is properly ordered by id and time to prevent data wrangling errors
   data <- data[order(data[[id_col]], data[[time_col]]), ]
-  
+
   ## "summary statistics"
   ids_unique <- unique(data[[id_col]])
   J <- length(ids_unique)
   p <- length(y_cols)
   q <- length(x_cols)
-  PK <- p*K 
-  
+  PK <- p*K
+
   df_split <- split(data, data[[id_col]])
-  
+
   #n_obs <- J * (T_obs - K)
   # total number of modeled rows (one per observed row after first K within each subject)
   n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
-  
+
   ## initialize design matrices and id
   Y <- matrix(NA_integer_, n_obs, p)
   X <- matrix(NA_real_, n_obs, q)
   B <- matrix(0, n_obs, PK)
   id_out <- integer(n_obs)
-  
+
   ## begin creation of design matrices
   row <- 0L # bookkeeping row number outcome
-  
+
   for(jj in seq_len(J)) { # safe with J = 0
     this_id <- ids_unique[jj]
     df_sub <- df_split[[as.character(this_id)]]
     df_sub <- df_sub[order(df_sub[[time_col]]),, drop = FALSE] # ensure ordering stays!, drop = F to ensure dimension stays the same
-    
+
     Ti <- nrow(df_sub)
     if (Ti <= K) next # skips subjects that cant contribute to likelihood, atleast K+1 obs needed per subject
-    
+
     times <- df_sub[[time_col]]
     Ymat <- as.matrix(df_sub[, y_cols, drop = FALSE])
     Xmat <- as.matrix(df_sub[, x_cols, drop = FALSE])
-    
+
     ## begin onstruction of B
     for (t in (K+1L):Ti) {
       row <- row + 1L
-      
+
       id_out[row] <- jj
       Y[row, ] <- Ymat[t, ]
       X[row, ] <- Xmat[t, ]
-      
+
       # missing data handling: if we skip lags as mechanism this is what we use. TODO: make an option
-      
+
       valid <- TRUE
       for(lag in 1:K) {
         if ((times[t] - times[t - lag]) != lag) {
@@ -95,7 +96,7 @@ to_stan_data <- function(data,
           break
         }
       }
-      
+
       if(valid) {
         for(lag in 1:K) {
           B[row, ((lag - 1L)*p+1L):(lag*p)] <- Ymat[t - lag, ]
@@ -103,32 +104,32 @@ to_stan_data <- function(data,
       }
     }
   }
-  
+
   b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
   colnames(B) <- b_names # name B
-  
+
   # center and add intercept ##make centering predictors an option
   if (center_x == TRUE) {
     means_X <- colMeans(X)
     X <- sweep(X, 2, means_X, "-")
-    
+
   }
   X <- cbind(Intercept = 1, X)
   colnames(X) <- c("Intercept", x_cols) # name X
-  
+
   ## build FE interactions, subj to change
   tmp <- add_terms_to_X(X, B, fe_interactions)
   X <- tmp$X
-  
+
   ##
-  
+
   Z <- build_Z(X, B, re_cols = re_cols, re_temporal = re_temporal)
-  
+
   ## build RE interactions, subj to change
   Z <- add_re_interactions_from_X(Z, X, B, re_interactions)
-  
+
   ##
-  
+
   return(list(
     p = p,
     q = q,
@@ -164,9 +165,9 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
   # X: n_obs x n_fe (incl intercept)
   # B: n_obs x (p*K)
   stopifnot(is.matrix(X), is.matrix(B))
-  
+
   Z_list <- list()
-  
+
   # random slopes on selected fixed-effect columns
   if (length(re_cols) > 0) {
     missing <- setdiff(re_cols, colnames(X))
@@ -175,23 +176,23 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
     }
     Z_list[["X"]] <- X[, re_cols, drop = FALSE]
   }
-  
+
   # random slopes on lag predictors (temporal structure)
   if (isTRUE(re_temporal)) {
     Z_list[["B"]] <- B  # all lag columns
   }
-  
+
   if (length(Z_list) == 0) {
     # no random effects
     Z <- matrix(0.0, nrow(X), 0)
   } else {
     Z <- do.call(cbind, Z_list)
   }
-  
+
   # ensure matrix + colnames
   Z <- as.matrix(Z)
   if (ncol(Z) > 0 && is.null(colnames(Z))) colnames(Z) <- paste0("re", seq_len(ncol(Z)))
-  
+
   return(Z)
 }
 
@@ -207,16 +208,16 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
 # time_col <- "t"
 # y_cols <- c("y_1", "y_2", "y_3", "y_4")
 # x_cols <- c("x_1", "x_2")
-# 
-# 
-# 
-# 
+#
+#
+#
+#
 # fe_terms = list(
 #   c("x_1","x_2"),                 # 2-way
 #   c("x_1","x_2","lag"),          # 3-way
 #   c("lag","x_1")                 # lag moderation (whole structure)
 # )
-# 
+#
 # re_terms = list(
 #   c("x_1","x_2"),                # random slope on interaction
 #   c("lag","x_1")                  # random slopes on whole lag structure moderated by x_1
@@ -224,22 +225,22 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
 
 normalize_terms <- function(terms) {
   if (is.null(terms) || length(terms) == 0) return(list())
-  
+
   if (!is.list(terms)) stop("terms must be a list of character vectors, e.g. list(c('x1','x2'), c('lag','x1'))")
-  
+
   #if ("lag" %in% t) t <- c("lag", t[t != "lag"]) # fix, put lags in front always
-  
+
   out <- lapply(terms, function(t) {
     if (!is.character(t)) stop("Each term must be a character vector.")
     t <- trimws(t)
     if (length(t) < 2) stop("Each term must have at least 2 factors (e.g. c('x1','x2') or c('lag','x1')).")
-    
+
     if (any(t == "")) stop("Empty factor name in term.")
     if (any(duplicated(t[t != "lag"]))) stop("Duplicate non-lag factor in term: ", paste(t, collapse=":"))
-    
+
     t
   })
-  
+
   out
 }
 
@@ -248,13 +249,13 @@ normalize_terms <- function(terms) {
 add_terms_to_X <- function(Xc, B, terms) {
   terms <- normalize_terms(terms)
   if (length(terms) == 0) return(list(Xc = Xc, new_names = character(0)))
-  
+
   blocks <- lapply(terms, function(f) make_term_matrix(Xc, B, f))
   W <- do.call(cbind, blocks)
-  
+
   dup <- intersect(colnames(W), colnames(Xc))
   if (length(dup) > 0) stop("Fixed-effect interaction columns already exist in X: ", paste(dup, collapse=", "))
-  
+
   Xc2 <- cbind(Xc, W)
   list(Xc = Xc2, new_names = colnames(W))
 }
@@ -262,7 +263,7 @@ add_terms_to_X <- function(Xc, B, terms) {
 make_term_matrix <- function(Xc, B, factors) {
   has_lag <- any(factors == "lag")
   others  <- factors[factors != "lag"]
-  
+
   # build multiplicative modifier from Xc columns
   if (length(others) == 0) {
     mod <- rep(1.0, nrow(Xc))
@@ -274,13 +275,13 @@ make_term_matrix <- function(Xc, B, factors) {
     for (v in others) mod <- mod * as.numeric(Xc[, v])
     suffix <- paste(others, collapse=":")
   }
-  
+
   if (!has_lag) {
     M <- matrix(mod, nrow(Xc), 1)
     colnames(M) <- suffix
     return(M)
   }
-  
+
   # lag expansion = whole temporal structure
   M <- B * mod
   colnames(M) <- if (suffix == "") colnames(B) else paste0(colnames(B), ":", suffix)
@@ -293,7 +294,7 @@ required_fe_names_for_term <- function(B, factors) {
   has_lag <- any(factors == "lag")
   others  <- factors[factors != "lag"]
   suffix  <- if (length(others) == 0) "" else paste(others, collapse=":")
-  
+
   if (!has_lag) {
     return(suffix)
   } else {
@@ -310,7 +311,7 @@ required_fe_names_for_re_terms <- function(B, re_terms) {
 
 add_re_interactions_from_X <- function(Z, Xc, B, re_terms) {
   if (is.null(re_terms) || length(re_terms) == 0) return(Z)
-  
+
   want <- required_fe_names_for_re_terms(B, re_terms)
   missing <- setdiff(want, colnames(Xc))
   if (length(missing) > 0) {
@@ -320,6 +321,6 @@ add_re_interactions_from_X <- function(Z, Xc, B, re_terms) {
       "\nAdd them to `interactions` / `lag_interactions` first."
     )
   }
-  
+
   cbind(Z, Xc[, want, drop = FALSE])
 }
