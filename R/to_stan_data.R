@@ -64,6 +64,7 @@ to_stan_data <- function(data,
   B <- matrix(0, n_obs, PK)
   id_out <- integer(n_obs)
 
+
   ## begin creation of design matrices
   row <- 0L # bookkeeping row number outcome
 
@@ -105,8 +106,6 @@ to_stan_data <- function(data,
     }
   }
 
-  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
-  colnames(B) <- b_names # name B
 
   # center and add intercept ##make centering predictors an option
   if (center_x == TRUE) {
@@ -114,8 +113,8 @@ to_stan_data <- function(data,
     X <- sweep(X, 2, means_X, "-")
 
   }
-  X <- cbind(Intercept = 1, X)
-  colnames(X) <- c("Intercept", x_cols) # name X
+  X <- cbind(Intercept = 1, X) # add option to not add intercepts ( = constrain intercept to 0)
+
 
   ## build FE interactions, subj to change
   tmp <- add_terms_to_X(X, B, fe_interactions)
@@ -129,6 +128,11 @@ to_stan_data <- function(data,
   Z <- add_re_interactions_from_X(Z, X, B, re_interactions)
 
   ##
+  ## name
+  colnames(Y) <- y_cols # keep y names
+  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
+  colnames(B) <- b_names # name B
+  colnames(X) <- c("Intercept", x_cols) # name X
 
   return(list(
     p = p,
