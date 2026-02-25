@@ -7,6 +7,7 @@
 # dont remove first row, but set lags to 0?
 
 to_stan_data <- function(data,
+                         family,
                          id_col,
                          time_col,
                          y_cols,
@@ -41,8 +42,13 @@ to_stan_data <- function(data,
   # Z: design matrix RE
   #)
 
+  ## Checks
+  family <- match.arg(family, choices = c("bernoulli", "ordinal"))
   K <- as.integer(K) # ensure its an integer to not break fun
-  n_obs_initial
+  stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
+  ##
+
+   
 
   ## ensure the data is properly ordered by id and time to prevent data wrangling errors
   data <- data[order(data[[id_col]], data[[time_col]]), ]
@@ -50,7 +56,7 @@ to_stan_data <- function(data,
   ## Listwise deletion
   na_action <- match.arg(na_action)
 
-  if (na_action == "lsitwise") {
+  if (na_action == "listwise") {
     check_cols <- c(y_cols, x_cols)
     complete <- complete.cases(data[, check_cols, drop = FALSE])
     n_na <- sum(!complete)
@@ -63,12 +69,19 @@ to_stan_data <- function(data,
   p <- length(y_cols)
   q <- length(x_cols)
   PK <- p*K
+  
+
+  if (family == "ordinal") { # Check C ## Todo: add recoding??
+  if (any(Y < 1L | Y > C, na.rm = TRUE)) {
+    stop(sprintf("Ordinal Y values must be in 1:%d. Found values outside this range.", C))
+  }
+}
 
   df_split <- split(data, data[[id_col]])
 
   #n_obs <- J * (T_obs - K)
   # total number of modeled rows (one per observed row after first K within each subject)
-  n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
+  n_obs_initial <- n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
 
   ## initialize design matrices and id
   Y <- matrix(NA_integer_, n_obs, p)
@@ -133,13 +146,18 @@ to_stan_data <- function(data,
     stop("All observations removed after missing-data handling. ",
          "Check your data for NAs and irregular time gaps.")
   }
+  if(family == "ordinal") { 
+    C <- max(Y, na.rm = TRUE)
+    if (min(Y, na.rm = TRUE) < 1L) {
+      stop("Ordinal Y must be coded as integers starting at 1. Found values < 1.")
+    }
+  }
 
   n_dropped <- n_obs_initial - n_obs
+
   if (n_dropped > 0) {
-    message(sprintf(
-      "bvarnet: %d row(s) removed (%d due to skip_lag = FALSE, %d due to na_action = '%s'). %d rows remain.",
-      n_dropped, n_skip, n_na, na_action, n_obs
-    ))
+    message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
+                n_dropped, na_action, skip_lag, n_obs))
   }
 
   # center and add intercept ##make centering predictors an option
@@ -148,7 +166,16 @@ to_stan_data <- function(data,
     X <- sweep(X, 2, means_X, "-")
 
   }
-  X <- cbind(Intercept = 1, X) # add option to not add intercepts ( = constrain intercept to 0)
+
+  if(family == "bernoulli") {
+    X <- cbind(Intercept = 1, X) # add option to not add intercepts ( = constrain intercept to 0)
+  }
+  
+  if (family == "bernoulli") { #naming of X
+    colnames(X) <- c("Intercept", x_cols) # name X
+  } else {
+    colnames(X) <- x_cols
+  }
 
 
   ## build FE interactions, subj to change
@@ -167,37 +194,37 @@ to_stan_data <- function(data,
   colnames(Y) <- y_cols # keep y names
   b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
   colnames(B) <- b_names # name B
-  colnames(X) <- c("Intercept", x_cols) # name X
+  
+  
+  out <- list(
+  p = p, 
+  q = q, 
+  J = J,
+  T = max(data[[time_col]], na.rm = TRUE),
+  K = K, 
+  n_obs = n_obs,
+  n_fe = ncol(X), 
+  n_re = ncol(Z),
+  id = id_out, 
+  Y = Y, 
+  X = X, 
+  B = B, 
+  Z = Z,
+  prior_beta_fam = 1, beta_loc = 0, beta_scale = 1, beta_df = 1000,
+  prior_phi_fam = 1, phi_loc = 0, phi_scale = 1, phi_df = 1000,
+  prior_sd_fam = 1, sd_loc = 0, sd_scale = 1, sd_df = 1000
+)
 
-  return(list(
-    p = p,
-    q = q,
-    #w = w,
-    J = J,
-    T = max(data[[time_col]], na.rm = TRUE),
-    K = K,
-    n_obs = n_obs,
-    n_fe = ncol(X),
-    n_re = ncol(Z),
-    id = id_out,
-    Y = Y,
-    X = X,
-    B = B,
-    Z = Z,
-    # priors, will change
-    prior_beta_fam = 1,
-    beta_loc = 0,
-    beta_scale = 1,
-    beta_df = 1000,
-    prior_phi_fam = 1,
-    phi_loc = 0,
-    phi_scale = 1,
-    phi_df = 1000,
-    prior_sd_fam = 1,
-    sd_loc = 0,
-    sd_scale = 1,
-    sd_df = 1000
-  ))
+  if (family == "ordinal") {
+    out$C <- C
+    out$prior_kappa_fam <- 1
+    out$kappa_loc <- 0
+    out$kappa_scale <- 1
+    out$kappa_df <- 1000
+  }
+
+return(out)
+  
 }
 
 build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
@@ -285,18 +312,18 @@ normalize_terms <- function(terms) {
 
 
 
-add_terms_to_X <- function(Xc, B, terms) {
+add_terms_to_X <- function(X, B, terms) {
   terms <- normalize_terms(terms)
-  if (length(terms) == 0) return(list(Xc = Xc, new_names = character(0)))
+  if (length(terms) == 0) return(list(X = X, new_names = character(0)))
 
-  blocks <- lapply(terms, function(f) make_term_matrix(Xc, B, f))
+  blocks <- lapply(terms, function(f) make_term_matrix(X, B, f))
   W <- do.call(cbind, blocks)
 
-  dup <- intersect(colnames(W), colnames(Xc))
+  dup <- intersect(colnames(W), colnames(X))
   if (length(dup) > 0) stop("Fixed-effect interaction columns already exist in X: ", paste(dup, collapse=", "))
 
-  Xc2 <- cbind(Xc, W)
-  list(Xc = Xc2, new_names = colnames(W))
+  X2 <- cbind(X, W)
+  list(X = X2, new_names = colnames(W))
 }
 
 make_term_matrix <- function(Xc, B, factors) {
