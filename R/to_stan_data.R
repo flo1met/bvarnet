@@ -17,7 +17,8 @@ to_stan_data <- function(data,
                          re_cols = character(0),
                          re_temporal = FALSE,
                          K,
-                         na_action = c("listwise")) { # add automatic LW deletion
+                         na_action = c("listwise"), # add automatic LW deletion
+                         skip_lag = TRUE) { # skipping lag mechanism on/off
   ## Input
   # df: data in "long" format, cols: id, time, y, covariates
 
@@ -41,9 +42,20 @@ to_stan_data <- function(data,
   #)
 
   K <- as.integer(K) # ensure its an integer to not break fun
+  n_obs_initial
 
   ## ensure the data is properly ordered by id and time to prevent data wrangling errors
   data <- data[order(data[[id_col]], data[[time_col]]), ]
+
+  ## Listwise deletion
+  na_action <- match.arg(na_action)
+
+  if (na_action == "lsitwise") {
+    check_cols <- c(y_cols, x_cols)
+    complete <- complete.cases(data[, check_cols, drop = FALSE])
+    n_na <- sum(!complete)
+    data <- data[complete , , drop = FALSE]
+  }
 
   ## "summary statistics"
   ids_unique <- unique(data[[id_col]])
@@ -102,10 +114,33 @@ to_stan_data <- function(data,
         for(lag in 1:K) {
           B[row, ((lag - 1L)*p+1L):(lag*p)] <- Ymat[t - lag, ]
         }
+      } else if (!skip_lag) {
+        row <- row - 1L # deletes created row
+        next
       }
     }
   }
 
+  if (row < n_obs) { # trim in case of listwise deletion without lag skipping
+    Y <- Y[seq_len(row), , drop = FALSE]
+    X <- X[seq_len(row), , drop = FALSE]
+    B <- B[seq_len(row), , drop = FALSE]
+    id_out <- id_out[seq_len(row)]
+    n_obs <- row
+  }
+
+  if (n_obs == 0L) { # if all obs removed, stop function
+    stop("All observations removed after missing-data handling. ",
+         "Check your data for NAs and irregular time gaps.")
+  }
+
+  n_dropped <- n_obs_initial - n_obs
+  if (n_dropped > 0) {
+    message(sprintf(
+      "bvarnet: %d row(s) removed (%d due to skip_lag = FALSE, %d due to na_action = '%s'). %d rows remain.",
+      n_dropped, n_skip, n_na, na_action, n_obs
+    ))
+  }
 
   # center and add intercept ##make centering predictors an option
   if (center_x == TRUE) {

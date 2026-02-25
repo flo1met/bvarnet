@@ -9,6 +9,8 @@ bvar <- function(id_col,
                  re_cols = NULL,
                  re_temporal = FALSE,
                  K,
+                 na_action = c("listwise"),
+                 skip_lag = TRUE,
                  data,
                  family = "bernoulli",
                  priors,
@@ -31,7 +33,10 @@ bvar <- function(id_col,
                             re_interactions = re_interactions,
                             re_cols = re_cols,
                             re_temporal = re_temporal,
-                            K = K)
+                            K = K,
+                            na_action,
+                            skip_lag
+                           )
 
   stanfit <- stanmodel$sample(data = standata,
                               seed = seed,
