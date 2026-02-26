@@ -56,9 +56,7 @@ transformed parameters {
    // random effects precomputation // optimise regarding loops and vectorisation
    array[p] matrix[J, n_re] u;
    for (node in 1:p)
-    for (j in 1:J)
-        for (k in 1:n_re)
-            u[node][j,k] = sd_u[node,k] * z_u[node][j,k];
+        u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
     /// varying priors
