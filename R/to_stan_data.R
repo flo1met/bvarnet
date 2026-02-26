@@ -43,12 +43,12 @@ to_stan_data <- function(data,
   #)
 
   ## Checks
-  family <- match.arg(family, choices = c("bernoulli", "ordinal"))
+  family <- match.arg(family, choices = c("bernoulli", "ordinal", "gaussian"))
   K <- as.integer(K) # ensure its an integer to not break fun
   stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
   ##
 
-   
+
 
   ## ensure the data is properly ordered by id and time to prevent data wrangling errors
   data <- data[order(data[[id_col]], data[[time_col]]), ]
@@ -68,14 +68,7 @@ to_stan_data <- function(data,
   J <- length(ids_unique)
   p <- length(y_cols)
   q <- length(x_cols)
-  PK <- p*K
-  
-
-  if (family == "ordinal") { # Check C ## Todo: add recoding??
-  if (any(Y < 1L | Y > C, na.rm = TRUE)) {
-    stop(sprintf("Ordinal Y values must be in 1:%d. Found values outside this range.", C))
-  }
-}
+  PK <- p*K 
 
   df_split <- split(data, data[[id_col]])
 
@@ -84,7 +77,11 @@ to_stan_data <- function(data,
   n_obs_initial <- n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
 
   ## initialize design matrices and id
-  Y <- matrix(NA_integer_, n_obs, p)
+  if (family == "gaussian") {
+    Y <- matrix(NA_real_, n_obs, p)
+  } else {
+    Y <- matrix(NA_integer_, n_obs, p)
+  }
   X <- matrix(NA_real_, n_obs, q)
   B <- matrix(0, n_obs, PK)
   id_out <- integer(n_obs)
@@ -146,7 +143,7 @@ to_stan_data <- function(data,
     stop("All observations removed after missing-data handling. ",
          "Check your data for NAs and irregular time gaps.")
   }
-  if(family == "ordinal") { 
+  if(family == "ordinal") {
     C <- max(Y, na.rm = TRUE)
     if (min(Y, na.rm = TRUE) < 1L) {
       stop("Ordinal Y must be coded as integers starting at 1. Found values < 1.")
@@ -167,11 +164,9 @@ to_stan_data <- function(data,
 
   }
 
-  if(family == "bernoulli") {
+
+  if (family %in% c("bernoulli", "gaussian")) { #naming and adding intercept to X
     X <- cbind(Intercept = 1, X) # add option to not add intercepts ( = constrain intercept to 0)
-  }
-  
-  if (family == "bernoulli") { #naming of X
     colnames(X) <- c("Intercept", x_cols) # name X
   } else {
     colnames(X) <- x_cols
@@ -194,21 +189,19 @@ to_stan_data <- function(data,
   colnames(Y) <- y_cols # keep y names
   b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
   colnames(B) <- b_names # name B
-  
-  
+
+
   out <- list(
-  p = p, 
-  q = q, 
+  p = p,
   J = J,
-  T = max(data[[time_col]], na.rm = TRUE),
-  K = K, 
+  K = K,
   n_obs = n_obs,
-  n_fe = ncol(X), 
+  n_fe = ncol(X),
   n_re = ncol(Z),
-  id = id_out, 
-  Y = Y, 
-  X = X, 
-  B = B, 
+  id = id_out,
+  Y = Y,
+  X = X,
+  B = B,
   Z = Z,
   prior_beta_fam = 1, beta_loc = 0, beta_scale = 1, beta_df = 1000,
   prior_phi_fam = 1, phi_loc = 0, phi_scale = 1, phi_df = 1000,
@@ -223,8 +216,15 @@ to_stan_data <- function(data,
     out$kappa_df <- 1000
   }
 
+  if (family == "gaussian") {
+    out$prior_sigma_fam <- 1
+    out$sigma_loc <- 0
+    out$sigma_scale <- 1
+    out$sigma_df <- 1000
+  }
+
 return(out)
-  
+
 }
 
 build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {

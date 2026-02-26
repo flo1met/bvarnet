@@ -7,27 +7,13 @@
 // - dummy-coded ordinal lags
 // - reduce_sum parallelisation
 // - correlated random effects
-functions {
-   real set_prior(vector x, int fam, real loc, real scale, real df) {
-    if (fam == 1) return normal_lpdf(x | loc, scale);
-    if (fam == 2) return student_t_lpdf(x | df, loc, scale);
-    if (fam == 3) return cauchy_lpdf(x | loc, scale);
-    reject("Unknown prior family code:", fam);
-   }
 
-   real set_half_prior(vector x, int fam, real loc, real scale, real df) {
-    if (fam == 1) return normal_lpdf(x | loc, scale) - rows(x) * normal_lccdf(0 | loc, scale);
-    if (fam == 2) return student_t_lpdf(x | df, loc, scale) - rows(x) * student_t_lccdf(0 | df, loc, scale);
-    if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
-    reject("Unknown prior family code:", fam);
-   }
-}
+#include /functions.stan
+
 data {
     int<lower=1> p; // nb outcome parameters
-    int<lower=0> q; // nb covariates
 
     int<lower=1> J; // nb persons/groups
-    int<lower=1> T; // nb timepoints
     int<lower=1> K; // AR(K)
 
     int<lower=1> n_obs; // number of modeled observations
@@ -95,7 +81,8 @@ model {
     target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
     target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+    if (n_re > 0)
+        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
     /// std_normal prior for latent mean (non-centered RE)
     for (node in 1:p)

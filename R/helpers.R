@@ -43,13 +43,20 @@ build_summary_table <- function(draws, row_names, col_names, type) {
 
 
 ## ---- extract posterior draws with readable column names ----
-extract_draws <- function(object, parameter = c("beta", "phi", "sd_u")) {
+extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa")) {
   stopifnot(inherits(object, "bvarnet") || inherits(object, "bvarnet_params"))
+  parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
+
+  if (parameter == "sigma" && object$family != "gaussian") {
+    stop("Parameter 'sigma' only exists for gaussian models.")
+  }
+  if (parameter == "kappa" && object$family != "ordinal") {
+    stop("Parameter 'kappa' only exists for ordinal models.")
+  }
 
   fit <- object$fit
   sd  <- object$standata
 
-  parameter <- match.arg(parameter)
   nm <- get_param_names(sd)
 
   p    <- sd$p
@@ -82,7 +89,21 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u")) {
         new_names[old_names == old] <- paste0("sd(", nm$re[j], " | ", nm$y[i], ")")
       }
     }
-  }
+  } else if (parameter == "sigma") {
+    for (j in seq_len(p)) {
+      old <- paste0("sigma[", j, "]")
+      new_names[old_names == old] <- paste0("sigma(", nm$y[j], ")")
+    }
+  } else if (parameter == "kappa") {
+    C_minus_1 <- length(fit$draws(variables = "kappa[1]",
+                                format = "draws_matrix"))  # infer from draws
+    for (j in seq_len(p)) {
+      for (c in seq_len(C_minus_1)) {
+        old <- paste0("kappa[", j, ",", c, "]")
+        new_names[old_names == old] <- paste0("kappa(", nm$y[j], ", c", c, ")")
+      }
+    }
+  } 
 
   colnames(draws) <- new_names
   draws
@@ -126,6 +147,11 @@ print.bvarnet_params <- function(x, ...) {
   if (!is.null(x$re_sd) && nrow(x$re_sd) > 0) {
     rule("Random Effect SDs")
     print(fmt(x$re_sd), row.names = FALSE)
+  }
+
+  if (!is.null(x$sigma) && nrow(x$sigma) > 0) {
+    rule("Residual SD")
+    print(fmt(x$sigma), row.names = FALSE)
   }
 
   cat("\n")
