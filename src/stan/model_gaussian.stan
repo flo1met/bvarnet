@@ -77,15 +77,15 @@ model {
     target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
     target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+    if (n_re > 0)
+        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
     /// std_normal prior for latent mean (non-centered RE)
     for (node in 1:p)
         target += std_normal_lpdf(to_vector(z_u[node]));
 
     /// residual SD prior (half-prior)
-    if (n_re > 0)
-        target += set_half_prior(sigma, prior_sigma_fam, sigma_loc, sigma_scale, sigma_df);
+    target += set_half_prior(sigma, prior_sigma_fam, sigma_loc, sigma_scale, sigma_df);
 
     // Likelihood
     for (node in 1:p) {

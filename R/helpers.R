@@ -59,6 +59,12 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 
   nm <- get_param_names(sd)
 
+  if (parameter == "sd_u" && sd$n_re == 0) {
+    stop("Parameter 'sd_u' not available — model has no random effects (n_re = 0).")
+  }
+
+  
+
   p    <- sd$p
   K    <- sd$K
   n_fe <- sd$n_fe
@@ -95,10 +101,8 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
       new_names[old_names == old] <- paste0("sigma(", nm$y[j], ")")
     }
   } else if (parameter == "kappa") {
-    C_minus_1 <- length(fit$draws(variables = "kappa[1]",
-                                format = "draws_matrix"))  # infer from draws
     for (j in seq_len(p)) {
-      for (c in seq_len(C_minus_1)) {
+      for (c in seq_len(sd$C - 1)) {
         old <- paste0("kappa[", j, ",", c, "]")
         new_names[old_names == old] <- paste0("kappa(", nm$y[j], ", c", c, ")")
       }
