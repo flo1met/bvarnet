@@ -5,7 +5,21 @@
 // - reduce_sum parallelisation
 // - correlated random effects
 
-#include /functions.stan
+functions {
+    real set_prior(vector x, int fam, real loc, real scale, real df) {
+        if (fam == 1) return normal_lpdf(x | loc, scale);
+        if (fam == 2) return student_t_lpdf(x | df, loc, scale);
+        if (fam == 3) return cauchy_lpdf(x | loc, scale);
+        reject("Unknown prior family code:", fam);
+    }
+
+    real set_half_prior(vector x, int fam, real loc, real scale, real df) {
+        if (fam == 1) return normal_lpdf(x | loc, scale) - rows(x) * normal_lccdf(0 | loc, scale);
+        if (fam == 2) return student_t_lpdf(x | df, loc, scale) - rows(x) * student_t_lccdf(0 | df, loc, scale);
+        if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
+        reject("Unknown prior family code:", fam);
+   }
+}
 
 data {
     int<lower=1> p; // nb outcome parameters
@@ -68,9 +82,7 @@ transformed parameters {
    // random effects precomputation (non-centered)
    array[p] matrix[J, n_re] u;
    for (node in 1:p)
-    for (j in 1:J)
-        for (k in 1:n_re)
-            u[node][j,k] = sd_u[node,k] * z_u[node][j,k];
+        u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
     /// priors
