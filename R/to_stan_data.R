@@ -173,6 +173,11 @@ to_stan_data <- function(data,
   }
 
 
+  ## name matrices early so interaction builders can reference column names
+  colnames(Y) <- y_cols
+  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
+  colnames(B) <- b_names
+
   ## build FE interactions, subj to change
   tmp <- add_terms_to_X(X, B, fe_interactions)
   X <- tmp$X
@@ -182,13 +187,7 @@ to_stan_data <- function(data,
   Z <- build_Z(X, B, re_cols = re_cols, re_temporal = re_temporal)
 
   ## build RE interactions, subj to change
-  Z <- add_re_interactions_from_X(Z, X, B, re_interactions)
-
-  ##
-  ## name
-  colnames(Y) <- y_cols # keep y names
-  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
-  colnames(B) <- b_names # name B
+  Z <- add_re_interactions_from_X(Z, X, B, re_interactions) # name B
 
 
   out <- list(

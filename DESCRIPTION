@@ -12,3 +12,6 @@ Additional_repositories:
     https://mc-stan.org/r-packages/
 Imports: 
     instantiate
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
