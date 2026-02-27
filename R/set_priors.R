@@ -1,11 +1,11 @@
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Prior system for bvarnet
 #
 # Phase 1 supports three prior families:
 #   1 = Normal, 2 = Student-t, 3 = Cauchy
 # Families 4 (Laplace), 7 (Exponential), 8 (Flat) are reserved and will be
 # enabled once the Stan function consolidation (#include) is available.
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 .supported_families <- list(
   normal    = list(int = 1L, needs_scale = TRUE,  needs_df = FALSE),
@@ -47,7 +47,7 @@ prior <- function(family, loc = 0, scale = 1, df = 7) {
     if (scale > 50)
       warning("Prior scale is very large. If you want an uninformative prior, consider increasing scale further or switching to a different family.", call. = FALSE)
     if (scale < 0.01)
-      warning("Prior scale is very small — this is a strongly informative prior.", call. = FALSE)
+      warning("Prior scale is very small -- this is a strongly informative prior.", call. = FALSE)
   }
 
   if (fam_info$needs_df) {
@@ -88,6 +88,10 @@ format.bvarnet_prior <- function(x, half = FALSE, ...) {
 }
 
 #' Print a bvarnet_prior
+#'
+#' @param x A \code{bvarnet_prior} object.
+#' @param ... Passed to \code{format.bvarnet_prior()}.
+#' @return \code{x} invisibly.
 #' @export
 print.bvarnet_prior <- function(x, ...) {
   cat(format(x, ...), "\n")
@@ -151,6 +155,10 @@ set_priors <- function(beta  = NULL,
 }
 
 #' Print a bvarnet_priors specification
+#'
+#' @param x A \code{bvarnet_priors} object.
+#' @param ... Ignored.
+#' @return \code{x} invisibly.
 #' @export
 print.bvarnet_priors <- function(x, ...) {
   cat("bvarnet prior specification:\n")
