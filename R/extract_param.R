@@ -36,7 +36,7 @@ extract_param <- function(object) {
   # ---------- Thresholds (kappa, ordinal only) ----------
   kappa_tab <- if (object$family == "ordinal") {
     draws_kappa <- extract_draws(object, "kappa")
-    build_summary_table(draws_kappa, paste0("kappa[", seq_len(sd$C - 1), "]"), "kappa", "Threshold")
+    build_summary_table(draws_kappa, outer(nm$y, paste0(" c",seq_len(sd$C - 1)), function(i, j) paste0("kappa(", i, ",", j, ")")), "kappa", "Threshold")
   } else NULL
 
   out <- list(

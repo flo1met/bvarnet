@@ -153,6 +153,11 @@ print.bvarnet_params <- function(x, ...) {
     print(fmt(x$re_sd), row.names = FALSE)
   }
 
+  if (!is.null(x$kappa) && nrow(x$kappa) > 0) {
+    rule("Thresholds")
+    print(fmt(x$kappa), row.names = FALSE)
+  }
+
   if (!is.null(x$sigma) && nrow(x$sigma) > 0) {
     rule("Residual SD")
     print(fmt(x$sigma), row.names = FALSE)
