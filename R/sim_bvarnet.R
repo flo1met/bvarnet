@@ -516,7 +516,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
   results <- list()
 
   # ── beta (intercept + covariates) ────────────────────────────────────────
-  draws_beta <- fit$fit$draws("beta", format = "matrix")
+  draws_beta <- extract_draws(fit, "beta")
   # Stan layout: beta[fe_idx, node]
   n_fe <- fit$standata$n_fe
   for (node in seq_len(p)) {
@@ -555,7 +555,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
   }
 
   # ── phi (lag coefficients) ──────────────────────────────────────────────
-  draws_phi <- fit$fit$draws("phi", format = "matrix")
+  draws_phi <- extract_draws(fit, "phi")
   PK <- p * truth$K
   for (node in seq_len(p)) {
     for (lag_idx in seq_len(PK)) {
@@ -578,7 +578,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
 
   # ── sigma (gaussian only) ──────────────────────────────────────────────
   if (family == "gaussian") {
-    draws_sigma <- fit$fit$draws("sigma", format = "matrix")
+    draws_sigma <- extract_draws(fit, "sigma")
     for (node in seq_len(p)) {
       par_name <- paste0("sigma[", node, "]")
       d <- draws_sigma[, par_name]
@@ -598,7 +598,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
 
   # ── kappa (ordinal only) ───────────────────────────────────────────────
   if (family == "ordinal") {
-    draws_kappa <- fit$fit$draws("kappa", format = "matrix")
+    draws_kappa <- extract_draws(fit, "kappa")
     C <- truth$C
     for (node in seq_len(p)) {
       for (k in seq_len(C - 1L)) {

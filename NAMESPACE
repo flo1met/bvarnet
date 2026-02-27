@@ -3,7 +3,6 @@
 export(bvar)
 export(compare_to_truth)
 export(extract_param)
-export(extract_draws)
 export(sim_var)
-S3method(print, bvarnet_params)
+S3method(print, bvarnet)
 importFrom(instantiate,stan_package_model)

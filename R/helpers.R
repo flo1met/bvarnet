@@ -42,127 +42,77 @@ build_summary_table <- function(draws, row_names, col_names, type) {
 }
 
 
-## ---- extract posterior draws with readable column names ----
+## ---- extract posterior draws as a matrix (Stan column names preserved) ----
+## Internal helper used by extract_param() and compare_to_truth().
+## Returns an (iterations*chains) x params matrix with Stan index names
+## e.g. "beta[1,1]", "phi[2,3]".  Call as bvarnet:::extract_draws() in tests.
 extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa")) {
-  stopifnot(inherits(object, "bvarnet") || inherits(object, "bvarnet_params"))
+  stopifnot(inherits(object, "bvarnet"))
   parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
 
-  if (parameter == "sigma" && object$family != "gaussian") {
+  if (parameter == "sigma" && object$family != "gaussian")
     stop("Parameter 'sigma' only exists for gaussian models.")
-  }
-  if (parameter == "kappa" && object$family != "ordinal") {
+  if (parameter == "kappa" && object$family != "ordinal")
     stop("Parameter 'kappa' only exists for ordinal models.")
-  }
+  if (parameter == "sd_u" && object$standata$n_re == 0)
+    stop("Parameter 'sd_u' not available \u2014 model has no random effects (n_re = 0).")
 
-  fit <- object$fit
-  sd  <- object$standata
-
-  nm <- get_param_names(sd)
-
-  if (parameter == "sd_u" && sd$n_re == 0) {
-    stop("Parameter 'sd_u' not available — model has no random effects (n_re = 0).")
-  }
-
-  
-
-  p    <- sd$p
-  K    <- sd$K
-  n_fe <- sd$n_fe
-  n_re <- sd$n_re
-
-  draws     <- fit$draws(variables = parameter, format = "matrix")
-  old_names <- colnames(draws)
-  new_names <- old_names
-
-  if (parameter == "beta") {
-    for (j in seq_len(p)) {
-      for (i in seq_len(n_fe)) {
-        old <- paste0("beta[", i, ",", j, "]")
-        new_names[old_names == old] <- paste0(nm$fe[i], " -> ", nm$y[j])
-      }
-    }
-  } else if (parameter == "phi") {
-    for (j in seq_len(p)) {
-      for (i in seq_len(p * K)) {
-        old <- paste0("phi[", i, ",", j, "]")
-        new_names[old_names == old] <- paste0(nm$b[i], " -> ", nm$y[j])
-      }
-    }
-  } else if (parameter == "sd_u") {
-    for (j in seq_len(n_re)) {
-      for (i in seq_len(p)) {
-        old <- paste0("sd_u[", i, ",", j, "]")
-        new_names[old_names == old] <- paste0("sd(", nm$re[j], " | ", nm$y[i], ")")
-      }
-    }
-  } else if (parameter == "sigma") {
-    for (j in seq_len(p)) {
-      old <- paste0("sigma[", j, "]")
-      new_names[old_names == old] <- paste0("sigma(", nm$y[j], ")")
-    }
-  } else if (parameter == "kappa") {
-    for (j in seq_len(p)) {
-      for (c in seq_len(sd$C - 1)) {
-        old <- paste0("kappa[", j, ",", c, "]")
-        new_names[old_names == old] <- paste0("kappa(", nm$y[j], ", c", c, ")")
-      }
-    }
-  } 
-
-  colnames(draws) <- new_names
-  draws
+  draws <- object$draws                        # 3D array: iter x chains x params
+  idx   <- grep(paste0("^", parameter, "\\["), dimnames(draws)[[3]])
+  chunk <- draws[, , idx, drop = FALSE]
+  # flatten chains into rows
+  dim(chunk) <- c(prod(dim(chunk)[1:2]), dim(chunk)[3])
+  colnames(chunk) <- dimnames(draws)[[3]][idx]
+  chunk
 }
 
 
-## ---- print method for bvarnet_params ----
-print.bvarnet_params <- function(x, ...) {
-  rule <- function(title) {
-    cat("\n", title, "\n", strrep("-", nchar(title) + 4), "\n", sep = "")
-  }
+## ---- print method for bvarnet objects ----
+print.bvarnet <- function(x, ...) {
+  sd <- x$standata
 
-  fmt <- function(df) {
-    num_cols <- c("mean", "median", "q5", "q95")
-    for (col in num_cols) df[[col]] <- sprintf("% .3f", df[[col]])
-    df
-  }
-
-  cat("BVAR Network \u2014 Parameter Summary\n")
+  cat("BVAR Network fit\n")
   cat(strrep("=", 40), "\n")
 
-  # Intercepts
-  intercepts <- x$beta[x$beta$type == "Intercept", ]
-  if (nrow(intercepts) > 0) {
-    rule("Intercepts")
-    print(fmt(intercepts), row.names = FALSE)
+  # Family
+  cat("Family:      ", x$family, "\n", sep = "")
+
+  # Dimensions
+  cat("Outcomes (p):", sd$p,    "\n")
+  cat("Lags (K):    ", sd$K,    "\n")
+  if (!is.null(sd$n_fe)) cat("Fixed eff.:  ", sd$n_fe, "\n")
+  if (!is.null(sd$n_re) && sd$n_re > 0)
+    cat("Random eff.: ", sd$n_re, "\n")
+  cat("Observations:", sd$n,    "\n")
+
+  # Convergence
+  smry <- x$summary
+  if (!is.null(smry) && "rhat" %in% names(smry)) {
+    rhat_max <- max(smry$rhat, na.rm = TRUE)
+    cat(sprintf("Rhat max:    %.3f\n", rhat_max))
+    if (rhat_max > 1.01)
+      cat("  WARNING: Rhat > 1.01 detected \u2014 chains may not have converged.\n")
   }
 
-  # Fixed effects (non-intercept)
-  fes <- x$beta[x$beta$type == "Fixed Effect", ]
-  if (nrow(fes) > 0) {
-    rule("Fixed Effects")
-    print(fmt(fes), row.names = FALSE)
-  }
+  diag <- x$diagnostics
+  n_div <- if (!is.null(diag) && "num_divergent" %in% names(diag))
+    sum(diag$num_divergent) else 0L
+  if (n_div > 0)
+    cat(sprintf("Divergences: %d  WARNING: check model/priors.\n", n_div))
+  else
+    cat("Divergences: 0\n")
 
-  # Temporal
-  rule("Temporal Effects")
-  print(fmt(x$phi), row.names = FALSE)
+  # Return codes
+  rc <- x$return_codes
+  if (!is.null(rc) && any(rc != 0))
+    cat(sprintf("Chain status: %d chain(s) returned non-zero exit codes: %s\n",
+                sum(rc != 0), paste(which(rc != 0), collapse = ", ")))
 
-  # Random-effect SDs
-  if (!is.null(x$re_sd) && nrow(x$re_sd) > 0) {
-    rule("Random Effect SDs")
-    print(fmt(x$re_sd), row.names = FALSE)
-  }
+  # Timing
+  t <- x$timing
+  if (!is.null(t$total))
+    cat(sprintf("Total time:  %.1f sec\n", t$total))
 
-  if (!is.null(x$kappa) && nrow(x$kappa) > 0) {
-    rule("Thresholds")
-    print(fmt(x$kappa), row.names = FALSE)
-  }
-
-  if (!is.null(x$sigma) && nrow(x$sigma) > 0) {
-    rule("Residual SD")
-    print(fmt(x$sigma), row.names = FALSE)
-  }
-
-  cat("\n")
+  cat(strrep("=", 40), "\n")
   invisible(x)
 }

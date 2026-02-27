@@ -53,7 +53,29 @@ bvar <- function(id_col,
                               chains = chains,
                               parallel_chains = cores)
 
-  out <- list(fit = stanfit, standata = standata, family = family)
-  class(out) <- "bvarnet"
+  # Extract everything from CmdStanMCMC into plain base-R objects, then discard
+  # the fit object (CSV refs, compiled binary, lazy draws) to keep memory lean.
+  raw_draws   <- stanfit$draws(format = "array")
+  draws       <- unclass(raw_draws)         # strip draws_array class; dimnames preserved
+  attr(draws, "class") <- NULL              # ensure it is a plain array
+  summary     <- as.data.frame(stanfit$summary())
+  diagnostics <- as.data.frame(stanfit$diagnostic_summary())
+  timing      <- stanfit$time()
+  metadata    <- stanfit$metadata()
+  return_codes <- stanfit$return_codes()
+
+  out <- structure(
+    list(
+      draws        = draws,
+      summary      = summary,
+      diagnostics  = diagnostics,
+      timing       = timing,
+      metadata     = metadata,
+      return_codes = return_codes,
+      family       = family,
+      standata     = standata
+    ),
+    class = "bvarnet"
+  )
   out
 }

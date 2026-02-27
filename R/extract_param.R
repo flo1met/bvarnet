@@ -1,10 +1,19 @@
 extract_param <- function(object) {
   stopifnot(inherits(object, "bvarnet"))
 
+  sd   <- object$standata
+  nm   <- get_param_names(sd)
+  smry <- object$summary   # data.frame: variable, mean, sd, ..., rhat, ess_bulk, ess_tail
 
-
-  sd <- object$standata
-  nm <- get_param_names(sd)
+  # Join Rhat + ESS from object$summary by Stan parameter name.
+  # stan_colnames: character vector aligned with rows of tab.
+  join_convergence <- function(tab, stan_colnames) {
+    idx          <- match(stan_colnames, smry$variable)
+    tab$rhat     <- smry$rhat[idx]
+    tab$ess_bulk <- smry$ess_bulk[idx]
+    tab$ess_tail <- smry$ess_tail[idx]
+    tab
+  }
 
   # ---------- Intercepts & fixed effects (beta) ----------
   draws_beta <- extract_draws(object, "beta")
@@ -13,43 +22,52 @@ extract_param <- function(object) {
     beta_tab$predictor == "Intercept",
     "Intercept", "Fixed Effect"
   )
+  beta_tab <- join_convergence(beta_tab, colnames(draws_beta))
 
   # ---------- Temporal effects (phi) ----------
   draws_phi <- extract_draws(object, "phi")
   phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "Temporal")
+  phi_tab   <- join_convergence(phi_tab, colnames(draws_phi))
 
   # ---------- Random-effect SDs (sd_u) ----------
   re_sd_tab <- if (sd$n_re > 0) {
     draws_sd <- extract_draws(object, "sd_u")
-    tab <- build_summary_table(draws_sd, nm$y, nm$re, "Random Effect SD")
-    colnames(tab) <- c("type", "outcome", "random_effect",
-                       "mean", "median", "q5", "q95")
-    tab
+    tab      <- build_summary_table(draws_sd, nm$y, nm$re, "Random Effect SD")
+    join_convergence(tab, colnames(draws_sd))
   } else NULL
 
   # ---------- Residual SD (sigma, gaussian only) ----------
   sigma_tab <- if (object$family == "gaussian") {
     draws_sigma <- extract_draws(object, "sigma")
-    build_summary_table(draws_sigma, nm$y, "sigma", "Residual SD")
+    tab <- build_summary_table(draws_sigma, nm$y, "sigma", "Residual SD")
+    join_convergence(tab, colnames(draws_sigma))
   } else NULL
 
   # ---------- Thresholds (kappa, ordinal only) ----------
+  # kappa[j,c]: j = node (1..p), c = cutpoint (1..C-1).
+  # Stan column-major: j varies fastest -> kappa[1,1], kappa[2,1], ..., kappa[p,1], kappa[1,2], ...
   kappa_tab <- if (object$family == "ordinal") {
     draws_kappa <- extract_draws(object, "kappa")
-    build_summary_table(draws_kappa, outer(nm$y, paste0(" c",seq_len(sd$C - 1)), function(i, j) paste0("kappa(", i, ",", j, ")")), "kappa", "Threshold")
+    cn    <- colnames(draws_kappa)
+    parts <- strsplit(gsub("kappa\\[|\\]", "", cn), ",")
+    j_idx <- as.integer(vapply(parts, `[[`, character(1L), 1L))
+    c_idx <- as.integer(vapply(parts, `[[`, character(1L), 2L))
+    tab <- data.frame(
+      type      = "Threshold",
+      predictor = paste0("kappa(", nm$y[j_idx], ", c", c_idx, ")"),
+      outcome   = "\u2014",
+      mean      = colMeans(draws_kappa),
+      median    = apply(draws_kappa, 2L, stats::median),
+      q5        = apply(draws_kappa, 2L, stats::quantile, probs = 0.05),
+      q95       = apply(draws_kappa, 2L, stats::quantile, probs = 0.95),
+      stringsAsFactors = FALSE
+    )
+    join_convergence(tab, cn)
   } else NULL
 
-  out <- list(
-    beta     = beta_tab,
-    phi      = phi_tab,
-    re_sd    = re_sd_tab,
-    standata = sd,
-    fit      = object$fit
-  )
-
-  if (!is.null(sigma_tab)) out$sigma <- sigma_tab
-  if (!is.null(kappa_tab)) out$kappa <- kappa_tab
-
-  class(out) <- "bvarnet_params"
+  # ---------- Combine into a single flat data.frame ----------
+  out <- do.call(rbind, Filter(Negate(is.null),
+                               list(beta_tab, phi_tab, re_sd_tab, sigma_tab, kappa_tab)))
+  rownames(out) <- NULL
   out
 }
