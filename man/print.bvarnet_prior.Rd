@@ -6,6 +6,14 @@
 \usage{
 \method{print}{bvarnet_prior}(x, ...)
 }
+\arguments{
+\item{x}{A \code{bvarnet_prior} object.}
+
+\item{...}{Passed to \code{format.bvarnet_prior()}.}
+}
+\value{
+\code{x} invisibly.
+}
 \description{
 Print a bvarnet_prior
 }

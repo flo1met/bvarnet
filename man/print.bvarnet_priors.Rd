@@ -6,6 +6,14 @@
 \usage{
 \method{print}{bvarnet_priors}(x, ...)
 }
+\arguments{
+\item{x}{A \code{bvarnet_priors} object.}
+
+\item{...}{Ignored.}
+}
+\value{
+\code{x} invisibly.
+}
 \description{
 Print a bvarnet_priors specification
 }
