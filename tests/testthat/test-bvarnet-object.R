@@ -21,7 +21,7 @@ test_that("bvarnet object has class 'bvarnet'", {
 test_that("bvarnet object contains expected top-level names", {
   obj <- make_mock_bvarnet()
   expected <- c("draws", "summary", "diagnostics", "timing",
-                "metadata", "return_codes", "family", "standata")
+                "metadata", "return_codes", "family", "standata", "priors")
   expect_true(all(expected %in% names(obj)))
 })
 
@@ -242,4 +242,31 @@ test_that("print.bvarnet returns object invisibly", {
   ret <- withVisible(print(obj))
   expect_false(ret$visible)
   expect_identical(ret$value, obj)
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §7 — priors slot
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("priors slot is present on mock bvarnet object", {
+  obj <- make_mock_bvarnet()
+  expect_true("priors" %in% names(obj))
+})
+
+test_that("priors slot inherits bvarnet_priors", {
+  obj <- make_mock_bvarnet()
+  expect_s3_class(obj$priors, "bvarnet_priors")
+})
+
+test_that("priors slot has correct default beta", {
+  obj <- make_mock_bvarnet()
+  expect_equal(obj$priors$beta$family_int, 1L)
+  expect_equal(obj$priors$beta$loc,   0)
+  expect_equal(obj$priors$beta$scale, 1)
+})
+
+test_that("priors slot has all expected named entries", {
+  obj <- make_mock_bvarnet()
+  expect_named(obj$priors, c("beta", "phi", "sd_u", "kappa", "sigma"))
 })

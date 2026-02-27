@@ -108,6 +108,24 @@ print.bvarnet <- function(x, ...) {
     cat(sprintf("Chain status: %d chain(s) returned non-zero exit codes: %s\n",
                 sum(rc != 0), paste(which(rc != 0), collapse = ", ")))
 
+  # Priors
+  if (!is.null(x$priors) && inherits(x$priors, "bvarnet_priors")) {
+    half_pars <- c("sd_u", "sigma")
+    family_pars <- switch(x$family,
+      bernoulli = c("beta", "phi", "sd_u"),
+      ordinal   = c("beta", "phi", "sd_u", "kappa"),
+      gaussian  = c("beta", "phi", "sd_u", "sigma")
+    )
+    prior_str <- paste(
+      vapply(family_pars, function(nm) {
+        half <- nm %in% half_pars
+        paste0(nm, " ~ ", format(x$priors[[nm]], half = half))
+      }, character(1L)),
+      collapse = ", "
+    )
+    cat("Priors:      ", prior_str, "\n", sep = "")
+  }
+
   # Timing
   t <- x$timing
   if (!is.null(t$total))

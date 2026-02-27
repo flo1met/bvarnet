@@ -213,7 +213,8 @@ make_mock_bvarnet <- function(family = "bernoulli",
       metadata     = list(),
       return_codes = rep(0L, n_chains),
       family       = family,
-      standata     = sd_list
+      standata     = sd_list,
+      priors       = set_priors()
     ),
     class = "bvarnet"
   )

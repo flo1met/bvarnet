@@ -203,3 +203,40 @@ test_that("make_term_matrix with 'lag' expands across B columns", {
   expect_equal(colnames(M), c("lag1_y_1:x_1", "lag1_y_2:x_1"))
   expect_equal(M[, 1], B[, 1] * X[, "x_1"])
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §N — print.bvarnet() priors line
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("print.bvarnet() includes 'Normal' from priors summary", {
+  obj <- make_mock_bvarnet()
+  expect_output(print(obj), "Normal")
+})
+
+test_that("print.bvarnet() includes 'phi' in priors summary", {
+  obj <- make_mock_bvarnet()
+  expect_output(print(obj), "phi")
+})
+
+test_that("print.bvarnet() includes 'Half-' for sd_u in priors summary", {
+  obj <- make_mock_bvarnet()
+  expect_output(print(obj), "Half-")
+})
+
+test_that("print.bvarnet() shows 'sigma' in priors for gaussian family", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+  expect_output(print(obj), "sigma")
+})
+
+test_that("print.bvarnet() shows 'kappa' in priors for ordinal family", {
+  obj <- make_mock_bvarnet(family = "ordinal")
+  expect_output(print(obj), "kappa")
+})
+
+test_that("print.bvarnet() omits sigma for bernoulli family", {
+  obj <- make_mock_bvarnet(family = "bernoulli")
+  out <- capture.output(print(obj))
+  priors_line <- out[grep("Priors", out)]
+  expect_false(any(grepl("sigma", priors_line)))
+})

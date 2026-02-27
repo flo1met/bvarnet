@@ -19,7 +19,8 @@ to_stan_data <- function(data,
                          re_temporal = FALSE,
                          K,
                          na_action = c("listwise"), # add automatic LW deletion
-                         skip_lag = TRUE) { # skipping lag mechanism on/off
+                         skip_lag = TRUE,           # skipping lag mechanism on/off
+                         priors = set_priors()) {
   ## Input
   # df: data in "long" format, cols: id, time, y, covariates
 
@@ -173,7 +174,6 @@ to_stan_data <- function(data,
   }
 
 
-  ## name matrices early so interaction builders can reference column names
   colnames(Y) <- y_cols
   b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
   colnames(B) <- b_names
@@ -190,6 +190,18 @@ to_stan_data <- function(data,
   Z <- add_re_interactions_from_X(Z, X, B, re_interactions) # name B
 
 
+  ## Data-dependent scaling for Gaussian: scale default beta and sigma priors
+  ## by the empirical SD of Y so the prior is weakly informative regardless of
+  ## outcome units. Only applied when the prior is still at its package default
+  ## (is_default = TRUE); user-specified priors are never modified.
+  if (family == "gaussian") {
+    s_y <- mean(apply(Y, 2, sd, na.rm = TRUE))
+    if (is.finite(s_y) && s_y > 0) {
+      if (priors$beta$is_default)  priors$beta$scale  <- priors$beta$scale  * s_y
+      if (priors$sigma$is_default) priors$sigma$scale <- priors$sigma$scale * s_y
+    }
+  }
+
   out <- list(
   p = p,
   J = J,
@@ -202,24 +214,33 @@ to_stan_data <- function(data,
   X = X,
   B = B,
   Z = Z,
-  prior_beta_fam = 1, beta_loc = 0, beta_scale = 1, beta_df = 1000,
-  prior_phi_fam = 1, phi_loc = 0, phi_scale = 1, phi_df = 1000,
-  prior_sd_fam = 1, sd_loc = 0, sd_scale = 1, sd_df = 1000
+  prior_beta_fam = priors$beta$family_int,
+  beta_loc       = priors$beta$loc,
+  beta_scale     = priors$beta$scale,
+  beta_df        = priors$beta$df,
+  prior_phi_fam  = priors$phi$family_int,
+  phi_loc        = priors$phi$loc,
+  phi_scale      = priors$phi$scale,
+  phi_df         = priors$phi$df,
+  prior_sd_fam   = priors$sd_u$family_int,
+  sd_loc         = priors$sd_u$loc,
+  sd_scale       = priors$sd_u$scale,
+  sd_df          = priors$sd_u$df
 )
 
   if (family == "ordinal") {
-    out$C <- C
-    out$prior_kappa_fam <- 1
-    out$kappa_loc <- 0
-    out$kappa_scale <- 1
-    out$kappa_df <- 1000
+    out$C              <- C
+    out$prior_kappa_fam <- priors$kappa$family_int
+    out$kappa_loc      <- priors$kappa$loc
+    out$kappa_scale    <- priors$kappa$scale
+    out$kappa_df       <- priors$kappa$df
   }
 
   if (family == "gaussian") {
-    out$prior_sigma_fam <- 1
-    out$sigma_loc <- 0
-    out$sigma_scale <- 1
-    out$sigma_df <- 1000
+    out$prior_sigma_fam <- priors$sigma$family_int
+    out$sigma_loc       <- priors$sigma$loc
+    out$sigma_scale     <- priors$sigma$scale
+    out$sigma_df        <- priors$sigma$df
   }
 
 return(out)

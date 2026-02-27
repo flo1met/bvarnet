@@ -461,3 +461,108 @@ test_that("listwise deletion removes rows with NA in y or x columns", {
   expect_false(any(is.na(sd$Y)))
   expect_false(any(is.na(sd$X)))
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §13 Prior injection
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("to_stan_data runs without error using default set_priors()", {
+  for (fam in c("bernoulli", "gaussian", "ordinal")) {
+    df <- make_test_df(N = 3, T_obs = 15, p = 2, family = fam)
+    expect_no_error(
+      to_stan_data(df, fam, "id", "t",
+                   paste0("y_", 1:2), character(0), K = 1,
+                   priors = set_priors())
+    )
+  }
+})
+
+test_that("default priors produce prior_beta_fam == 1L", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2)
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors())
+  expect_equal(sd$prior_beta_fam, 1L)
+})
+
+test_that("default priors produce beta_scale == 1 for bernoulli", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2)
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors())
+  expect_equal(sd$beta_scale, 1)
+})
+
+test_that("custom cauchy beta prior is injected correctly", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2)
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors(beta = prior("cauchy", 0, 0.5)))
+  expect_equal(sd$prior_beta_fam, 3L)
+  expect_equal(sd$beta_scale, 0.5)
+})
+
+test_that("custom student_t phi prior is injected with correct df", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2)
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors(phi = prior("student_t", 0, 0.3, df = 5)))
+  expect_equal(sd$prior_phi_fam, 2L)
+  expect_equal(sd$phi_df, 5)
+})
+
+test_that("gaussian model output includes prior_sigma_fam and sigma_scale", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2, family = "gaussian")
+  sd <- to_stan_data(df, "gaussian", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1)
+  expect_true("prior_sigma_fam" %in% names(sd))
+  expect_true("sigma_scale"     %in% names(sd))
+})
+
+test_that("gaussian model with default priors scales beta_scale by s_y", {
+  set.seed(1)
+  df <- make_test_df(N = 5, T_obs = 20, p = 2, family = "gaussian", seed = 1)
+  # multiply Y values so sd >> 1
+  df$y_1 <- df$y_1 * 10
+  df$y_2 <- df$y_2 * 10
+  sd <- to_stan_data(df, "gaussian", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors())
+  expect_gt(sd$beta_scale, 1)   # scaled up because sd(Y) >> 1
+})
+
+test_that("gaussian model with user-specified beta prior is NOT scaled", {
+  set.seed(2)
+  df <- make_test_df(N = 5, T_obs = 20, p = 2, family = "gaussian")
+  df$y_1 <- df$y_1 * 10
+  df$y_2 <- df$y_2 * 10
+  sd <- to_stan_data(df, "gaussian", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1,
+                     priors = set_priors(beta = prior("normal", 0, 0.5)))
+  # User set scale = 0.5; must NOT be multiplied by s_y
+  expect_equal(sd$beta_scale, 0.5)
+})
+
+test_that("ordinal model includes prior_kappa_fam", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2, family = "ordinal")
+  sd <- to_stan_data(df, "ordinal", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1)
+  expect_true("prior_kappa_fam" %in% names(sd))
+})
+
+test_that("bernoulli model does NOT include prior_kappa_fam", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2, family = "bernoulli")
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1)
+  expect_false("prior_kappa_fam" %in% names(sd))
+})
+
+test_that("to_stan_data without explicit priors argument uses set_priors() defaults", {
+  df <- make_test_df(N = 3, T_obs = 15, p = 2)
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1)
+  expect_equal(sd$prior_beta_fam, 1L)
+  expect_equal(sd$beta_scale, 1)
+})
+

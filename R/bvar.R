@@ -12,7 +12,7 @@ bvar <- function(id_col,
                  skip_lag = TRUE,
                  data,
                  family = c("bernoulli", "ordinal", "gaussian"),
-                 priors,
+                 priors = set_priors(),
                  iter = 4000,
                  warmup = 1000,
                  chains = 4,
@@ -43,7 +43,8 @@ bvar <- function(id_col,
                             re_temporal = re_temporal,
                             K = K,
                             na_action = na_action,
-                            skip_lag = skip_lag
+                            skip_lag = skip_lag,
+                            priors = priors
                            )
 
   stanfit <- stanmodel$sample(data = standata,
@@ -73,7 +74,8 @@ bvar <- function(id_col,
       metadata     = metadata,
       return_codes = return_codes,
       family       = family,
-      standata     = standata
+      standata     = standata,
+      priors       = priors
     ),
     class = "bvarnet"
   )
