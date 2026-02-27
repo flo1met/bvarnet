@@ -1,4 +1,5 @@
 ## ---- resolve variable names from standata ----
+#' @keywords internal
 get_param_names <- function(sd) {
   p    <- sd$p
   K    <- sd$K
@@ -18,6 +19,7 @@ get_param_names <- function(sd) {
 ## draws: iterations x parameters matrix (from extract_draws)
 ## row_names / col_names map to the [row, col] Stan indices
 ## column order in draws must follow row-major: (1,1), (2,1), ..., (nr,1), (1,2), ...
+#' @keywords internal
 build_summary_table <- function(draws, row_names, col_names, type) {
   nr   <- length(row_names)
   nc   <- length(col_names)
@@ -46,6 +48,7 @@ build_summary_table <- function(draws, row_names, col_names, type) {
 ## Internal helper used by extract_param() and compare_to_truth().
 ## Returns an (iterations*chains) x params matrix with Stan index names
 ## e.g. "beta[1,1]", "phi[2,3]".  Call as bvarnet:::extract_draws() in tests.
+#' @keywords internal
 extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa")) {
   stopifnot(inherits(object, "bvarnet"))
   parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
@@ -68,6 +71,16 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 
 
 ## ---- print method for bvarnet objects ----
+#' Print a bvarnet model object
+#'
+#' Displays a brief summary of the fitted model: family, dimensions,
+#' Rhat, divergences, chain return codes, priors, and total sampling time.
+#'
+#' @param x A \code{bvarnet} object.
+#' @param ... Ignored.
+#'
+#' @return \code{x} invisibly.
+#' @export
 print.bvarnet <- function(x, ...) {
   sd <- x$standata
 

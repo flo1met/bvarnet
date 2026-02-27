@@ -1,3 +1,45 @@
+#' Fit a Bayesian multilevel VAR network model
+#'
+#' Compiles and samples the appropriate Stan model for the chosen family,
+#' extracts all results into plain base-R objects, and returns a \code{bvarnet}
+#' object.
+#'
+#' @param id_col Character. Name of the subject/group identifier column.
+#' @param time_col Character. Name of the time column.
+#' @param y_cols Character vector. Names of the outcome columns.
+#' @param x_cols Character vector. Names of the covariate columns.
+#' @param center_x Logical. Grand-mean centre covariates before fitting?
+#'   Default \code{FALSE}.
+#' @param fe_interactions List or NULL. Fixed-effect interaction terms to add
+#'   to the design matrix. Each element is a character vector of column names
+#'   to interact, or \code{c("lag", "x")} to interact all lag columns with
+#'   a covariate.
+#' @param re_interactions List or NULL. Random-effect interaction terms.
+#' @param re_cols Character vector. Columns from X to include as random slopes.
+#' @param re_temporal Logical. Include random slopes on lag predictors?
+#'   Default \code{FALSE}.
+#' @param K Integer. AR order. Default 1.
+#' @param na_action Character. Missing-data strategy; currently only
+#'   \code{"listwise"}.
+#' @param skip_lag Logical. If \code{TRUE} (default), rows with irregular time
+#'   gaps have their lag set to zero rather than being dropped.
+#' @param data Data frame in long format.
+#' @param family Character. Observation model: \code{"bernoulli"},
+#'   \code{"ordinal"}, or \code{"gaussian"}.
+#' @param priors A \code{bvarnet_priors} object from \code{set_priors()}.
+#'   Defaults to \code{set_priors()} (package defaults).
+#' @param iter Integer. Number of post-warmup iterations per chain. Default 4000.
+#' @param warmup Integer. Number of warmup iterations per chain. Default 1000.
+#' @param chains Integer. Number of MCMC chains. Default 4.
+#' @param cores Integer. Number of chains to run in parallel. Default 1.
+#' @param seed Integer or NULL. RNG seed.
+#'
+#' @return A \code{bvarnet} object (a named list) with slots:
+#'   \code{draws}, \code{summary}, \code{diagnostics}, \code{timing},
+#'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
+#'   \code{priors}.
+#'
+#' @export
 bvar <- function(id_col,
                  time_col,
                  y_cols,

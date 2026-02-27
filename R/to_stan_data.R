@@ -6,6 +6,31 @@
 
 # dont remove first row, but set lags to 0?
 
+#' Build a Stan data list from a long-format data frame
+#'
+#' Internal function called by \code{bvar()}. Constructs the list passed to
+#' the Stan model: design matrices Y, X, B, Z; dimensions; and prior
+#' hyperparameters derived from a \code{bvarnet_priors} object.
+#'
+#' @param data Data frame in long format.
+#' @param family Character. \code{"bernoulli"}, \code{"ordinal"}, or
+#'   \code{"gaussian"}.
+#' @param id_col Character. Subject/group identifier column name.
+#' @param time_col Character. Time column name.
+#' @param y_cols Character vector. Outcome column names.
+#' @param x_cols Character vector. Covariate column names.
+#' @param center_x Logical. Grand-mean centre X. Default \code{FALSE}.
+#' @param fe_interactions List or NULL. Fixed-effect interaction terms.
+#' @param re_interactions List or NULL. Random-effect interaction terms.
+#' @param re_cols Character vector. Random-slope columns.
+#' @param re_temporal Logical. Random slopes on lag predictors. Default FALSE.
+#' @param K Integer. AR order.
+#' @param na_action Character. Only \code{"listwise"} currently supported.
+#' @param skip_lag Logical. Zero-fill lags across irregular time gaps.
+#' @param priors A \code{bvarnet_priors} object. Defaults to \code{set_priors()}.
+#'
+#' @return A named list ready to pass to \code{CmdStanModel$sample()}.
+#' @keywords internal
 to_stan_data <- function(data,
                          family,
                          id_col,

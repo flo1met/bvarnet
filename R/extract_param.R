@@ -1,3 +1,16 @@
+#' Extract labelled parameter summaries from a fitted bvarnet model
+#'
+#' Returns a single flat data frame with posterior summaries (mean, median,
+#' 5th/95th percentiles) and convergence diagnostics (Rhat, ESS) for all
+#' model parameters.
+#'
+#' @param object A \code{bvarnet} object returned by \code{bvar()}.
+#'
+#' @return A data frame with columns: \code{type}, \code{predictor},
+#'   \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
+#'   \code{rhat}, \code{ess_bulk}, \code{ess_tail}.
+#'
+#' @export
 extract_param <- function(object) {
   stopifnot(inherits(object, "bvarnet"))
 
