@@ -4,15 +4,23 @@
 \alias{extract_param}
 \title{Extract labelled parameter summaries from a fitted bvarnet model}
 \usage{
-extract_param(object)
+extract_param(object, bayes_factor = FALSE, null_value = 0)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{bvar()}.}
+
+\item{bayes_factor}{Logical; if \code{TRUE}, append \code{BF01} and
+\code{BF10} columns computed via the Savage-Dickey density ratio for
+beta and phi parameters.  Default \code{FALSE}.}
+
+\item{null_value}{Numeric scalar; the null hypothesis value for Bayes
+factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.}
 }
 \value{
 A data frame with columns: \code{type}, \code{predictor},
 \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-\code{rhat}, \code{ess_bulk}, \code{ess_tail}.
+\code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
+\code{BF01}, \code{BF10}.
 }
 \description{
 Returns a single flat data frame with posterior summaries (mean, median,

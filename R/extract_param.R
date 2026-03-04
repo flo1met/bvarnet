@@ -5,13 +5,19 @@
 #' model parameters.
 #'
 #' @param object A \code{bvarnet} object returned by \code{bvar()}.
+#' @param bayes_factor Logical; if \code{TRUE}, append \code{BF01} and
+#'   \code{BF10} columns computed via the Savage-Dickey density ratio for
+#'   beta and phi parameters.  Default \code{FALSE}.
+#' @param null_value Numeric scalar; the null hypothesis value for Bayes
+#'   factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
 #'   \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-#'   \code{rhat}, \code{ess_bulk}, \code{ess_tail}.
+#'   \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
+#'   \code{BF01}, \code{BF10}.
 #'
 #' @export
-extract_param <- function(object) {
+extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
   stopifnot(inherits(object, "bvarnet"))
 
   sd   <- object$standata
@@ -82,5 +88,32 @@ extract_param <- function(object) {
   out <- do.call(rbind, Filter(Negate(is.null),
                                list(beta_tab, phi_tab, re_sd_tab, sigma_tab, kappa_tab)))
   rownames(out) <- NULL
+
+  # ---------- Append BFs for beta and phi params ----------
+  if (isTRUE(bayes_factor)) {
+    out$BF01 <- NA_real_
+    out$BF10 <- NA_real_
+
+    # Identify rows with Stan param names we can compute BFs for
+    # beta and phi rows have matching Stan colnames from their draws
+    bf_types <- c("Intercept", "Fixed Effect", "Temporal")
+    bf_stan_names <- c(colnames(draws_beta), colnames(draws_phi))
+
+    bf_idx <- which(out$type %in% bf_types)
+    for (i in seq_along(bf_idx)) {
+      row_i    <- bf_idx[i]
+      stan_nm  <- bf_stan_names[i]
+      res <- tryCatch(
+        savage_dickey(object, params = stan_nm, null_value = null_value,
+                      method = "logspline"),
+        error = function(e) NULL
+      )
+      if (!is.null(res)) {
+        out$BF01[row_i] <- res$BF01
+        out$BF10[row_i] <- res$BF10
+      }
+    }
+  }
+
   out
 }
