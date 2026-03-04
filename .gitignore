@@ -11,3 +11,5 @@ src/stan/**/*.exe
 src/stan/**/*.EXE
 
 dev/
+
+AGENTS.md
