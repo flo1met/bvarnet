@@ -500,12 +500,21 @@ assemble_long_df <- function(Y, X_cov, N, T_obs, p, q) {
 #' @param fit A fitted \code{bvarnet} object (output from \code{bvar()}).
 #' @param truth The \code{truth} component from \code{sim_var()} output.
 #' @param ci_width Numeric. Width of the credible interval (default 0.90).
+#' @param bayes_factor Logical; if \code{TRUE}, compute Savage-Dickey BFs for
+#'   beta and phi parameters and append \code{BF01}, \code{BF10}, and
+#'   \code{bf_correct} columns.  \code{bf_correct} is \code{TRUE} when BF01 > 1
+#'   for true null parameters (true value == \code{null_value}) and BF10 > 1
+#'   for true non-null parameters.  Default \code{FALSE}.
+#' @param null_value Numeric scalar; the null hypothesis value for Bayes
+#'   factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.
 #'
-#' @return A data frame with columns: parameter, node, index, true_value,
-#'   post_mean, post_sd, ci_lower, ci_upper, covered (logical).
+#' @return A data frame with columns: parameter, node, true_value,
+#'   post_mean, post_sd, ci_lower, ci_upper, covered (logical), and optionally
+#'   BF01, BF10, bf_correct.
 #'
 #' @export
-compare_to_truth <- function(fit, truth, ci_width = 0.90) {
+compare_to_truth <- function(fit, truth, ci_width = 0.90,
+                             bayes_factor = FALSE, null_value = 0) {
   stopifnot(inherits(fit, "bvarnet"))
 
   alpha_lo <- (1 - ci_width) / 2
@@ -542,13 +551,14 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
       }
 
       results[[length(results) + 1L]] <- data.frame(
-        parameter = par_label,
-        node      = node,
+        parameter  = par_label,
+        node       = node,
         true_value = true_val,
         post_mean  = mean(d),
         post_sd    = sd(d),
         ci_lower   = unname(quantile(d, alpha_lo)),
         ci_upper   = unname(quantile(d, alpha_hi)),
+        .stan_name = par_name,
         stringsAsFactors = FALSE
       )
     }
@@ -571,6 +581,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
         post_sd    = sd(d),
         ci_lower   = unname(quantile(d, alpha_lo)),
         ci_upper   = unname(quantile(d, alpha_hi)),
+        .stan_name = par_name,
         stringsAsFactors = FALSE
       )
     }
@@ -591,6 +602,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
         post_sd    = sd(d),
         ci_lower   = unname(quantile(d, alpha_lo)),
         ci_upper   = unname(quantile(d, alpha_hi)),
+        .stan_name = par_name,
         stringsAsFactors = FALSE
       )
     }
@@ -613,6 +625,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
           post_sd    = sd(d),
           ci_lower   = unname(quantile(d, alpha_lo)),
           ci_upper   = unname(quantile(d, alpha_hi)),
+          .stan_name = par_name,
           stringsAsFactors = FALSE
         )
       }
@@ -623,5 +636,33 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90) {
   out <- do.call(rbind, results)
   out$covered <- out$true_value >= out$ci_lower & out$true_value <= out$ci_upper
   rownames(out) <- NULL
+
+  # ── Bayes factors for beta and phi ─────────────────────────────────────
+  if (isTRUE(bayes_factor)) {
+    out$BF01 <- NA_real_
+    out$BF10 <- NA_real_
+    out$bf_correct <- NA
+
+    bf_params <- c("intercept", "phi")
+    bf_idx <- which(out$parameter %in% bf_params |
+                    grepl("^gamma_", out$parameter))
+
+    for (i in bf_idx) {
+      res <- tryCatch(
+        savage_dickey(fit, params = out$.stan_name[i],
+                      null_value = null_value, method = "logspline"),
+        error = function(e) NULL
+      )
+      if (!is.null(res)) {
+        out$BF01[i] <- res$BF01
+        out$BF10[i] <- res$BF10
+        is_null <- isTRUE(all.equal(out$true_value[i], null_value))
+        out$bf_correct[i] <- if (is_null) res$BF01 > 1 else res$BF10 > 1
+      }
+    }
+  }
+
+  # Drop internal helper column
+  out$.stan_name <- NULL
   out
 }
