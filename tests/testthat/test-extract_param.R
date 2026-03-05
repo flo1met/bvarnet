@@ -118,7 +118,8 @@ test_that("extract_param includes beta and phi rows for bernoulli", {
   res <- extract_param(obj)
 
   expect_true(any(res$type %in% c("Intercept", "Fixed Effect")))
-  expect_true(any(res$type == "Temporal"))
+  expect_true(any(res$type == "Autoregressive"))
+  expect_true(any(res$type == "Cross-lagged"))
 })
 
 
@@ -155,9 +156,12 @@ test_that("extract_param filtering by type works", {
   obj <- make_mock_bvarnet("bernoulli")
   res <- extract_param(obj)
 
-  temporal <- subset(res, type == "Temporal")
-  expect_true(nrow(temporal) > 0)
-  expect_true(all(temporal$type == "Temporal"))
+  ar_rows <- subset(res, type == "Autoregressive")
+  cl_rows <- subset(res, type == "Cross-lagged")
+  expect_true(nrow(ar_rows) > 0)
+  expect_true(nrow(cl_rows) > 0)
+  expect_true(all(ar_rows$type == "Autoregressive"))
+  expect_true(all(cl_rows$type == "Cross-lagged"))
 })
 
 
@@ -178,6 +182,6 @@ test_that("extract_param predictor labels use variable names from standata", {
   intercept_rows <- subset(res, type == "Intercept")
   expect_true(all(intercept_rows$predictor == "Intercept"))
 
-  temporal_rows <- subset(res, type == "Temporal")
-  expect_true(all(grepl("lag1_y_[0-9]+", temporal_rows$predictor)))
+  phi_rows <- subset(res, type %in% c("Autoregressive", "Cross-lagged"))
+  expect_true(all(grepl("lag1_y_[0-9]+", phi_rows$predictor)))
 })

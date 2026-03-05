@@ -43,10 +43,21 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
   )
   beta_tab <- join_convergence(beta_tab, colnames(draws_beta))
 
-  # ---------- Temporal effects (phi) ----------
+  # ---------- Autoregressive & Cross-lagged effects (phi) ----------
   draws_phi <- extract_draws(object, "phi")
-  phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "Temporal")
-  phi_tab   <- join_convergence(phi_tab, colnames(draws_phi))
+  phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "placeholder")
+
+  # Classify each phi row as Autoregressive or Cross-lagged
+  p_  <- sd$p
+  K_  <- sd$K
+  nr_ <- p_ * K_
+  nc_ <- p_
+  col_indices <- rep(seq_len(nc_), each = nr_)
+  row_indices <- rep(seq_len(nr_), times = nc_)
+  row_within  <- ((row_indices - 1L) %% p_) + 1L
+  phi_tab$type <- ifelse(row_within == col_indices,
+                         "Autoregressive", "Cross-lagged")
+  phi_tab <- join_convergence(phi_tab, colnames(draws_phi))
 
   # ---------- Random-effect SDs (sd_u) ----------
   re_sd_tab <- if (sd$n_re > 0) {
@@ -96,7 +107,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
 
     # Identify rows with Stan param names we can compute BFs for
     # beta and phi rows have matching Stan colnames from their draws
-    bf_types <- c("Intercept", "Fixed Effect", "Temporal")
+    bf_types <- c("Intercept", "Fixed Effect", "Autoregressive", "Cross-lagged")
     bf_stan_names <- c(colnames(draws_beta), colnames(draws_phi))
 
     bf_idx <- which(out$type %in% bf_types)

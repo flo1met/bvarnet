@@ -232,17 +232,17 @@ test_that("savage_dickey returns correct structure for joint MVN", {
 
 # ── bf_table() output shape tests ────────────────────────────────────────────
 
-test_that("bf_table returns correct data frame shape for phi", {
+test_that("bf_table returns correct data frame shape for ar + cl", {
   mock <- make_mock_bvarnet("gaussian")
-  res <- bf_table(mock, type = "phi")
+  res <- bf_table(mock, type = c("ar", "cl"))
 
   expect_s3_class(res, "data.frame")
   expect_true(all(c("type", "predictor", "outcome", "BF01", "BF10",
                      "log_BF01", "post_density", "prior_density", "method")
                   %in% names(res)))
 
-  # p=2, K=1 → 4 individual phi + 1 joint row = 5
-  expect_equal(nrow(res), 5)
+  # p=2, K=1 → ar: 2 + 1 joint + cl: 2 + 1 joint = 6
+  expect_equal(nrow(res), 6)
   expect_true(all(res$BF01 > 0))
   expect_true(any(grepl("joint", res$type)))
 })
@@ -282,11 +282,11 @@ test_that("bf_table handles multiple types", {
 
 test_that("bf_table joint row BF01 is positive and finite", {
   mock <- make_mock_bvarnet("gaussian")
-  res <- bf_table(mock, type = "phi")
-  joint_row <- res[grepl("joint", res$type), ]
-  expect_equal(nrow(joint_row), 1)
-  expect_true(is.finite(joint_row$BF01))
-  expect_true(joint_row$BF01 > 0)
+  res <- bf_table(mock, type = c("ar", "cl"))
+  joint_rows <- res[grepl("joint", res$type), ]
+  expect_equal(nrow(joint_rows), 2)  # one for AR, one for CL
+  expect_true(all(is.finite(joint_rows$BF01)))
+  expect_true(all(joint_rows$BF01 > 0))
 })
 
 
@@ -298,8 +298,8 @@ test_that("extract_param with bayes_factor = TRUE adds BF columns", {
   expect_true("BF01" %in% names(res))
   expect_true("BF10" %in% names(res))
 
-  # BFs should be computed for Intercept, Fixed Effect, Temporal rows
-  bf_rows <- res[res$type %in% c("Intercept", "Fixed Effect", "Temporal"), ]
+  # BFs should be computed for Intercept, Fixed Effect, Autoregressive, Cross-lagged rows
+  bf_rows <- res[res$type %in% c("Intercept", "Fixed Effect", "Autoregressive", "Cross-lagged"), ]
   expect_true(all(!is.na(bf_rows$BF01)))
   expect_true(all(bf_rows$BF01 > 0))
 })

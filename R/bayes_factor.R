@@ -338,13 +338,13 @@ savage_dickey <- function(object, params, null_value = 0,
 #'
 #' Computes Savage-Dickey density ratio Bayes factors for each parameter in the
 #' requested subset and returns a tidy data frame.  For joint tests
-#' (\code{type = "ar"}, \code{"cl"}, \code{"phi"}), both per-parameter
+#' (\code{type = "ar"}, \code{"cl"}), both per-parameter
 #' (logspline) and joint (MVN) rows are returned.
 #'
 #' @param object     A \code{bvarnet} object returned by \code{bvar()}.
 #' @param type       Character vector. Which parameter groups to test.
 #'   Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
-#'   \code{"phi"} (full Phi), \code{"intercepts"}, \code{"fe"}
+#'   \code{"intercepts"}, \code{"fe"}
 #'   (non-intercept fixed effects).
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"}, \code{"cl"}, and \code{"phi"}.
@@ -356,7 +356,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #'
 #' @export
 bf_table <- function(object,
-                     type = c("ar", "cl", "phi", "intercepts", "fe"),
+                     type = c("ar", "cl", "intercepts", "fe"),
                      lag = 1L,
                      null_value = 0) {
   stopifnot(inherits(object, "bvarnet"))
@@ -366,13 +366,12 @@ bf_table <- function(object,
   rows <- list()
 
   for (tp in type) {
-    tp <- match.arg(tp, c("ar", "cl", "phi", "intercepts", "fe"))
+    tp <- match.arg(tp, c("ar", "cl", "intercepts", "fe"))
 
     # --- Resolve parameter names ---
     param_names <- switch(tp,
       ar          = get_phi_indices(sd, lag = lag, effect = "ar"),
       cl          = get_phi_indices(sd, lag = lag, effect = "cl"),
-      phi         = get_phi_indices(sd, lag = lag, effect = "all"),
       intercepts  = get_beta_indices(sd, type = "intercepts"),
       fe          = get_beta_indices(sd, type = "fe")
     )
@@ -457,7 +456,6 @@ bf_table <- function(object,
   switch(type,
     ar         = "Autoregressive",
     cl         = "Cross-lagged",
-    phi        = "Temporal",
     intercepts = "Intercept",
     fe         = "Fixed Effect",
     type
