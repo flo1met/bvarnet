@@ -5,7 +5,6 @@
 // TODO:
 // - per-node varying C (ragged cutpoints)
 // - dummy-coded ordinal lags
-// - reduce_sum parallelisation
 // - correlated random effects
 
 functions {
@@ -22,6 +21,19 @@ functions {
         if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
         reject("Unknown prior family code:", fam);
    }
+
+    // §1.5: partial sum for reduce_sum parallelisation
+    // lambda is pre-computed outside (§1.6); rows start:end indexed into it.
+    real partial_sum_ordinal(
+        array[] int y_slice,
+        int start, int end,
+        matrix lambda
+    ) {
+        real lp = 0;
+        for (i in 1:(end - start + 1))
+            lp += categorical_logit_lpmf(y_slice[i] | lambda[start + i - 1,]');
+        return lp;
+    }
 }
 
 data {
@@ -68,6 +80,8 @@ data {
     real kappa_loc;
     real<lower=0> kappa_scale;
     real<lower=0> kappa_df;
+
+    int<lower=1> grainsize; // reduce_sum grain size (1 = auto)
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
@@ -89,54 +103,51 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    profile("priors") {
-        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    /// priors
+    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-        if (n_re > 0)
-            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+    if (n_re > 0)
+        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-        /// std_normal prior for latent mean (non-centered RE)
-        for (node in 1:p)
-            target += std_normal_lpdf(to_vector(z_u[node]));
+    /// std_normal prior for latent mean (non-centered RE)
+    for (node in 1:p)
+        target += std_normal_lpdf(to_vector(z_u[node]));
 
-        /// cutpoint priors
-        for (node in 1:p)
-            target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
-    }
+    /// cutpoint priors
+    for (node in 1:p)
+        target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
 
-    profile("likelihood") {
-        for (node in 1:p) {
-            vector[n_obs] eta_re;
-            vector[n_fe + p*K] b_fixed;
+    // Likelihood
+    for (node in 1:p) {
+        vector[n_obs] eta_re;
+        vector[n_fe + p*K] b_fixed;
 
-            // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
-            eta_re = (n_re > 0)
-                ? rows_dot_product(Z, u[node][id,])
-                : rep_vector(0.0, n_obs);
+        // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
+        eta_re = (n_re > 0)
+            ? rows_dot_product(Z, u[node][id,])
+            : rep_vector(0.0, n_obs);
 
-            // get combined FE vector
-            b_fixed[1:n_fe] = beta[,node];
-            b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
+        // get combined FE vector
+        b_fixed[1:n_fe] = beta[,node];
+        b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-            // linear predictor (no intercept — absorbed into kappa)
-            vector[n_obs] eta = X_fixed * b_fixed + eta_re;
+        // linear predictor (no intercept — absorbed into kappa)
+        vector[n_obs] eta = X_fixed * b_fixed + eta_re;
 
-            // adjacent-category likelihood via categorical_logit_lpmf
-            // Pre-compute cumulative sum of kappa (constant across observations)
-            vector[C] kappa_cumsum;
-            kappa_cumsum[1] = 0;
-            for (c in 2:C)
-                kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
+        // Pre-compute cumulative kappa (constant across observations)
+        vector[C] kappa_cumsum;
+        kappa_cumsum[1] = 0;
+        for (c in 2:C)
+            kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
 
-            profile("likelihood_lambda") {
-                for (i in 1:n_obs) {
-                    vector[C] lambda;
-                    for (c in 1:C)
-                        lambda[c] = (c - 1) * eta[i] - kappa_cumsum[c];
-                    target += categorical_logit_lpmf(Y[i, node] | lambda);
-                }
-            }
-        }
+        // §1.6: build full lambda as matrix with C vectorised column ops
+        // instead of O(n_obs * C) scalar loop
+        matrix[n_obs, C] lambda_mat;
+        for (c in 1:C)
+            lambda_mat[, c] = (c - 1) * eta - rep_vector(kappa_cumsum[c], n_obs);
+
+        // §1.5: parallelise categorical_logit_lpmf over observations
+        target += reduce_sum(partial_sum_ordinal, Y[, node], grainsize, lambda_mat);
     }
 }

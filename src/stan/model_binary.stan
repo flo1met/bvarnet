@@ -2,7 +2,6 @@
 // - missing data skipping of lags (handle inside missing data handling R function) - DONE
 // - different priors - DONE
 // - correlated random effects
-// - Loop/Array optimisation
 
 functions {
     real set_prior(vector x, int fam, real loc, real scale, real df) {
@@ -18,6 +17,18 @@ functions {
         if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
         reject("Unknown prior family code:", fam);
    }
+
+    // §1.5: partial sum for reduce_sum parallelisation
+    real partial_sum_binary(
+        array[] int y_slice,
+        int start, int end,
+        matrix X_fixed,
+        vector eta_re,
+        vector b_fixed
+    ) {
+        return bernoulli_logit_glm_lpmf(y_slice |
+            X_fixed[start:end], eta_re[start:end], b_fixed);
+    }
 }
 
 data {
@@ -55,6 +66,8 @@ data {
     real sd_loc;
     real<lower=0> sd_scale;
     real<lower=0> sd_df;
+
+    int<lower=1> grainsize; // reduce_sum grain size (1 = auto)
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X,B); // intercept correct? yes, as long as its in X!
@@ -73,34 +86,34 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    profile("priors") {
-        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    /// priors
+    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-        if (n_re > 0)
-            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+    if (n_re > 0)
+        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-        /// std_normal prior for latent mean
-        for (node in 1:p)
-            target += std_normal_lpdf(to_vector(z_u[node]));
-    }
+    /// std_normal prior for latent mean
+    for (node in 1:p)
+        target += std_normal_lpdf(to_vector(z_u[node]));
 
-    profile("likelihood") {
-        for (node in 1:p) {
-            vector[n_obs] eta_re;
-            vector[n_fe + p*K] b_fixed;
+    // Likelihood
+    for (node in 1:p) {
+        vector[n_obs] eta_re;
+        vector[n_fe + p*K] b_fixed;
 
-            // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
-            eta_re = (n_re > 0) // safeguard if no RE
-                ? rows_dot_product(Z, u[node][id,])
-                : rep_vector(0.0, n_obs);
+        // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
+        eta_re = (n_re > 0)
+            ? rows_dot_product(Z, u[node][id,])
+            : rep_vector(0.0, n_obs);
 
-            // get combined FE vector
-            b_fixed[1:n_fe] = beta[,node];
-            b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
+        // get combined FE vector
+        b_fixed[1:n_fe] = beta[,node];
+        b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-            target += bernoulli_logit_glm_lpmf(Y[, node] | X_fixed, eta_re, b_fixed);
-        }
+        // §1.5: parallelise bernoulli_logit_glm over observations
+        target += reduce_sum(partial_sum_binary, Y[, node],
+                             grainsize, X_fixed, eta_re, b_fixed);
     }
 
 }
