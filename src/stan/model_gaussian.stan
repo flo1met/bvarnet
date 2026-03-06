@@ -2,7 +2,6 @@
 // See dev/model_development_plan.md §3 for specification & rationale
 //
 // TODO:
-// - reduce_sum parallelisation
 // - correlated random effects
 
 functions {
@@ -19,6 +18,19 @@ functions {
         if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
         reject("Unknown prior family code:", fam);
    }
+
+    // §1.5: partial sum for reduce_sum parallelisation
+    real partial_sum_gaussian(
+        array[] real y_slice,
+        int start, int end,
+        matrix X_fixed,
+        vector eta_re,
+        vector b_fixed,
+        real sigma_node
+    ) {
+        return normal_id_glm_lpdf(to_vector(y_slice) |
+            X_fixed[start:end], eta_re[start:end], b_fixed, sigma_node);
+    }
 }
 
 data {
@@ -64,6 +76,8 @@ data {
     real sigma_loc;
     real<lower=0> sigma_scale;
     real<lower=0> sigma_df;
+
+    int<lower=1> grainsize; // reduce_sum grain size (1 = auto)
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
@@ -113,7 +127,8 @@ model {
         b_fixed[1:n_fe] = beta[,node];
         b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-        // GLM form: normal_id_glm fuses X*b + offset into one kernel
-        target += normal_id_glm_lpdf(Y[,node] | X_fixed, eta_re, b_fixed, sigma[node]);
+        // §1.5: parallelise normal_id_glm over observations
+        target += reduce_sum(partial_sum_gaussian, to_array_1d(Y[,node]),
+                             grainsize, X_fixed, eta_re, b_fixed, sigma[node]);
     }
 }
