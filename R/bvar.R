@@ -33,11 +33,16 @@
 #' @param chains Integer. Number of MCMC chains. Default 4.
 #' @param cores Integer. Number of chains to run in parallel. Default 1.
 #' @param seed Integer or NULL. RNG seed.
+#' @param keep_fit Logical. If \code{TRUE}, the raw \code{CmdStanMCMC} object
+#'   is retained in the returned object as \code{$fit}. Useful for accessing
+#'   Stan profiling results (\code{$fit$profiles()}), LOO/WAIC helpers, or
+#'   other CmdStanR methods. Default \code{FALSE} to keep memory usage low.
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{summary}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-#'   \code{priors}.
+#'   \code{priors}. If \code{keep_fit = TRUE}, also \code{fit} (the raw
+#'   \code{CmdStanMCMC} object).
 #'
 #' @export
 bvar <- function(id_col,
@@ -59,7 +64,8 @@ bvar <- function(id_col,
                  warmup = 1000,
                  chains = 4,
                  cores = 1,
-                 seed = NULL
+                 seed = NULL,
+                 keep_fit = FALSE
 
   ) {
 
@@ -117,7 +123,8 @@ bvar <- function(id_col,
       return_codes = return_codes,
       family       = family,
       standata     = standata,
-      priors       = priors
+      priors       = priors,
+      fit          = if (keep_fit) stanfit else NULL
     ),
     class = "bvarnet"
   )

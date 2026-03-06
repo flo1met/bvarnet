@@ -89,50 +89,54 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    /// priors
-    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    profile("priors") {
+        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    if (n_re > 0)
-        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+        if (n_re > 0)
+            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-    /// std_normal prior for latent mean (non-centered RE)
-    for (node in 1:p)
-        target += std_normal_lpdf(to_vector(z_u[node]));
+        /// std_normal prior for latent mean (non-centered RE)
+        for (node in 1:p)
+            target += std_normal_lpdf(to_vector(z_u[node]));
 
-    /// cutpoint priors
-    for (node in 1:p)
-        target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
+        /// cutpoint priors
+        for (node in 1:p)
+            target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
+    }
 
-    // Likelihood
-    for (node in 1:p) {
-        vector[n_obs] eta_re;
-        vector[n_fe + p*K] b_fixed;
+    profile("likelihood") {
+        for (node in 1:p) {
+            vector[n_obs] eta_re;
+            vector[n_fe + p*K] b_fixed;
 
-        // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
-        eta_re = (n_re > 0)
-            ? rows_dot_product(Z, u[node][id,])
-            : rep_vector(0.0, n_obs);
+            // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
+            eta_re = (n_re > 0)
+                ? rows_dot_product(Z, u[node][id,])
+                : rep_vector(0.0, n_obs);
 
-        // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
-        b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
+            // get combined FE vector
+            b_fixed[1:n_fe] = beta[,node];
+            b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-        // linear predictor (no intercept — absorbed into kappa)
-        vector[n_obs] eta = X_fixed * b_fixed + eta_re;
+            // linear predictor (no intercept — absorbed into kappa)
+            vector[n_obs] eta = X_fixed * b_fixed + eta_re;
 
-        // adjacent-category likelihood via categorical_logit_lpmf
-        // Pre-compute cumulative sum of kappa (constant across observations)
-        vector[C] kappa_cumsum;
-        kappa_cumsum[1] = 0;
-        for (c in 2:C)
-            kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
+            // adjacent-category likelihood via categorical_logit_lpmf
+            // Pre-compute cumulative sum of kappa (constant across observations)
+            vector[C] kappa_cumsum;
+            kappa_cumsum[1] = 0;
+            for (c in 2:C)
+                kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
 
-        for (i in 1:n_obs) {
-            vector[C] lambda;
-            for (c in 1:C)
-                lambda[c] = (c - 1) * eta[i] - kappa_cumsum[c];
-            target += categorical_logit_lpmf(Y[i, node] | lambda);
+            profile("likelihood_lambda") {
+                for (i in 1:n_obs) {
+                    vector[C] lambda;
+                    for (c in 1:C)
+                        lambda[c] = (c - 1) * eta[i] - kappa_cumsum[c];
+                    target += categorical_logit_lpmf(Y[i, node] | lambda);
+                }
+            }
         }
     }
 }

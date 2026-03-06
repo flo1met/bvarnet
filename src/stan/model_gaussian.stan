@@ -85,35 +85,37 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    /// priors
-    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    profile("priors") {
+        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    if (n_re > 0)
-        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+        if (n_re > 0)
+            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-    /// std_normal prior for latent mean (non-centered RE)
-    for (node in 1:p)
-        target += std_normal_lpdf(to_vector(z_u[node]));
+        /// std_normal prior for latent mean (non-centered RE)
+        for (node in 1:p)
+            target += std_normal_lpdf(to_vector(z_u[node]));
 
-    /// residual SD prior (half-prior)
-    target += set_half_prior(sigma, prior_sigma_fam, sigma_loc, sigma_scale, sigma_df);
+        /// residual SD prior (half-prior)
+        target += set_half_prior(sigma, prior_sigma_fam, sigma_loc, sigma_scale, sigma_df);
+    }
 
-    // Likelihood
-    for (node in 1:p) {
-        vector[n_obs] eta_re;
-        vector[n_fe + p*K] b_fixed;
+    profile("likelihood") {
+        for (node in 1:p) {
+            vector[n_obs] eta_re;
+            vector[n_fe + p*K] b_fixed;
 
-        // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
-        eta_re = (n_re > 0)
-            ? rows_dot_product(Z, u[node][id,])
-            : rep_vector(0.0, n_obs);
+            // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
+            eta_re = (n_re > 0)
+                ? rows_dot_product(Z, u[node][id,])
+                : rep_vector(0.0, n_obs);
 
-        // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
-        b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
+            // get combined FE vector
+            b_fixed[1:n_fe] = beta[,node];
+            b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-        // GLM form: normal_id_glm fuses X*b + offset into one kernel
-        target += normal_id_glm_lpdf(Y[,node] | X_fixed, eta_re, b_fixed, sigma[node]);
+            // GLM form: normal_id_glm fuses X*b + offset into one kernel
+            target += normal_id_glm_lpdf(Y[,node] | X_fixed, eta_re, b_fixed, sigma[node]);
+        }
     }
 }

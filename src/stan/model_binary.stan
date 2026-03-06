@@ -73,36 +73,34 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    /// varying priors
-    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    profile("priors") {
+        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    if (n_re > 0)
-        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+        if (n_re > 0)
+            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-    /// std_normal prior for latent mean
-    for (node in 1:p)
-        target += std_normal_lpdf(to_vector(z_u[node]));
+        /// std_normal prior for latent mean
+        for (node in 1:p)
+            target += std_normal_lpdf(to_vector(z_u[node]));
+    }
 
+    profile("likelihood") {
+        for (node in 1:p) {
+            vector[n_obs] eta_re;
+            vector[n_fe + p*K] b_fixed;
 
-    // Likelihood
-    for (node in 1:p) {
-        vector[n_obs] eta_re;
-        vector[n_fe + p*K] b_fixed;
+            // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
+            eta_re = (n_re > 0) // safeguard if no RE
+                ? rows_dot_product(Z, u[node][id,])
+                : rep_vector(0.0, n_obs);
 
-        // calculate offset: eta_re[n] = Z[n,] * u[node][id[n], ]'
-        eta_re = (n_re > 0) // safeguard if no RE
-            ? rows_dot_product(Z, u[node][id,])
-            : rep_vector (0.0, n_obs);
+            // get combined FE vector
+            b_fixed[1:n_fe] = beta[,node];
+            b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
-        // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
-        b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
-
-
-        // calculate combined L
-        target += bernoulli_logit_glm_lpmf(Y[, node] | X_fixed, eta_re, b_fixed);
-
+            target += bernoulli_logit_glm_lpmf(Y[, node] | X_fixed, eta_re, b_fixed);
+        }
     }
 
 }
