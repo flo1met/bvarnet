@@ -96,23 +96,24 @@ transformed parameters {
         u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
 }
 model {
-    /// priors
-    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
-    target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
+    profile("priors") {
+        target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+        target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
-    if (n_re > 0)
-        target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
+        if (n_re > 0)
+            target += set_half_prior(to_vector(sd_u), prior_sd_fam, sd_loc, sd_scale, sd_df);
 
-    /// std_normal prior for latent mean (non-centered RE)
-    for (node in 1:p)
-        target += std_normal_lpdf(to_vector(z_u[node]));
+        /// std_normal prior for latent mean (non-centered RE)
+        for (node in 1:p)
+            target += std_normal_lpdf(to_vector(z_u[node]));
 
-    /// cutpoint priors
-    for (node in 1:p)
-        target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
+        /// cutpoint priors
+        for (node in 1:p)
+            target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
+    }
 
-    // Likelihood
-    for (node in 1:p) {
+    profile("likelihood") {
+        for (node in 1:p) {
         vector[n_obs] eta_re;
         vector[n_fe + p*K] b_fixed;
 
@@ -151,5 +152,6 @@ model {
         alpha_cat[1] = 0; // kappa_cumsum[1] = 0 so this is a no-op, but explicit
 
         target += categorical_logit_glm_lpmf(Y[, node] | to_matrix(eta), alpha_cat, beta_adj);
+        }
     }
 }

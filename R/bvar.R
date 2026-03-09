@@ -123,7 +123,8 @@ bvar <- function(id_col,
       return_codes = return_codes,
       family       = family,
       standata     = standata,
-      priors       = priors
+      priors       = priors,
+      fit          = if (keep_fit) stanfit else NULL
     ),
     class = "bvarnet"
   )
