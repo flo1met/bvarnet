@@ -28,8 +28,7 @@ callr::r(
   func = function(bin_stan) {
     instantiate::stan_package_compile(
       models = instantiate::stan_package_model_files(path = bin_stan),
-      include_paths = bin_stan,
-      cpp_options = list(stan_threads = TRUE)  # required for reduce_sum parallelism
+      include_paths = bin_stan
     )
   },
   args = list(bin_stan = bin_stan),

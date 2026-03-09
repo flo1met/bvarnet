@@ -5,6 +5,7 @@
 // TODO:
 // - per-node varying C (ragged cutpoints)
 // - dummy-coded ordinal lags
+// - reduce_sum parallelisation (§2.3)
 // - correlated random effects
 
 functions {
@@ -21,19 +22,6 @@ functions {
         if (fam == 3) return cauchy_lpdf(x | loc, scale) - rows(x) * cauchy_lccdf(0 | loc, scale);
         reject("Unknown prior family code:", fam);
    }
-
-    // §1.5: partial sum for reduce_sum parallelisation
-    // lambda is pre-computed outside (§1.6); rows start:end indexed into it.
-    real partial_sum_ordinal(
-        array[] int y_slice,
-        int start, int end,
-        matrix lambda
-    ) {
-        real lp = 0;
-        for (i in 1:(end - start + 1))
-            lp += categorical_logit_lpmf(y_slice[i] | lambda[start + i - 1,]');
-        return lp;
-    }
 }
 
 data {
@@ -80,11 +68,16 @@ data {
     real kappa_loc;
     real<lower=0> kappa_scale;
     real<lower=0> kappa_df;
-
-    int<lower=1> grainsize; // reduce_sum grain size (1 = auto)
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
+
+   // Fixed 1×C coefficient matrix encoding the adjacent-category constraint:
+   // beta_adj[1, c] = c - 1  so that  alpha[c] + eta[n] * (c-1) = lambda[n,c]
+   // Passed as the `beta` argument to categorical_logit_glm_lpmf.
+   matrix[1, C] beta_adj;
+   for (c in 1:C)
+       beta_adj[1, c] = c - 1;
 }
 parameters {
    matrix[p*K, p] phi; // lag coefficient matrix
@@ -135,19 +128,28 @@ model {
         // linear predictor (no intercept — absorbed into kappa)
         vector[n_obs] eta = X_fixed * b_fixed + eta_re;
 
-        // Pre-compute cumulative kappa (constant across observations)
+        // adjacent-category likelihood via categorical_logit_glm_lpmf
+        // (same approach as MaartenMarsman/mixedGM inst/stan/mixed_mrf_conditional.stan)
+        //
+        // categorical_logit_glm_lpmf(y | X, alpha, beta) computes:
+        //   log-prob for obs n, category c  =  alpha[c] + X[n,1] * beta[1,c]
+        //
+        // With:
+        //   X[n, 1]    = eta[n]          (N×1 predictor matrix)
+        //   alpha[c]   = -kappa_cumsum[c]
+        //   beta[1, c] = c - 1           (fixed in transformed data)
+        //
+        // => alpha[c] + eta[n]*(c-1) = (c-1)*eta[n] - kappa_cumsum[c] = lambda[n,c]  ✓
+        //
+        // Pre-compute cumulative kappa
         vector[C] kappa_cumsum;
         kappa_cumsum[1] = 0;
         for (c in 2:C)
             kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
 
-        // §1.6: build full lambda as matrix with C vectorised column ops
-        // instead of O(n_obs * C) scalar loop
-        matrix[n_obs, C] lambda_mat;
-        for (c in 1:C)
-            lambda_mat[, c] = (c - 1) * eta - rep_vector(kappa_cumsum[c], n_obs);
+        vector[C] alpha_cat = -kappa_cumsum;
+        alpha_cat[1] = 0; // kappa_cumsum[1] = 0 so this is a no-op, but explicit
 
-        // §1.5: parallelise categorical_logit_lpmf over observations
-        target += reduce_sum(partial_sum_ordinal, Y[, node], grainsize, lambda_mat);
+        target += categorical_logit_glm_lpmf(Y[, node] | to_matrix(eta), alpha_cat, beta_adj);
     }
 }

@@ -32,14 +32,6 @@
 #' @param warmup Integer. Number of warmup iterations per chain. Default 1000.
 #' @param chains Integer. Number of MCMC chains. Default 4.
 #' @param cores Integer. Number of chains to run in parallel. Default 1.
-#' @param threads_per_chain Integer. Number of threads per chain for within-chain
-#'   parallelism via \code{reduce_sum}. Requires the Stan models to be compiled
-#'   with \code{STAN_THREADS=true} (handled automatically by \code{instantiate}
-#'   when the flag is set in \code{Makevars}). Default 1 (no within-chain
-#'   parallelism). Set to \code{>1} only after enabling threading in the build.
-#' @param grainsize Integer. Chunk size passed to \code{reduce_sum} inside the
-#'   Stan models. \code{1} lets the Stan scheduler choose automatically (recommended).
-#'   Default 1.
 #' @param seed Integer or NULL. RNG seed.
 #' @param keep_fit Logical. If \code{TRUE}, the raw \code{CmdStanMCMC} object
 #'   is retained in the returned object as \code{$fit}. Useful for accessing
@@ -102,15 +94,13 @@ bvar <- function(id_col,
                             skip_lag = skip_lag,
                             priors = priors
                            )
-  standata$grainsize <- as.integer(grainsize)
 
   stanfit <- stanmodel$sample(data = standata,
                               seed = seed,
                               iter_warmup = warmup,
                               iter_sampling = iter,
                               chains = chains,
-                              parallel_chains = cores,
-                              threads_per_chain = threads_per_chain)
+                              parallel_chains = cores)
 
   # Extract everything from CmdStanMCMC into plain base-R objects, then discard
   # the fit object (CSV refs, compiled binary, lazy draws) to keep memory lean.
@@ -133,8 +123,7 @@ bvar <- function(id_col,
       return_codes = return_codes,
       family       = family,
       standata     = standata,
-      priors       = priors,
-      fit          = if (keep_fit) stanfit else NULL
+      priors       = priors
     ),
     class = "bvarnet"
   )
