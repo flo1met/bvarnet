@@ -5,7 +5,7 @@
 // TODO:
 // - per-node varying C (ragged cutpoints)
 // - dummy-coded ordinal lags
-// - reduce_sum parallelisation
+// - reduce_sum parallelisation (§2.3)
 // - correlated random effects
 
 functions {
@@ -71,6 +71,13 @@ data {
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
+
+   // Fixed 1×C coefficient matrix encoding the adjacent-category constraint:
+   // beta_adj[1, c] = c - 1  so that  alpha[c] + eta[n] * (c-1) = lambda[n,c]
+   // Passed as the `beta` argument to categorical_logit_glm_lpmf.
+   matrix[1, C] beta_adj;
+   for (c in 1:C)
+       beta_adj[1, c] = c - 1;
 }
 parameters {
    matrix[p*K, p] phi; // lag coefficient matrix
@@ -121,18 +128,28 @@ model {
         // linear predictor (no intercept — absorbed into kappa)
         vector[n_obs] eta = X_fixed * b_fixed + eta_re;
 
-        // adjacent-category likelihood via categorical_logit_lpmf
-        // Pre-compute cumulative sum of kappa (constant across observations)
+        // adjacent-category likelihood via categorical_logit_glm_lpmf
+        // (same approach as MaartenMarsman/mixedGM inst/stan/mixed_mrf_conditional.stan)
+        //
+        // categorical_logit_glm_lpmf(y | X, alpha, beta) computes:
+        //   log-prob for obs n, category c  =  alpha[c] + X[n,1] * beta[1,c]
+        //
+        // With:
+        //   X[n, 1]    = eta[n]          (N×1 predictor matrix)
+        //   alpha[c]   = -kappa_cumsum[c]
+        //   beta[1, c] = c - 1           (fixed in transformed data)
+        //
+        // => alpha[c] + eta[n]*(c-1) = (c-1)*eta[n] - kappa_cumsum[c] = lambda[n,c]  ✓
+        //
+        // Pre-compute cumulative kappa
         vector[C] kappa_cumsum;
         kappa_cumsum[1] = 0;
         for (c in 2:C)
             kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
 
-        for (i in 1:n_obs) {
-            vector[C] lambda;
-            for (c in 1:C)
-                lambda[c] = (c - 1) * eta[i] - kappa_cumsum[c];
-            target += categorical_logit_lpmf(Y[i, node] | lambda);
-        }
+        vector[C] alpha_cat = -kappa_cumsum;
+        alpha_cat[1] = 0; // kappa_cumsum[1] = 0 so this is a no-op, but explicit
+
+        target += categorical_logit_glm_lpmf(Y[, node] | to_matrix(eta), alpha_cat, beta_adj);
     }
 }
