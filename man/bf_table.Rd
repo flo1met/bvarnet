@@ -6,7 +6,7 @@
 \usage{
 bf_table(
   object,
-  type = c("ar", "cl", "phi", "intercepts", "fe"),
+  type = c("ar", "cl", "intercepts", "fe"),
   lag = 1L,
   null_value = 0
 )
@@ -16,7 +16,7 @@ bf_table(
 
 \item{type}{Character vector. Which parameter groups to test.
 Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
-\code{"phi"} (full Phi), \code{"intercepts"}, \code{"fe"}
+\code{"intercepts"}, \code{"fe"}
 (non-intercept fixed effects).}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
@@ -32,6 +32,6 @@ A data frame with columns: \code{type}, \code{predictor},
 \description{
 Computes Savage-Dickey density ratio Bayes factors for each parameter in the
 requested subset and returns a tidy data frame.  For joint tests
-(\code{type = "ar"}, \code{"cl"}, \code{"phi"}), both per-parameter
+(\code{type = "ar"}, \code{"cl"}), both per-parameter
 (logspline) and joint (MVN) rows are returned.
 }
