@@ -207,6 +207,9 @@ to_stan_data <- function(data,
   tmp <- add_terms_to_X(X, B, fe_interactions)
   X <- tmp$X
 
+  ## store interaction metadata for downstream BF grouping
+  fe_interaction_terms    <- normalize_terms(fe_interactions)
+  fe_interaction_colnames <- tmp$new_names
   ##
 
   Z <- build_Z(X, B, re_cols = re_cols, re_temporal = re_temporal)
@@ -252,6 +255,12 @@ to_stan_data <- function(data,
   sd_scale       = priors$sd_u$scale,
   sd_df          = priors$sd_u$df
 )
+
+  ## attach FE interaction metadata (used by bf_table for joint BF grouping)
+  if (length(fe_interaction_terms) > 0L) {
+    out$fe_interaction_terms    <- fe_interaction_terms
+    out$fe_interaction_colnames <- fe_interaction_colnames
+  }
 
   if (family == "ordinal") {
     out$C              <- C

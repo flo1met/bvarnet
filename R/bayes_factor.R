@@ -104,6 +104,16 @@ get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
   p     <- sd$p
   n_fe  <- sd$n_fe
 
+  # Guard: ordinal models have no intercept in X
+
+  if (type == "intercepts" && !("Intercept" %in% colnames(sd$X)))
+    stop(
+      '`type = "intercepts"` is not valid for ordinal models: ',
+      "beta row 1 is a covariate, not an intercept. ",
+      "Cutpoints are stored in `kappa`.",
+      call. = FALSE
+    )
+
   nms <- character(0)
   if (type == "intercepts") {
     # Beta row 1 = intercept, across all p columns
@@ -120,6 +130,132 @@ get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
     }
   }
   nms
+}
+
+
+#' Group Stan beta parameter names by predictor row (internal)
+#'
+#' Returns a named list — one element per predictor row — each element being a
+#' character vector of Stan names \code{beta[row, 1:p]} for that row.
+#'
+#' @param sd   The \code{standata} list.
+#' @param type One of \code{"fe"} or \code{"intercepts"}.
+#' @return Named list of character vectors keyed by predictor name.
+#' @keywords internal
+get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
+  type  <- match.arg(type)
+  p     <- sd$p
+  n_fe  <- sd$n_fe
+  fe_names <- colnames(sd$X)
+  if (is.null(fe_names)) fe_names <- paste0("fe", seq_len(n_fe))
+
+  # Guard: ordinal models have no intercept in X
+  if (type == "intercepts" && !("Intercept" %in% fe_names))
+    stop(
+      '`type = "intercepts"` is not valid for ordinal models: ',
+      "beta row 1 is a covariate, not an intercept. ",
+      "Cutpoints are stored in `kappa`.",
+      call. = FALSE
+    )
+
+  rows <- if (type == "fe") seq(2L, n_fe) else 1L
+
+  stats::setNames(
+    lapply(rows, function(r) {
+      vapply(seq_len(p), function(col) sprintf("beta[%d,%d]", r, col),
+             character(1L))
+    }),
+    fe_names[rows]
+  )
+}
+
+
+#' Group Stan beta names by lag×predictor interaction term (internal)
+#'
+#' @param sd The \code{standata} list.
+#' @return Named list; each element has \code{full} (all params) and
+#'   \code{by_lag} (list of per-lag-block param vectors).
+#' @keywords internal
+get_lag_interaction_indices_by_term <- function(sd) {
+  terms    <- sd$fe_interaction_terms
+  fe_ic    <- sd$fe_interaction_colnames
+  fe_names <- colnames(sd$X)
+  p <- sd$p; K <- sd$K
+
+  if (is.null(terms) || length(terms) == 0) {
+    # Fallback: parse column names for pre-implementation fits (dev only)
+    return(.parse_lag_interaction_cols(sd))
+  }
+
+  out <- list()
+  for (fac in terms) {
+    has_lag <- any(fac == "lag")
+    if (!has_lag) next   # plain x:x interactions handled by per-predictor plan
+
+    suffix <- paste(fac[fac != "lag"], collapse = ":")
+
+    # Use stored colnames; filter by suffix token
+    term_ic   <- fe_ic[startsWith(fe_ic, "lag") & endsWith(fe_ic, paste0(":", suffix))]
+    beta_rows <- match(term_ic, fe_names)
+
+    if (length(term_ic) == 0L || any(is.na(beta_rows)))
+      stop(sprintf("Lag-interaction columns for term '%s' not found in X.", suffix),
+           call. = FALSE)
+
+    lag_groups <- lapply(seq_len(K), function(k) {
+      row_slice <- beta_rows[((k - 1L) * p + 1L):(k * p)]
+      unlist(lapply(row_slice, function(r)
+        vapply(seq_len(p), function(col) sprintf("beta[%d,%d]", r, col), character(1L))
+      ))
+    })
+    names(lag_groups) <- paste0("lag", seq_len(K), ":", suffix)
+
+    out[[suffix]] <- list(
+      full   = unlist(lag_groups, use.names = FALSE),
+      by_lag = lag_groups
+    )
+  }
+  out
+}
+
+
+#' Parse lag×predictor interaction columns from X colnames (dev fallback)
+#'
+#' Temporary internal helper for pre-implementation fit objects that lack
+#' \code{fe_interaction_terms} metadata. Scheduled for removal before alpha.
+#'
+#' @param sd The \code{standata} list.
+#' @return Same structure as \code{get_lag_interaction_indices_by_term()}.
+#' @keywords internal
+.parse_lag_interaction_cols <- function(sd) {
+  fe_names <- colnames(sd$X)
+  lag_pat  <- "^(lag(\\d+)_[^:]+):(.+)$"
+  matches  <- regmatches(fe_names, regexec(lag_pat, fe_names))
+
+  hit <- vapply(matches, length, integer(1)) == 4L
+  if (!any(hit)) return(list())
+
+  m <- do.call(rbind, matches[hit])
+  suffixes <- unique(m[, 4L])
+  p <- sd$p; K <- sd$K
+
+  out <- list()
+  for (suf in suffixes) {
+    suf_idx <- which(hit & vapply(matches, function(x)
+      length(x) == 4L && x[4L] == suf, logical(1)))
+    ks <- as.integer(vapply(matches[suf_idx], `[[`, character(1), 3L))
+    beta_rows <- suf_idx
+
+    lag_groups <- lapply(seq_len(K), function(k) {
+      r_slice <- beta_rows[ks == k]
+      unlist(lapply(r_slice, function(r)
+        vapply(seq_len(p), function(col) sprintf("beta[%d,%d]", r, col), character(1L))
+      ))
+    })
+    names(lag_groups) <- paste0("lag", seq_len(K), ":", suf)
+    out[[suf]] <- list(full = unlist(lag_groups, use.names = FALSE), by_lag = lag_groups)
+  }
+  out
 }
 
 
@@ -337,15 +473,22 @@ savage_dickey <- function(object, params, null_value = 0,
 #' Compute Bayes factor table for a bvarnet model
 #'
 #' Computes Savage-Dickey density ratio Bayes factors for each parameter in the
-#' requested subset and returns a tidy data frame.  For joint tests
-#' (\code{type = "ar"}, \code{"cl"}), both per-parameter
-#' (logspline) and joint (MVN) rows are returned.
+#' requested subset and returns a tidy data frame.
+#'
+#' For \code{type = "fe"} and \code{"intercepts"}, the table contains three
+#' levels: per-cell (logspline), per-predictor joint (MVN), and a global
+#' joint-all (MVN).  For \code{type = "ar"} and \code{"cl"}, the existing
+#' two-level structure (per-cell + per-type joint) is unchanged.
+#'
+#' \code{type = "lag_fe"} emits only grouped joint rows for lag × predictor
+#' interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
+#' these parameters are already included when \code{type = "fe"} is requested.
 #'
 #' @param object     A \code{bvarnet} object returned by \code{bvar()}.
 #' @param type       Character vector. Which parameter groups to test.
 #'   Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
-#'   \code{"intercepts"}, \code{"fe"}
-#'   (non-intercept fixed effects).
+#'   \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
+#'   \code{"lag_fe"} (lag × predictor interaction joint tests).
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"}, \code{"cl"}, and \code{"phi"}.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
@@ -366,51 +509,177 @@ bf_table <- function(object,
   rows <- list()
 
   for (tp in type) {
-    tp <- match.arg(tp, c("ar", "cl", "intercepts", "fe"))
+    tp <- match.arg(tp, c("ar", "cl", "intercepts", "fe", "lag_fe"))
 
-    # --- Resolve parameter names ---
-    param_names <- switch(tp,
-      ar          = get_phi_indices(sd, lag = lag, effect = "ar"),
-      cl          = get_phi_indices(sd, lag = lag, effect = "cl"),
-      intercepts  = get_beta_indices(sd, type = "intercepts"),
-      fe          = get_beta_indices(sd, type = "fe")
-    )
-
-    # --- Per-parameter BFs (logspline) ---
-    for (pnm in param_names) {
-      res <- savage_dickey(object, params = pnm, null_value = null_value,
-                           method = "logspline")
-      lab <- .param_label(pnm, nm)
-      rows[[length(rows) + 1L]] <- data.frame(
-        type          = .type_label(tp),
-        predictor     = lab$predictor,
-        outcome       = lab$outcome,
-        BF01          = res$BF01,
-        BF10          = res$BF10,
-        log_BF01      = res$log_BF01,
-        post_density  = res$post_density,
-        prior_density = res$prior_density,
-        method        = res$method,
-        stringsAsFactors = FALSE
+    # ------------------------------------------------------------------
+    # AR / CL — unchanged two-level structure
+    # ------------------------------------------------------------------
+    if (tp %in% c("ar", "cl")) {
+      param_names <- switch(tp,
+        ar = get_phi_indices(sd, lag = lag, effect = "ar"),
+        cl = get_phi_indices(sd, lag = lag, effect = "cl")
       )
-    }
 
-    # --- Joint BF (MVN) for multi-parameter groups ---
-    if (length(param_names) > 1L) {
-      joint_res <- savage_dickey(object, params = param_names,
-                                 null_value = null_value, method = "mvn")
-      rows[[length(rows) + 1L]] <- data.frame(
-        type          = paste0(.type_label(tp), " (joint)"),
-        predictor     = paste0("all_", tp),
-        outcome       = "\u2014",
-        BF01          = joint_res$BF01,
-        BF10          = joint_res$BF10,
-        log_BF01      = joint_res$log_BF01,
-        post_density  = joint_res$post_density,
-        prior_density = joint_res$prior_density,
-        method        = joint_res$method,
-        stringsAsFactors = FALSE
-      )
+      # Per-parameter BFs (logspline)
+      for (pnm in param_names) {
+        res <- savage_dickey(object, params = pnm, null_value = null_value,
+                             method = "logspline")
+        lab <- .param_label(pnm, nm)
+        rows[[length(rows) + 1L]] <- data.frame(
+          type          = .type_label(tp),
+          predictor     = lab$predictor,
+          outcome       = lab$outcome,
+          BF01          = res$BF01,
+          BF10          = res$BF10,
+          log_BF01      = res$log_BF01,
+          post_density  = res$post_density,
+          prior_density = res$prior_density,
+          method        = res$method,
+          stringsAsFactors = FALSE
+        )
+      }
+
+      # Joint BF (MVN)
+      if (length(param_names) > 1L) {
+        joint_res <- savage_dickey(object, params = param_names,
+                                   null_value = null_value, method = "mvn")
+        rows[[length(rows) + 1L]] <- data.frame(
+          type          = paste0(.type_label(tp), " (joint)"),
+          predictor     = paste0("all_", tp),
+          outcome       = "\u2014",
+          BF01          = joint_res$BF01,
+          BF10          = joint_res$BF10,
+          log_BF01      = joint_res$log_BF01,
+          post_density  = joint_res$post_density,
+          prior_density = joint_res$prior_density,
+          method        = joint_res$method,
+          stringsAsFactors = FALSE
+        )
+      }
+
+    # ------------------------------------------------------------------
+    # FE / INTERCEPTS — three-phase structure
+    # ------------------------------------------------------------------
+    } else if (tp %in% c("fe", "intercepts")) {
+      param_names <- get_beta_indices(sd, type = tp)
+      by_pred     <- get_beta_indices_by_predictor(sd, type = tp)
+      type_base   <- .type_label(tp)
+
+      # Phase A — Per-cell BFs (logspline)
+      for (pnm in param_names) {
+        res <- savage_dickey(object, params = pnm, null_value = null_value,
+                             method = "logspline")
+        lab <- .param_label(pnm, nm)
+        rows[[length(rows) + 1L]] <- data.frame(
+          type          = type_base,
+          predictor     = lab$predictor,
+          outcome       = lab$outcome,
+          BF01          = res$BF01,
+          BF10          = res$BF10,
+          log_BF01      = res$log_BF01,
+          post_density  = res$post_density,
+          prior_density = res$prior_density,
+          method        = res$method,
+          stringsAsFactors = FALSE
+        )
+      }
+
+      # Phase B — Per-predictor joint BFs (MVN), only when p > 1
+      for (pred_name in names(by_pred)) {
+        pvec <- by_pred[[pred_name]]
+        if (length(pvec) > 1L) {
+          jres <- savage_dickey(object, params = pvec,
+                                null_value = null_value, method = "mvn")
+          rows[[length(rows) + 1L]] <- data.frame(
+            type          = paste0(type_base, " (joint)"),
+            predictor     = pred_name,
+            outcome       = "\u2014",
+            BF01          = jres$BF01,
+            BF10          = jres$BF10,
+            log_BF01      = jres$log_BF01,
+            post_density  = jres$post_density,
+            prior_density = jres$prior_density,
+            method        = jres$method,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
+
+      # Phase C — Global joint-all BF (MVN), only when > 1 predictor row
+      if (length(by_pred) > 1L) {
+        all_params <- unlist(by_pred, use.names = FALSE)
+        gres <- savage_dickey(object, params = all_params,
+                              null_value = null_value, method = "mvn")
+        rows[[length(rows) + 1L]] <- data.frame(
+          type          = paste0(type_base, " (joint all)"),
+          predictor     = paste0("all_", tp),
+          outcome       = "\u2014",
+          BF01          = gres$BF01,
+          BF10          = gres$BF10,
+          log_BF01      = gres$log_BF01,
+          post_density  = gres$post_density,
+          prior_density = gres$prior_density,
+          method        = gres$method,
+          stringsAsFactors = FALSE
+        )
+      }
+
+    # ------------------------------------------------------------------
+    # LAG_FE — grouped joint rows only
+    # ------------------------------------------------------------------
+    } else if (tp == "lag_fe") {
+      term_groups <- get_lag_interaction_indices_by_term(sd)
+
+      if (length(term_groups) == 0L)
+        stop(
+          "No lag interaction columns found in standata$X. ",
+          "Was the model fitted with fe_interactions containing 'lag' terms?",
+          call. = FALSE
+        )
+
+      for (suffix in names(term_groups)) {
+        tg <- term_groups[[suffix]]
+
+        # Per-lag-block joint BFs
+        for (lag_name in names(tg$by_lag)) {
+          lg_params <- tg$by_lag[[lag_name]]
+          if (length(lg_params) > 0L) {
+            lres <- savage_dickey(object, params = lg_params,
+                                  null_value = null_value,
+                                  method = if (length(lg_params) == 1L) "logspline" else "mvn")
+            rows[[length(rows) + 1L]] <- data.frame(
+              type          = "Lag Interaction (per lag)",
+              predictor     = lag_name,
+              outcome       = "\u2014",
+              BF01          = lres$BF01,
+              BF10          = lres$BF10,
+              log_BF01      = lres$log_BF01,
+              post_density  = lres$post_density,
+              prior_density = lres$prior_density,
+              method        = lres$method,
+              stringsAsFactors = FALSE
+            )
+          }
+        }
+
+        # Full-term omnibus joint BF
+        if (length(tg$full) > 1L) {
+          ores <- savage_dickey(object, params = tg$full,
+                                null_value = null_value, method = "mvn")
+          rows[[length(rows) + 1L]] <- data.frame(
+            type          = "Lag Interaction (joint)",
+            predictor     = suffix,
+            outcome       = "\u2014",
+            BF01          = ores$BF01,
+            BF10          = ores$BF10,
+            log_BF01      = ores$log_BF01,
+            post_density  = ores$post_density,
+            prior_density = ores$prior_density,
+            method        = ores$method,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
     }
   }
 

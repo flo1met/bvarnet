@@ -100,7 +100,9 @@ bvar <- function(id_col,
                             priors = priors
                            )
 
-  stanfit <- stanmodel$sample(data = standata,
+  stanfit <- stanmodel$sample(data = standata[!names(standata) %in%
+                                      c("fe_interaction_terms",
+                                        "fe_interaction_colnames")],
                               seed = seed,
                               iter_warmup = warmup,
                               iter_sampling = iter,

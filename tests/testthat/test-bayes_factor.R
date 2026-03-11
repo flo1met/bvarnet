@@ -169,7 +169,8 @@ test_that("get_phi_indices errors on invalid lag", {
 # ── get_beta_indices tests ───────────────────────────────────────────────────
 
 test_that("get_beta_indices returns intercepts correctly", {
-  sd <- list(p = 3L, n_fe = 2L)
+  X <- matrix(0, 10, 2, dimnames = list(NULL, c("Intercept", "x_1")))
+  sd <- list(p = 3L, n_fe = 2L, X = X)
   ic <- get_beta_indices(sd, type = "intercepts")
   expect_equal(ic, c("beta[1,1]", "beta[1,2]", "beta[1,3]"))
 })
@@ -330,4 +331,283 @@ test_that("p = 1 case: AR and phi produce same params", {
   cl <- get_phi_indices(sd, lag = 1, effect = "cl")
   expect_equal(ar, all)
   expect_length(cl, 0)
+})
+
+
+# ── get_beta_indices_by_predictor tests ──────────────────────────────────────
+
+test_that("get_beta_indices_by_predictor groups by predictor row", {
+  X <- matrix(0, 10, 4,
+              dimnames = list(NULL, c("Intercept", "x_1", "x_2", "x_1:x_2")))
+  sd <- list(p = 3L, n_fe = 4L, X = X)
+  by_pred <- get_beta_indices_by_predictor(sd, type = "fe")
+
+  # 3 predictor rows (rows 2, 3, 4); each should have p = 3 beta names
+  expect_length(by_pred, 3)
+  expect_named(by_pred, c("x_1", "x_2", "x_1:x_2"))
+  expect_equal(by_pred[["x_1"]], c("beta[2,1]", "beta[2,2]", "beta[2,3]"))
+  expect_equal(by_pred[["x_2"]], c("beta[3,1]", "beta[3,2]", "beta[3,3]"))
+})
+
+test_that("get_beta_indices_by_predictor handles intercepts", {
+  X <- matrix(0, 10, 2, dimnames = list(NULL, c("Intercept", "x_1")))
+  sd <- list(p = 2L, n_fe = 2L, X = X)
+  by_pred <- get_beta_indices_by_predictor(sd, type = "intercepts")
+
+  expect_length(by_pred, 1)
+  expect_named(by_pred, "Intercept")
+  expect_equal(by_pred[["Intercept"]], c("beta[1,1]", "beta[1,2]"))
+})
+
+test_that("get_beta_indices_by_predictor errors for ordinal intercepts", {
+  X <- matrix(0, 10, 2, dimnames = list(NULL, c("x_1", "x_2")))
+  sd <- list(p = 2L, n_fe = 2L, X = X, C = 5L)
+  expect_error(
+    get_beta_indices_by_predictor(sd, type = "intercepts"),
+    "not valid for ordinal"
+  )
+})
+
+test_that("get_beta_indices errors for ordinal intercepts", {
+  X <- matrix(0, 10, 2, dimnames = list(NULL, c("x_1", "x_2")))
+  sd <- list(p = 2L, n_fe = 2L, X = X, C = 5L)
+  expect_error(
+    get_beta_indices(sd, type = "intercepts"),
+    "not valid for ordinal"
+  )
+})
+
+
+# ── bf_table three-level FE tests ────────────────────────────────────────────
+
+test_that("bf_table fe: p=2, 2 predictors → 4 cell + 2 joint + 1 joint all = 7", {
+  # Build mock with n_fe = 3 (Intercept + x_1 + x_2), p = 2
+  p <- 2L; K <- 1L; n_fe <- 3L; n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(99L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, c("Intercept", "x_1", "x_2")))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "fe")
+  expect_equal(nrow(res), 7)
+
+  # Per-cell rows
+  cell_rows <- res[res$type == "Fixed Effect", ]
+  expect_equal(nrow(cell_rows), 4)  # 2 predictors * 2 outcomes
+
+  # Per-predictor joint rows
+  joint_rows <- res[res$type == "Fixed Effect (joint)", ]
+  expect_equal(nrow(joint_rows), 2)
+  expect_true(all(joint_rows$method == "mvn"))
+
+  # Global joint-all row
+  all_rows <- res[res$type == "Fixed Effect (joint all)", ]
+  expect_equal(nrow(all_rows), 1)
+  expect_equal(all_rows$predictor, "all_fe")
+})
+
+test_that("bf_table fe: p=1, 2 predictors → 2 cell + 0 joint + 1 joint all = 3", {
+  # p=1 means Phase B is skipped (per-cell is already the joint)
+  p <- 1L; K <- 1L; n_fe <- 3L; n_re <- 0L
+  par_nms <- c("beta[1,1]", "beta[2,1]", "beta[3,1]",
+               "phi[1,1]", "sigma[1]")
+
+  set.seed(98L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, "y_1"))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, c("Intercept", "x_1", "x_2")))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, "lag1_y_1"))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "fe")
+  # 2 per-cell + 0 per-predictor joint (p=1) + 1 joint-all (2 predictors) = 3
+  expect_equal(nrow(res), 3)
+  expect_equal(sum(res$type == "Fixed Effect (joint)"), 0)
+  expect_equal(sum(res$type == "Fixed Effect (joint all)"), 1)
+})
+
+test_that("bf_table intercepts: p=2, 1 predictor row → 2 + 1 + 0 = 3", {
+  # Phase C skipped because only 1 predictor row
+  mock <- make_mock_bvarnet("gaussian")
+  res <- bf_table(mock, type = "intercepts")
+  expect_equal(nrow(res), 3)
+  expect_equal(sum(res$type == "Intercept (joint)"), 1)
+  expect_equal(sum(grepl("joint all", res$type)), 0)
+})
+
+
+# ── lag_fe type tests ────────────────────────────────────────────────────────
+
+test_that("bf_table lag_fe: p=2, K=1, 1 interaction → 2 rows", {
+  # Build a mock with lag×x_1 interaction
+  p <- 2L; K <- 1L
+  # X: Intercept, x_1, lag1_y_1:x_1, lag1_y_2:x_1
+  n_fe <- 4L; n_re <- 0L
+  fe_names <- c("Intercept", "x_1", "lag1_y_1:x_1", "lag1_y_2:x_1")
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(97L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(
+      p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z,
+      fe_interaction_terms    = list(c("lag", "x_1")),
+      fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
+    ),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "lag_fe")
+  # 1 per-lag joint + 1 omnibus joint = 2
+  expect_equal(nrow(res), 2)
+  expect_true("Lag Interaction (per lag)" %in% res$type)
+  expect_true("Lag Interaction (joint)"   %in% res$type)
+  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+})
+
+test_that("bf_table lag_fe: p=2, K=2 → 3 rows (2 per-lag + 1 omnibus)", {
+  p <- 2L; K <- 2L
+  fe_names <- c("Intercept", "x_1",
+                "lag1_y_1:x_1", "lag1_y_2:x_1",
+                "lag2_y_1:x_1", "lag2_y_2:x_1")
+  n_fe <- length(fe_names); n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- sprintf("phi[%d,%d]",
+                      rep(1:(p * K), times = p),
+                      rep(1:p, each = p * K))
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(96L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL,
+      c("lag1_y_1", "lag1_y_2", "lag2_y_1", "lag2_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(
+      p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z,
+      fe_interaction_terms    = list(c("lag", "x_1")),
+      fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1",
+                                  "lag2_y_1:x_1", "lag2_y_2:x_1")
+    ),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "lag_fe")
+  expect_equal(nrow(res), 3)
+  per_lag <- res[res$type == "Lag Interaction (per lag)", ]
+  expect_equal(nrow(per_lag), 2)
+  omnibus <- res[res$type == "Lag Interaction (joint)", ]
+  expect_equal(nrow(omnibus), 1)
+})
+
+test_that("bf_table lag_fe errors when no lag interactions present", {
+  mock <- make_mock_bvarnet("gaussian")
+  expect_error(
+    bf_table(mock, type = "lag_fe"),
+    "No lag interaction columns"
+  )
+})
+
+test_that("bf_table lag_fe fallback: parser recovers from missing metadata", {
+  # Build mock with lag interaction columns but without fe_interaction_terms
+  p <- 2L; K <- 1L
+  fe_names <- c("Intercept", "x_1", "lag1_y_1:x_1", "lag1_y_2:x_1")
+  n_fe <- length(fe_names); n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(95L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re,
+                     Y = Y, X = X, B = B, Z = Z),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  # No fe_interaction_terms → fallback parser should detect columns
+  res <- bf_table(mock, type = "lag_fe")
+  expect_equal(nrow(res), 2)
+})
+
+
+# ── to_stan_data metadata persistence ────────────────────────────────────────
+
+test_that("to_stan_data stores fe_interaction_terms and colnames", {
+  df <- make_test_df(N = 3, T_obs = 20, p = 2, q = 1, family = "bernoulli")
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), "x_1",
+                     fe_interactions = list(c("lag", "x_1")), K = 1)
+
+  expect_true(!is.null(sd$fe_interaction_terms))
+  expect_true(is.list(sd$fe_interaction_terms))
+  expect_length(sd$fe_interaction_terms, 1)
+  expect_equal(sd$fe_interaction_terms[[1]], c("lag", "x_1"))
+
+  expect_true(!is.null(sd$fe_interaction_colnames))
+  expect_true(all(grepl(":x_1$", sd$fe_interaction_colnames)))
+})
+
+test_that("to_stan_data omits metadata when no fe_interactions", {
+  df <- make_test_df(N = 3, T_obs = 20, p = 2, q = 1, family = "bernoulli")
+  sd <- to_stan_data(df, "bernoulli", "id", "t",
+                     paste0("y_", 1:2), "x_1", K = 1)
+  expect_null(sd$fe_interaction_terms)
+  expect_null(sd$fe_interaction_colnames)
 })
