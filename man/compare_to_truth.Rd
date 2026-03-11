@@ -4,7 +4,13 @@
 \alias{compare_to_truth}
 \title{Compare fitted model parameters to simulation truth}
 \usage{
-compare_to_truth(fit, truth, ci_width = 0.9)
+compare_to_truth(
+  fit,
+  truth,
+  ci_width = 0.9,
+  bayes_factor = FALSE,
+  null_value = 0
+)
 }
 \arguments{
 \item{fit}{A fitted \code{bvarnet} object (output from \code{bvar()}).}
@@ -12,10 +18,20 @@ compare_to_truth(fit, truth, ci_width = 0.9)
 \item{truth}{The \code{truth} component from \code{sim_var()} output.}
 
 \item{ci_width}{Numeric. Width of the credible interval (default 0.90).}
+
+\item{bayes_factor}{Logical; if \code{TRUE}, compute Savage-Dickey BFs for
+beta and phi parameters and append \code{BF01}, \code{BF10}, and
+\code{bf_correct} columns.  \code{bf_correct} is \code{TRUE} when BF01 > 1
+for true null parameters (true value == \code{null_value}) and BF10 > 1
+for true non-null parameters.  Default \code{FALSE}.}
+
+\item{null_value}{Numeric scalar; the null hypothesis value for Bayes
+factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.}
 }
 \value{
-A data frame with columns: parameter, node, index, true_value,
-post_mean, post_sd, ci_lower, ci_upper, covered (logical).
+A data frame with columns: parameter, node, true_value,
+post_mean, post_sd, ci_lower, ci_upper, covered (logical), and optionally
+BF01, BF10, bf_correct.
 }
 \description{
 Extracts posterior summaries from a fitted \code{bvarnet} object and

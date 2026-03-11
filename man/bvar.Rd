@@ -24,7 +24,9 @@ bvar(
   warmup = 1000,
   chains = 4,
   cores = 1,
-  seed = NULL
+  seed = NULL,
+  adapt_delta = NULL,
+  max_treedepth = NULL
 )
 }
 \arguments{
@@ -76,6 +78,17 @@ Defaults to \code{set_priors()} (package defaults).}
 \item{cores}{Integer. Number of chains to run in parallel. Default 1.}
 
 \item{seed}{Integer or NULL. RNG seed.}
+
+\item{adapt_delta}{Numeric in (0, 1). Target average proposal acceptance
+probability during warmup adaptation. Higher values (e.g., 0.95–0.99)
+reduce divergences at the cost of slower sampling. Default \code{NULL}
+(CmdStan default of 0.8).}
+
+\item{max_treedepth}{Integer. Maximum depth of the NUTS binary tree.
+Increasing this allows the sampler to take more leapfrog steps per
+iteration, which can help with difficult posteriors (e.g., funnels in
+hierarchical logistic models) but increases computation. Default
+\code{NULL} (CmdStan default of 10).}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:

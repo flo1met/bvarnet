@@ -37,6 +37,15 @@
 #'   is retained in the returned object as \code{$fit}. Useful for accessing
 #'   Stan profiling results (\code{$fit$profiles()}), LOO/WAIC helpers, or
 #'   other CmdStanR methods. Default \code{FALSE} to keep memory usage low.
+#' @param adapt_delta Numeric in (0, 1). Target average proposal acceptance
+#'   probability during warmup adaptation. Higher values (e.g., 0.95–0.99)
+#'   reduce divergences at the cost of slower sampling. Default \code{NULL}
+#'   (CmdStan default of 0.8).
+#' @param max_treedepth Integer. Maximum depth of the NUTS binary tree.
+#'   Increasing this allows the sampler to take more leapfrog steps per
+#'   iteration, which can help with difficult posteriors (e.g., funnels in
+#'   hierarchical logistic models) but increases computation. Default
+#'   \code{NULL} (CmdStan default of 10).
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{summary}, \code{diagnostics}, \code{timing},
@@ -65,7 +74,9 @@ bvar <- function(id_col,
                  chains = 4,
                  cores = 1,
                  seed = NULL,
-                 keep_fit = FALSE
+                 keep_fit = FALSE,
+                 adapt_delta = NULL,
+                 max_treedepth = NULL
 
   ) {
 
@@ -100,7 +111,9 @@ bvar <- function(id_col,
                               iter_warmup = warmup,
                               iter_sampling = iter,
                               chains = chains,
-                              parallel_chains = cores)
+                              parallel_chains = cores,
+                              adapt_delta = adapt_delta,
+                              max_treedepth = max_treedepth)
 
   # Extract everything from CmdStanMCMC into plain base-R objects, then discard
   # the fit object (CSV refs, compiled binary, lazy draws) to keep memory lean.
