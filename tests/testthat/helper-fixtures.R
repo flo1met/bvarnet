@@ -149,12 +149,16 @@ make_test_df <- function(N = 5, T_obs = 20, p = 2, q = 0,
 #'
 #' Returns a minimal bvarnet list with a synthetic 3D draws array, a matching
 #' summary data.frame, and stubbed diagnostics/timing/metadata fields.
-#' p=2 outcomes, K=1 lag, n_fe=2 (Intercept + x_1), n_re=0.
+#' p=2 outcomes, K=1 lag, n_fe=2 (Intercept + x_1).
 #' For ordinal: C=3 (2 cutpoints).  For gaussian: sigma included.
-make_mock_bvarnet <- function(family = "bernoulli",
-                               n_iter  = 20L,
-                               n_chains = 2L) {
-  p <- 2L; K <- 1L; n_fe <- 2L; n_re <- 0L
+#' When \code{n_re > 0}, \code{sd_u} and \code{u} draw columns are added
+#' with \code{J} subjects and \code{n_re} random-effect columns.
+make_mock_bvarnet <- function(family   = "bernoulli",
+                               n_iter   = 20L,
+                               n_chains = 2L,
+                               n_re     = 0L,
+                               J        = 5L) {
+  p <- 2L; K <- 1L; n_fe <- 2L
 
   beta_nm <- c("beta[1,1]", "beta[2,1]", "beta[1,2]", "beta[2,2]")
   phi_nm  <- c("phi[1,1]",  "phi[2,1]",  "phi[1,2]",  "phi[2,2]")
@@ -165,6 +169,25 @@ make_mock_bvarnet <- function(family = "bernoulli",
   if (family == "ordinal")
     par_nms <- c(par_nms, "kappa[1,1]", "kappa[2,1]", "kappa[1,2]", "kappa[2,2]")
 
+  # sd_u parameters: sd_u[node,re]
+  if (n_re > 0L) {
+    sd_u_nm <- character(0)
+    for (node in seq_len(p))
+      for (re in seq_len(n_re))
+        sd_u_nm <- c(sd_u_nm, sprintf("sd_u[%d,%d]", node, re))
+    par_nms <- c(par_nms, sd_u_nm)
+  }
+
+  # u parameters: array[p] matrix[J, n_re] → u[node, subject, re]
+  u_nm <- character(0)
+  if (n_re > 0L) {
+    for (node in seq_len(p))
+      for (subj in seq_len(J))
+        for (re in seq_len(n_re))
+          u_nm <- c(u_nm, sprintf("u[%d,%d,%d]", node, subj, re))
+    par_nms <- c(par_nms, u_nm)
+  }
+
   n_par <- length(par_nms)
   set.seed(42L)
   draws <- array(
@@ -172,6 +195,12 @@ make_mock_bvarnet <- function(family = "bernoulli",
     dim      = c(n_iter, n_chains, n_par),
     dimnames = list(NULL, NULL, par_nms)
   )
+
+  # Make sd_u draws positive (half-prior)
+  if (n_re > 0L) {
+    sd_u_idx <- grep("^sd_u\\[", par_nms)
+    draws[, , sd_u_idx] <- abs(draws[, , sd_u_idx])
+  }
 
   smry <- data.frame(
     variable  = par_nms,
@@ -187,16 +216,24 @@ make_mock_bvarnet <- function(family = "bernoulli",
     stringsAsFactors = FALSE
   )
 
-  Y <- matrix(0L, 10L, p, dimnames = list(NULL, c("y_1", "y_2")))
-  X <- matrix(0,  10L, n_fe,
+  n_obs <- 10L
+  Y <- matrix(0L, n_obs, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0,  n_obs, n_fe,
               dimnames = list(NULL, c("Intercept", "x_1")))
-  B <- matrix(0,  10L, p * K,
+  B <- matrix(0,  n_obs, p * K,
               dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
-  Z <- matrix(0,  10L, n_re)
+
+  if (n_re > 0L) {
+    re_colnames <- paste0("z_", seq_len(n_re))
+    Z <- matrix(rnorm(n_obs * n_re), n_obs, n_re,
+                dimnames = list(NULL, re_colnames))
+  } else {
+    Z <- matrix(0, n_obs, 0L)
+  }
 
   sd_list <- list(
-    p = p, K = K, n_fe = n_fe, n_re = n_re, n = 10L,
-    Y = Y, X = X, B = B, Z = Z
+    p = p, K = K, n_fe = n_fe, n_re = n_re, n = n_obs,
+    J = J, Y = Y, X = X, B = B, Z = Z
   )
   if (family == "ordinal") sd_list$C <- 3L
 
