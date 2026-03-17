@@ -174,6 +174,32 @@ test_that("build_Z rejects invalid re_cols", {
 })
 
 
+test_that("build_Z creates Intercept column when absent from X (ordinal case)", {
+  # Ordinal X has no Intercept column (absorbed by kappa cutpoints)
+  X <- matrix(rnorm(20), 10, 2, dimnames = list(NULL, c("x_1", "x_2")))
+  B <- matrix(0, 10, 3)
+
+  Z <- bvarnet:::build_Z(X, B, re_cols = "Intercept")
+
+  expect_equal(ncol(Z), 1)
+  expect_equal(nrow(Z), 10)
+  expect_true(all(Z[, 1] == 1))
+  expect_equal(colnames(Z), "Intercept")
+})
+
+
+test_that("build_Z creates Intercept + selects other re_cols when Intercept absent", {
+  X <- matrix(rnorm(20), 10, 2, dimnames = list(NULL, c("x_1", "x_2")))
+  B <- matrix(0, 10, 3)
+
+  Z <- bvarnet:::build_Z(X, B, re_cols = c("Intercept", "x_1"))
+
+  expect_equal(ncol(Z), 2)
+  expect_true(all(Z[, "Intercept"] == 1))
+  expect_equal(Z[, "x_1"], X[, "x_1"])
+})
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # §4 make_term_matrix()
 # ═══════════════════════════════════════════════════════════════════════════════

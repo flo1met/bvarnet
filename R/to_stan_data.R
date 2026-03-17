@@ -301,7 +301,7 @@ return(out)
 }
 
 build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
-  # X: n_obs x n_fe (incl intercept)
+  # X: n_obs x n_fe (incl intercept for bernoulli/gaussian; NO intercept for ordinal)
   # B: n_obs x (p*K)
   stopifnot(is.matrix(X), is.matrix(B))
 
@@ -309,6 +309,14 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
 
   # random slopes on selected fixed-effect columns
   if (length(re_cols) > 0) {
+    # Handle "Intercept" specially: for ordinal, X has no intercept column
+    # (intercept is absorbed by kappa cutpoints), so create a column of 1s
+    if ("Intercept" %in% re_cols && !"Intercept" %in% colnames(X)) {
+      intercept_col <- matrix(1, nrow = nrow(X), ncol = 1)
+      colnames(intercept_col) <- "Intercept"
+      X <- cbind(X, intercept_col)
+    }
+
     missing <- setdiff(re_cols, colnames(X))
     if (length(missing) > 0) {
       stop("re_cols not found in X: ", paste(missing, collapse = ", "))
