@@ -31,7 +31,7 @@ data {
     int<lower=1> K; // AR(K)
 
     int<lower=1> n_obs; // number of modeled observations
-    int<lower=1> n_fe; // number of fixed effects (columns of X, NO intercept for ordinal)
+    int<lower=0> n_fe; // number of fixed effects (columns of X, NO intercept for ordinal)
     int<lower=0> n_re; // number of random effects (columns of Z)
 
     array[n_obs] int<lower=1, upper=J> id; // person identifier
