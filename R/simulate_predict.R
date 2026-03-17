@@ -146,6 +146,7 @@
 
   X  <- matrix(NA_real_, n_obs, q)
   B  <- matrix(0, n_obs, PK)
+  Y_obs <- matrix(NA_real_, n_obs, p)
   id_char  <- character(n_obs)
   row_map  <- integer(n_obs)
 
@@ -166,6 +167,7 @@
       id_char[row] <- as.character(this_id)
       row_map[row] <- df_sub$.orig_row[t]
       X[row, ] <- Xmat[t, ]
+      Y_obs[row, ] <- Ymat[t, ]
 
       valid <- TRUE
       for (lag in 1:K) {
@@ -189,6 +191,7 @@
   if (row < n_obs) {
     X       <- X[seq_len(row), , drop = FALSE]
     B       <- B[seq_len(row), , drop = FALSE]
+    Y_obs   <- Y_obs[seq_len(row), , drop = FALSE]
     id_char <- id_char[seq_len(row)]
     row_map <- row_map[seq_len(row)]
     n_obs   <- row
@@ -223,6 +226,7 @@
     X        = X,
     B        = B,
     Z        = Z,
+    Y_obs    = Y_obs,
     id_char  = id_char,
     row_map  = row_map,
     n_rows   = nrow(newdata)
@@ -460,13 +464,181 @@
 }
 
 
+# --- recursive forecasting helpers -----------------------------------------
+
+#' Validate and normalise conditioning_window into a per-subject named vector
+#'
+#' @param conditioning_window NULL, integer scalar, or named integer vector.
+#' @param unique_ids Character vector of unique subject IDs (in row order).
+#' @param K Lag order.
+#' @return Named integer vector keyed by subject ID.
+#' @noRd
+.resolve_conditioning_window_by_subject <- function(conditioning_window,
+                                                     unique_ids, K) {
+  if (is.null(conditioning_window)) conditioning_window <- K
+
+  if (length(conditioning_window) == 1L && is.null(names(conditioning_window))) {
+    cw <- setNames(rep(as.integer(conditioning_window), length(unique_ids)),
+                   as.character(unique_ids))
+  } else if (!is.null(names(conditioning_window))) {
+    ids_chr <- as.character(unique_ids)
+    cw_names <- as.character(names(conditioning_window))
+    matched <- match(ids_chr, cw_names)
+    if (any(is.na(matched)))
+      stop("conditioning_window is missing entries for subjects: ",
+           paste(ids_chr[is.na(matched)], collapse = ", "), call. = FALSE)
+    cw <- setNames(as.integer(conditioning_window[matched]), ids_chr)
+  } else {
+    stop("conditioning_window must be NULL, a scalar, or a named vector.",
+         call. = FALSE)
+  }
+
+  if (any(cw < K))
+    stop(sprintf("conditioning_window must be >= K (%d) for all subjects.", K),
+         call. = FALSE)
+
+  cw
+}
+
+
+#' Shift lag buffer and insert new observation
+#'
+#' @param lag_buffer Numeric vector of length p*K
+#'   ordered [lag1_y1..lag1_yp, lag2_y1..lag2_yp, ...].
+#' @param y_new Numeric vector of length p (new values to insert as lag 1).
+#' @param K Integer lag order.
+#' @param p Integer number of outcome variables.
+#' @return Updated lag buffer.
+#' @noRd
+.update_lag_buffer <- function(lag_buffer, y_new, K, p) {
+  if (K > 1L) {
+    lag_buffer[(p + 1L):(p * K)] <- lag_buffer[1L:(p * (K - 1L))]
+  }
+  lag_buffer[1:p] <- y_new
+  lag_buffer
+}
+
+
+#' Convert a row of eta to the value used for recursive lag updates
+#'
+#' Rules from the plan:
+#' - gaussian: predicted mean (identity link, so just eta).
+#' - bernoulli: P(Y=1) = inverse logit of eta (continuous expected value,
+#'   avoids unstable stepwise paths from hard thresholds).
+#' - ordinal: E[Y] = sum(c * P(Y=c)).
+#'
+#' @param eta_row Numeric vector of length p (linear predictor per node).
+#' @param family Character.
+#' @param sigma Numeric vector (gaussian) or NULL.
+#' @param kappa List of p ordered vectors (ordinal) or NULL.
+#' @return Numeric vector of length p.
+#' @noRd
+.recursive_lag_value <- function(eta_row, family, sigma, kappa) {
+  if (family == "gaussian") {
+    return(eta_row)
+  } else if (family == "bernoulli") {
+    return(1 / (1 + exp(-eta_row)))
+  } else if (family == "ordinal") {
+    p <- length(eta_row)
+    C <- length(kappa[[1]]) + 1L
+    vals <- numeric(p)
+    for (node in seq_len(p)) {
+      probs <- .ordinal_probs(eta_row[node], kappa[[node]], C)
+      vals[node] <- sum(probs * seq_len(C))
+    }
+    return(vals)
+  }
+  stop("Unknown family: ", family, call. = FALSE)
+}
+
+
+#' Compute eta matrix using recursive forecasting (subject-by-subject)
+#'
+#' For each subject: rows up to the conditioning window use observed lag
+#' values (from B); subsequent rows use a rolling lag buffer that is updated
+#' with predicted values after each step.
+#'
+#' @param X   Matrix [n_obs, n_fe].
+#' @param B   Matrix [n_obs, p*K] (observed lags).
+#' @param Z   Matrix [n_obs, n_re] (or 0-col).
+#' @param Y_obs Matrix [n_obs, p] (observed outcomes for modeled rows).
+#' @param beta Matrix [n_fe, p].
+#' @param phi  Matrix [p*K, p].
+#' @param sigma Numeric vector length p (gaussian) or NULL.
+#' @param kappa List of p ordered vectors (ordinal) or NULL.
+#' @param id_char Character vector length n_obs.
+#' @param object bvarnet object (for RE extraction).
+#' @param subject_re Character.
+#' @param new_subject Character.
+#' @param draw_index NULL or integer.
+#' @param family Character.
+#' @param cw_by_subject Named integer vector (conditioning window per subject).
+#' @param K Integer lag order.
+#' @param p Integer number of nodes.
+#' @return Matrix [n_obs, p] of linear predictor values.
+#' @noRd
+.compute_recursive_eta <- function(X, B, Z, Y_obs, beta, phi, sigma, kappa,
+                                    id_char, object, subject_re, new_subject,
+                                    draw_index, family, cw_by_subject, K, p) {
+  n_obs <- nrow(X)
+  eta_mat <- matrix(NA_real_, n_obs, p)
+
+  # Pre-compute RE values for each node (full vectorised extraction)
+  has_re <- !is.null(Z) && ncol(Z) > 0L
+  u_list <- vector("list", p)
+  if (has_re) {
+    for (node in seq_len(p)) {
+      u_list[[node]] <- .get_re_for_rows(object, id_char, subject_re,
+                                          new_subject, draw_index, node)
+    }
+  }
+
+  unique_ids <- unique(id_char)
+  for (subj_id in unique_ids) {
+    rows    <- which(id_char == subj_id)
+    T_mod   <- length(rows)
+    cw      <- cw_by_subject[subj_id]
+    n_cond  <- max(0L, as.integer(cw) - K)
+
+    # Initialise lag buffer from the first modeled row's observed lags
+    lag_buffer <- B[rows[1], ]
+
+    for (ti in seq_len(T_mod)) {
+      r <- rows[ti]  # global row index
+
+      B_row <- if (ti <= n_cond) B[r, ] else lag_buffer
+
+      for (node in seq_len(p)) {
+        eta_val <- sum(X[r, ] * beta[, node]) + sum(B_row * phi[, node])
+        if (has_re) {
+          eta_val <- eta_val + sum(Z[r, ] * u_list[[node]][r, ])
+        }
+        eta_mat[r, node] <- eta_val
+      }
+
+      # Update lag buffer
+      if (ti <= n_cond) {
+        lag_buffer <- .update_lag_buffer(lag_buffer, Y_obs[r, ], K, p)
+      } else {
+        y_pred <- .recursive_lag_value(eta_mat[r, ], family, sigma, kappa)
+        lag_buffer <- .update_lag_buffer(lag_buffer, y_pred, K, p)
+      }
+    }
+  }
+
+  colnames(eta_mat) <- colnames(object$standata$Y)
+  eta_mat
+}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #                       predict.bvarnet
 # ═══════════════════════════════════════════════════════════════════════════════
 
 #' Predict from a fitted bvarnet model
 #'
-#' Computes one-step-ahead predictions for long-format time-series data.
+#' Computes one-step-ahead or recursive forecasts for long-format time-series
+#' data.
 #' Supports population-level (\code{subject_re = "zero"}) and
 #' subject-specific (\code{subject_re = "posterior-mean"}) predictions.
 #' Also serves as the out-of-sample engine: fit on training data, call
@@ -476,6 +648,14 @@
 #' @param newdata Data frame in long format. If \code{NULL}, the original
 #'   training data design matrices (stored in \code{object$standata}) are used
 #'   for in-sample fitted values.
+#' @param forecast Character. \code{"one-step"} (default) uses observed lag
+#'   values from \code{newdata} for every row. \code{"recursive"} feeds
+#'   predicted values back into the lag buffer after the conditioning window.
+#' @param conditioning_window Integer scalar, named integer vector, or
+#'   \code{NULL}. Number of observed time points (per subject) used to
+#'   initialise the lag buffer before recursive forecasting begins.
+#'   Must be \code{>= K}. If \code{NULL}, defaults to \code{K} (minimum lag
+#'   history). Ignored when \code{forecast = "one-step"}.
 #' @param type Character. Output type: \code{"link"} (linear predictor),
 #'   \code{"response"} (mean on the outcome scale), or
 #'   \code{"probabilities"} (category-level probabilities/mean+sd).
@@ -515,6 +695,8 @@
 #' @export
 predict.bvarnet <- function(object,
                             newdata     = NULL,
+                            forecast    = c("one-step", "recursive"),
+                            conditioning_window = NULL,
                             type        = c("link", "response", "probabilities"),
                             method      = c("posterior-mean", "posterior-sample"),
                             ndraws      = NULL,
@@ -523,6 +705,7 @@ predict.bvarnet <- function(object,
                             new_subject = c("zero", "sample"),
                             ...) {
 
+  forecast    <- match.arg(forecast)
   type        <- match.arg(type)
   method      <- match.arg(method)
   subject_re  <- match.arg(subject_re)
@@ -548,6 +731,7 @@ predict.bvarnet <- function(object,
     X       <- sd$X
     B       <- sd$B
     Z       <- sd$Z
+    Y_obs   <- sd$Y
     id_char <- as.character(sd$id_levels[sd$id])
     row_map <- NULL
     n_rows  <- NULL
@@ -556,12 +740,23 @@ predict.bvarnet <- function(object,
     X       <- pred_sd$X
     B       <- pred_sd$B
     Z       <- pred_sd$Z
+    Y_obs   <- pred_sd$Y_obs
     id_char <- pred_sd$id_char
     row_map <- pred_sd$row_map
     n_rows  <- pred_sd$n_rows
   }
 
   n_obs <- nrow(X)
+  K     <- sd$K
+
+  # --- resolve conditioning window for recursive mode ---------------------
+  cw_by_subject <- NULL
+  if (forecast == "recursive") {
+    unique_ids    <- unique(id_char)
+    cw_by_subject <- .resolve_conditioning_window_by_subject(
+      conditioning_window, unique_ids, K
+    )
+  }
 
   # --- dispatch by method ------------------------------------------------
   if (method == "posterior-mean") {
@@ -574,10 +769,18 @@ predict.bvarnet <- function(object,
       .extract_param_draw(object, "kappa", NULL), sd) else NULL
 
     eta_mat <- matrix(NA_real_, n_obs, p)
-    for (node in seq_len(p)) {
-      u_rows <- .get_re_for_rows(object, id_char, subject_re,
-                                  new_subject, NULL, node)
-      eta_mat[, node] <- .predict_eta_node(X, B, beta, phi, Z, u_rows, node)
+    if (forecast == "recursive") {
+      eta_mat <- .compute_recursive_eta(
+        X, B, Z, Y_obs, beta, phi, sigma, kappa,
+        id_char, object, subject_re, new_subject,
+        NULL, family, cw_by_subject, K, p
+      )
+    } else {
+      for (node in seq_len(p)) {
+        u_rows <- .get_re_for_rows(object, id_char, subject_re,
+                                    new_subject, NULL, node)
+        eta_mat[, node] <- .predict_eta_node(X, B, beta, phi, Z, u_rows, node)
+      }
     }
     colnames(eta_mat) <- colnames(sd$Y)
 
@@ -620,10 +823,18 @@ predict.bvarnet <- function(object,
         .extract_param_draw(object, "kappa", s), sd) else NULL
 
       eta_s <- matrix(NA_real_, n_obs, p)
-      for (node in seq_len(p)) {
-        u_rows <- .get_re_for_rows(object, id_char, subject_re,
-                                    new_subject, s, node)
-        eta_s[, node] <- .predict_eta_node(X, B, beta_s, phi_s, Z, u_rows, node)
+      if (forecast == "recursive") {
+        eta_s <- .compute_recursive_eta(
+          X, B, Z, Y_obs, beta_s, phi_s, sigma_s, kappa_s,
+          id_char, object, subject_re, new_subject,
+          s, family, cw_by_subject, K, p
+        )
+      } else {
+        for (node in seq_len(p)) {
+          u_rows <- .get_re_for_rows(object, id_char, subject_re,
+                                      new_subject, s, node)
+          eta_s[, node] <- .predict_eta_node(X, B, beta_s, phi_s, Z, u_rows, node)
+        }
       }
       colnames(eta_s) <- colnames(sd$Y)
 

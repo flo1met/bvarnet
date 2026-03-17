@@ -330,6 +330,215 @@ test_that("predict: errors on missing newdata columns", {
   expect_error(predict(mock, newdata = bad_df), "Missing columns in newdata")
 })
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  §6.2b  Recursive forecasting tests (no Stan)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("recursive: returns finite predictions after conditioning window", {
+  mock <- make_predictable_mock("gaussian", T_obs = 20L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  for (j in 1:1) df[[paste0("x_", j)]] <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "link",
+                 forecast = "recursive", conditioning_window = K + 3L)
+  expect_equal(nrow(out), nrow(df))
+  # First K rows per subject should be NA
+  for (subj in seq_len(N)) {
+    subj_rows <- which(df$id == subj)
+    first_k <- head(subj_rows, K)
+    expect_true(all(is.na(out[first_k, ])))
+  }
+  # Rows after first K should be finite (both conditioning + recursive)
+  for (subj in seq_len(N)) {
+    subj_rows <- which(df$id == subj)
+    modeled <- subj_rows[-(1:K)]
+    expect_true(all(is.finite(out[modeled, ])))
+  }
+})
+
+test_that("recursive: differs from one-step on long horizons", {
+  mock <- make_predictable_mock("gaussian", T_obs = 25L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 25L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  for (j in 1:1) df[[paste0("x_", j)]] <- rnorm(nrow(df))
+
+  out_one  <- predict(mock, newdata = df, type = "link",
+                      forecast = "one-step")
+  out_rec  <- predict(mock, newdata = df, type = "link",
+                      forecast = "recursive", conditioning_window = K + 2L)
+  # The early conditioning rows should match one-step (same observed lags)
+  for (subj in seq_len(N)) {
+    subj_rows <- which(df$id == subj)
+    cond_rows <- subj_rows[(K + 1L):(K + 2L)]  # n_cond = cw - K = 2
+    expect_equal(out_one[cond_rows, ], out_rec[cond_rows, ])
+  }
+  # Later forecast rows should diverge
+  expect_false(identical(out_one, out_rec))
+})
+
+test_that("recursive: works with conditioning_window = K (all rows forecasted)", {
+  mock <- make_predictable_mock("gaussian", T_obs = 15L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 15L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  for (j in 1:1) df[[paste0("x_", j)]] <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "response",
+                 forecast = "recursive", conditioning_window = K)
+  expect_true(is.matrix(out))
+  for (subj in seq_len(N)) {
+    subj_rows <- which(df$id == subj)
+    modeled <- subj_rows[-(1:K)]
+    expect_true(all(is.finite(out[modeled, ])))
+  }
+})
+
+test_that("recursive: conditioning_window < K errors", {
+  mock <- make_predictable_mock("gaussian")
+  set.seed(99L)
+  K <- mock$standata$K
+  df <- expand.grid(t = seq_len(10L), id = 1:3)
+  df <- df[order(df$id, df$t), ]
+  for (j in 1:mock$standata$p) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  df$x_1 <- rnorm(nrow(df))
+
+  expect_error(
+    predict(mock, newdata = df, forecast = "recursive",
+            conditioning_window = K - 1L),
+    "conditioning_window must be >= K"
+  )
+})
+
+test_that("recursive: named conditioning_window per subject works", {
+  mock <- make_predictable_mock("gaussian", J = 3L, T_obs = 20L)
+  set.seed(99L)
+  K <- mock$standata$K; p_n <- mock$standata$p
+  df <- expand.grid(t = seq_len(20L), id = 1:3)
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  df$x_1 <- rnorm(nrow(df))
+
+  cw <- c("1" = K + 2L, "2" = K + 5L, "3" = K + 3L)
+  out <- predict(mock, newdata = df, type = "link",
+                 forecast = "recursive", conditioning_window = cw)
+  expect_true(is.matrix(out))
+  expect_equal(nrow(out), nrow(df))
+  # All modeled rows should be finite
+  for (subj in 1:3) {
+    subj_rows <- which(df$id == subj)
+    modeled <- subj_rows[-(1:K)]
+    expect_true(all(is.finite(out[modeled, ])))
+  }
+})
+
+test_that("recursive: missing subject in named cw errors", {
+  mock <- make_predictable_mock("gaussian", J = 3L, T_obs = 15L)
+  set.seed(99L)
+  K <- mock$standata$K; p_n <- mock$standata$p
+  df <- expand.grid(t = seq_len(15L), id = 1:3)
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  df$x_1 <- rnorm(nrow(df))
+
+  cw <- c("1" = K + 2L, "2" = K + 3L)  # missing "3"
+  expect_error(
+    predict(mock, newdata = df, forecast = "recursive",
+            conditioning_window = cw),
+    "missing entries"
+  )
+})
+
+test_that("recursive: bernoulli returns probabilities in [0,1]", {
+  mock <- make_predictable_mock("bernoulli", T_obs = 20L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rbinom(nrow(df), 1, 0.5)
+  df$x_1 <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "response",
+                 forecast = "recursive", conditioning_window = K + 3L)
+  non_na <- which(!is.na(out[, 1]))
+  expect_true(all(out[non_na, ] >= 0 & out[non_na, ] <= 1))
+})
+
+test_that("recursive: ordinal probability rows sum to 1", {
+  mock <- make_predictable_mock("ordinal", T_obs = 20L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
+  C <- mock$standata$C
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- sample(1:C, nrow(df), replace = TRUE)
+  df$x_1 <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "probabilities",
+                 forecast = "recursive", conditioning_window = K + 3L)
+  expect_type(out, "list")
+  expect_length(out, p_n)
+  non_na <- which(!is.na(out[[1]][, 1]))
+  row_sums <- rowSums(out[[1]][non_na, ])
+  expect_true(all(abs(row_sums - 1) < 1e-10))
+})
+
+test_that("recursive: posterior-sample works with attr('sd')", {
+  mock <- make_predictable_mock("gaussian", T_obs = 20L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  df$x_1 <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "response",
+                 method = "posterior-sample", ndraws = 5L, seed = 1,
+                 forecast = "recursive", conditioning_window = K + 2L)
+  expect_true(!is.null(attr(out, "sd")))
+  expect_true(!is.null(attr(out, "ndraws")))
+  expect_equal(attr(out, "ndraws"), 5L)
+})
+
+test_that("recursive: in-sample (newdata=NULL) works", {
+  mock <- make_predictable_mock("gaussian", T_obs = 20L)
+  # In-sample recursive forecast
+  out <- predict(mock, type = "link", forecast = "recursive",
+                 conditioning_window = mock$standata$K + 3L)
+  expect_true(is.matrix(out))
+  expect_equal(nrow(out), mock$standata$n_obs)
+  expect_true(all(is.finite(out)))
+})
+
+test_that("recursive: subject_re works with recursive mode", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L, T_obs = 20L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  df$x_1 <- rnorm(nrow(df))
+
+  out_zero <- predict(mock, newdata = df, type = "link",
+                      forecast = "recursive", conditioning_window = K + 2L,
+                      subject_re = "zero")
+  out_re   <- predict(mock, newdata = df, type = "link",
+                      forecast = "recursive", conditioning_window = K + 2L,
+                      subject_re = "posterior-mean")
+  # Should differ because posterior mean u != 0
+  expect_false(identical(out_zero, out_re))
+})
+
+
 # --- posterior-mean is deterministic ---
 
 test_that("predict: posterior-mean is deterministic (no seed needed)", {
@@ -477,4 +686,27 @@ test_that("integration: simulate + predict roundtrip for ordinal", {
   expect_true(length(non_na) > 0)
   row_sums <- rowSums(preds[[1]][non_na, ])
   expect_true(all(abs(row_sums - 1) < 1e-6))
+})
+
+test_that("integration: recursive forecast gaussian smoke test", {
+  skip_if_not(can_run_stan(), "Compiled Stan models not available")
+
+  sim <- sim_var(N = 5, T_obs = 30, p = 2, K = 1,
+                 family = "gaussian", q = 0, seed = 5)
+  fit <- bvar(id_col = "id", time_col = "t",
+              y_cols = c("y_1", "y_2"), x_cols = character(0),
+              data = sim$data, family = "gaussian",
+              iter = 200, warmup = 100, chains = 2, seed = 5)
+
+  K <- fit$standata$K
+
+  # Recursive forecast on training data with a conditioning window
+  preds <- predict(fit, type = "response", forecast = "recursive",
+                   conditioning_window = K + 5L)
+  expect_true(is.matrix(preds))
+  expect_true(all(is.finite(preds)))
+
+  # Compare to one-step: should differ for later rows
+  preds_one <- predict(fit, type = "response", forecast = "one-step")
+  expect_false(identical(preds, preds_one))
 })
