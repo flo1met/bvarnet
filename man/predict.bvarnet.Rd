@@ -7,6 +7,8 @@
 \method{predict}{bvarnet}(
   object,
   newdata = NULL,
+  forecast = c("one-step", "recursive"),
+  conditioning_window = NULL,
   type = c("link", "response", "probabilities"),
   method = c("posterior-mean", "posterior-sample"),
   ndraws = NULL,
@@ -22,6 +24,16 @@
 \item{newdata}{Data frame in long format. If \code{NULL}, the original
 training data design matrices (stored in \code{object$standata}) are used
 for in-sample fitted values.}
+
+\item{forecast}{Character. \code{"one-step"} (default) uses observed lag
+values from \code{newdata} for every row. \code{"recursive"} feeds
+predicted values back into the lag buffer after the conditioning window.}
+
+\item{conditioning_window}{Integer scalar, named integer vector, or
+\code{NULL}. Number of observed time points (per subject) used to
+initialise the lag buffer before recursive forecasting begins.
+Must be \code{>= K}. If \code{NULL}, defaults to \code{K} (minimum lag
+history). Ignored when \code{forecast = "one-step"}.}
 
 \item{type}{Character. Output type: \code{"link"} (linear predictor),
 \code{"response"} (mean on the outcome scale), or
@@ -57,7 +69,8 @@ matrices. When \code{method = "posterior-sample"}, the output carries
 \code{attr(,"sd")} and \code{attr(,"ndraws")}.
 }
 \description{
-Computes one-step-ahead predictions for long-format time-series data.
+Computes one-step-ahead or recursive forecasts for long-format time-series
+data.
 Supports population-level (\code{subject_re = "zero"}) and
 subject-specific (\code{subject_re = "posterior-mean"}) predictions.
 Also serves as the out-of-sample engine: fit on training data, call
