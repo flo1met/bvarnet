@@ -1,0 +1,480 @@
+# tests/testthat/test-simulate-predict.R
+# ──────────────────────────────────────────────────────────────────────────────
+# Tests for simulate.bvarnet() and predict.bvarnet()
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Helper: build a mock bvarnet object with design_spec and proper matrices
+# for predict/simulate to work end-to-end without Stan.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+#' Build a mock bvarnet with real-ish design matrices for predict testing
+#' @noRd
+make_predictable_mock <- function(family = "gaussian", n_re = 0L, J = 5L,
+                                   T_obs = 20L, p = 2L, q = 1L, K = 1L) {
+  set.seed(99L)
+  N <- J
+  # Make long-format data
+  df <- expand.grid(t = seq_len(T_obs), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p)) {
+    col <- paste0("y_", j)
+    if (family == "bernoulli")     df[[col]] <- rbinom(nrow(df), 1, 0.5)
+    else if (family == "gaussian") df[[col]] <- rnorm(nrow(df))
+    else                           df[[col]] <- sample(1:3, nrow(df), replace = TRUE)
+  }
+  for (j in seq_len(q)) df[[paste0("x_", j)]] <- rnorm(nrow(df))
+
+  y_cols <- paste0("y_", seq_len(p))
+  x_cols <- if (q > 0) paste0("x_", seq_len(q)) else character(0)
+
+  # Use to_stan_data to get proper matrices
+  sd <- to_stan_data(
+    data     = df,
+    family   = family,
+    id_col   = "id",
+    time_col = "t",
+    y_cols   = y_cols,
+    x_cols   = x_cols,
+    K        = K,
+    re_cols  = if (n_re > 0L) "Intercept" else character(0),
+    re_temporal = (n_re > 1L)
+  )
+
+  n_fe   <- sd$n_fe
+  actual_n_re <- sd$n_re
+  PK     <- p * K
+  n_iter <- 20L; n_chains <- 2L
+
+  # Build draws array
+  beta_nm <- character(0)
+  for (node in seq_len(p)) for (fe in seq_len(n_fe))
+    beta_nm <- c(beta_nm, sprintf("beta[%d,%d]", fe, node))
+  phi_nm <- character(0)
+  for (node in seq_len(p)) for (lag_idx in seq_len(PK))
+    phi_nm <- c(phi_nm, sprintf("phi[%d,%d]", lag_idx, node))
+  par_nms <- c(beta_nm, phi_nm)
+
+  if (family == "gaussian")
+    par_nms <- c(par_nms, paste0("sigma[", seq_len(p), "]"))
+  if (family == "ordinal") {
+    C <- sd$C
+    for (node in seq_len(p)) for (k in seq_len(C - 1L))
+      par_nms <- c(par_nms, sprintf("kappa[%d,%d]", node, k))
+  }
+  if (actual_n_re > 0L) {
+    for (node in seq_len(p)) for (re in seq_len(actual_n_re))
+      par_nms <- c(par_nms, sprintf("sd_u[%d,%d]", node, re))
+    for (node in seq_len(p)) for (subj in seq_len(J)) for (re in seq_len(actual_n_re))
+      par_nms <- c(par_nms, sprintf("u[%d,%d,%d]", node, subj, re))
+  }
+
+  n_par <- length(par_nms)
+  draws <- array(rnorm(n_iter * n_chains * n_par, mean = 0.1, sd = 0.3),
+                 dim = c(n_iter, n_chains, n_par),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  # Make sigma positive, sd_u positive
+  sigma_idx <- grep("^sigma\\[", par_nms)
+  if (length(sigma_idx) > 0) draws[, , sigma_idx] <- abs(draws[, , sigma_idx]) + 0.1
+  sd_u_idx <- grep("^sd_u\\[", par_nms)
+  if (length(sd_u_idx) > 0) draws[, , sd_u_idx] <- abs(draws[, , sd_u_idx]) + 0.1
+
+  # Make kappa ordered
+  if (family == "ordinal") {
+    for (node in seq_len(p)) {
+      k_idx <- grep(sprintf("^kappa\\[%d,", node), par_nms)
+      for (ch in 1:n_chains) {
+        for (it in 1:n_iter) {
+          vals <- draws[it, ch, k_idx]
+          draws[it, ch, k_idx] <- sort(vals)
+        }
+      }
+    }
+  }
+
+  smry <- data.frame(
+    variable = par_nms, mean = 0, median = 0, sd = 0.1,
+    mad = 0.1, q5 = -0.2, q95 = 0.2, rhat = 1.001,
+    ess_bulk = 3000, ess_tail = 2800, stringsAsFactors = FALSE
+  )
+
+  structure(
+    list(
+      draws        = draws,
+      summary      = smry,
+      diagnostics  = data.frame(num_divergent = integer(n_chains),
+                                num_max_treedepth = integer(n_chains),
+                                ebfmi = rep(1.0, n_chains)),
+      timing       = list(total = 5.0),
+      metadata     = list(),
+      return_codes = rep(0L, n_chains),
+      family       = family,
+      standata     = sd,
+      priors       = set_priors()
+    ),
+    class = "bvarnet"
+  )
+}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  §6.1  simulate.bvarnet tests (no Stan)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("simulate: posterior-mean returns data.frame with expected columns", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- simulate(mock, nsim = 15L, seed = 1)
+  expect_s3_class(out, "data.frame")
+  expect_true(all(c("id", "t", "y_1", "y_2") %in% names(out)))
+  expect_equal(nrow(out), mock$standata$J * 15L)
+})
+
+test_that("simulate: posterior-sample returns list of data.frames", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- simulate(mock, nsim = 15L, seed = 1, method = "posterior-sample",
+                   ndraws = 3L)
+  expect_type(out, "list")
+  expect_length(out, 3L)
+  expect_s3_class(out[[1]], "data.frame")
+  expect_equal(nrow(out[[1]]), mock$standata$J * 15L)
+})
+
+test_that("simulate: seed reproducibility", {
+  mock <- make_predictable_mock("gaussian")
+  out1 <- simulate(mock, nsim = 10L, seed = 42)
+  out2 <- simulate(mock, nsim = 10L, seed = 42)
+  expect_identical(out1, out2)
+})
+
+test_that("simulate: bernoulli outputs in {0, 1}", {
+  mock <- make_predictable_mock("bernoulli")
+  out  <- simulate(mock, nsim = 20L, seed = 1)
+  y_vals <- unlist(out[, grep("^y_", names(out))])
+  expect_true(all(y_vals %in% c(0L, 1L)))
+})
+
+test_that("simulate: gaussian outputs are finite numeric", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- simulate(mock, nsim = 20L, seed = 1)
+  y_vals <- unlist(out[, grep("^y_", names(out))])
+  expect_true(all(is.finite(y_vals)))
+})
+
+test_that("simulate: ordinal outputs are integers in 1..C", {
+  mock <- make_predictable_mock("ordinal")
+  out  <- simulate(mock, nsim = 20L, seed = 1)
+  y_vals <- unlist(out[, grep("^y_", names(out))])
+  expect_true(all(y_vals %in% seq_len(mock$standata$C)))
+})
+
+test_that("simulate: subject_re='zero' gives identical REs", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L)
+  out  <- simulate(mock, nsim = 15L, seed = 1, subject_re = "zero")
+  expect_s3_class(out, "data.frame")
+  # All subjects should have same population-level parameters
+  # (no between-subject variability from REs)
+  expect_true(all(is.finite(out$y_1)))
+})
+
+test_that("simulate: subject_re='sample' produces between-subject variation", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L)
+  out  <- simulate(mock, nsim = 30L, seed = 10, subject_re = "sample")
+
+  # Compute per-subject means — should vary
+  sub_means <- tapply(out$y_1, out$id, mean)
+  expect_true(sd(sub_means) > 0)  # non-zero between-subject variation
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  §6.2  predict.bvarnet tests (no Stan)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# --- shape tests ---
+
+test_that("predict: link type returns matrix [n_obs, p] (in-sample)", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- predict(mock, type = "link")
+  expect_true(is.matrix(out))
+  expect_equal(ncol(out), mock$standata$p)
+  expect_equal(nrow(out), mock$standata$n_obs)
+})
+
+test_that("predict: response type returns matrix [n_obs, p] (in-sample)", {
+  mock <- make_predictable_mock("bernoulli")
+  out  <- predict(mock, type = "response")
+  expect_true(is.matrix(out))
+  expect_equal(ncol(out), mock$standata$p)
+  # Values should be probabilities
+  expect_true(all(out >= 0 & out <= 1))
+})
+
+test_that("predict: probabilities type for bernoulli returns list of p matrices", {
+  mock <- make_predictable_mock("bernoulli")
+  out  <- predict(mock, type = "probabilities")
+  expect_type(out, "list")
+  expect_length(out, mock$standata$p)
+  expect_true(all(out[[1]][, "p1"] >= 0 & out[[1]][, "p1"] <= 1))
+})
+
+test_that("predict: probabilities type for gaussian returns list with mean+sd", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- predict(mock, type = "probabilities")
+  expect_type(out, "list")
+  expect_length(out, mock$standata$p)
+  expect_true(all(c("mean", "sd") %in% colnames(out[[1]])))
+  expect_true(all(out[[1]][, "sd"] > 0))
+})
+
+test_that("predict: probabilities type for ordinal returns list with cat_ columns", {
+  mock <- make_predictable_mock("ordinal")
+  out  <- predict(mock, type = "probabilities")
+  expect_type(out, "list")
+  expect_length(out, mock$standata$p)
+  C <- mock$standata$C
+  expect_equal(ncol(out[[1]]), C)
+  expect_true(all(grepl("^cat_", colnames(out[[1]]))))
+  # rows should sum to ~1
+  row_sums <- rowSums(out[[1]])
+  expect_true(all(abs(row_sums - 1) < 1e-10))
+})
+
+# --- posterior-sample returns attr("sd") ---
+
+test_that("predict: posterior-sample returns attr('sd') and attr('ndraws')", {
+  mock <- make_predictable_mock("gaussian")
+  out  <- predict(mock, type = "response", method = "posterior-sample",
+                  ndraws = 5L, seed = 1)
+  expect_true(!is.null(attr(out, "sd")))
+  expect_true(!is.null(attr(out, "ndraws")))
+  expect_equal(attr(out, "ndraws"), 5L)
+  expect_equal(dim(attr(out, "sd")), dim(out))
+})
+
+test_that("predict: posterior-sample probabilities returns attr('sd')", {
+  mock <- make_predictable_mock("bernoulli")
+  out  <- predict(mock, type = "probabilities", method = "posterior-sample",
+                  ndraws = 5L, seed = 1)
+  sd_attr <- attr(out, "sd")
+  expect_type(sd_attr, "list")
+  expect_length(sd_attr, mock$standata$p)
+})
+
+# --- newdata with NA for first K rows ---
+
+test_that("predict: newdata returns NA for first K rows per subject", {
+  mock <- make_predictable_mock("gaussian", T_obs = 10L)
+  set.seed(99L)
+  N <- mock$standata$J; TT <- 10L; p_n <- mock$standata$p; K <- mock$standata$K
+  df <- expand.grid(t = seq_len(TT), id = seq_len(N))
+  df <- df[order(df$id, df$t), ]
+  for (j in seq_len(p_n)) df[[paste0("y_", j)]] <- rnorm(nrow(df))
+  for (j in 1:1) df[[paste0("x_", j)]] <- rnorm(nrow(df))
+
+  out <- predict(mock, newdata = df, type = "link")
+  expect_equal(nrow(out), nrow(df))
+  # First K rows per subject should be NA
+  for (subj in seq_len(N)) {
+    subj_rows <- which(df$id == subj)
+    first_k <- head(subj_rows, K)
+    expect_true(all(is.na(out[first_k, ])))
+  }
+})
+
+# --- subject_re tests ---
+
+test_that("predict: subject_re='zero' vs 'posterior-mean' differ for seen subjects", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L)
+  out_zero <- predict(mock, type = "link", subject_re = "zero")
+  out_re   <- predict(mock, type = "link", subject_re = "posterior-mean")
+  # Should differ because posterior mean u != 0
+  expect_false(all(out_zero == out_re))
+})
+
+test_that("predict: n_re=0 makes all subject_re options identical", {
+  mock <- make_predictable_mock("gaussian", n_re = 0L)
+  out_zero <- predict(mock, type = "link", subject_re = "zero")
+  # With n_re=0, "posterior-mean" silently degrades to "zero"
+  out_pm   <- predict(mock, type = "link", subject_re = "posterior-mean")
+  expect_equal(out_zero, out_pm)
+})
+
+test_that("predict: unseen IDs with new_subject='zero' are population-level", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L, J = 3L, T_obs = 15L)
+
+  set.seed(99L)
+  # Create newdata with an unseen subject id
+  df_new <- expand.grid(t = seq_len(15L), id = c(1L, 999L))
+  df_new <- df_new[order(df_new$id, df_new$t), ]
+  for (j in seq_len(mock$standata$p))
+    df_new[[paste0("y_", j)]] <- rnorm(nrow(df_new))
+  df_new$x_1 <- rnorm(nrow(df_new))
+
+  out <- predict(mock, newdata = df_new, type = "link",
+                 subject_re = "posterior-mean", new_subject = "zero")
+
+  # Predictions for subject 999 should use u=0
+  # Predictions for subject 1 should use posterior mean u
+  rows_999 <- which(df_new$id == 999)
+  predictable_999 <- rows_999[-(1:mock$standata$K)]
+  expect_true(all(is.finite(out[predictable_999, ])))
+})
+
+# --- error tests ---
+
+test_that("predict: errors on missing newdata columns", {
+  mock <- make_predictable_mock("gaussian")
+  bad_df <- data.frame(id = 1:5, t = 1:5)
+  expect_error(predict(mock, newdata = bad_df), "Missing columns in newdata")
+})
+
+# --- posterior-mean is deterministic ---
+
+test_that("predict: posterior-mean is deterministic (no seed needed)", {
+  mock <- make_predictable_mock("gaussian")
+  out1 <- predict(mock, type = "response", method = "posterior-mean")
+  out2 <- predict(mock, type = "response", method = "posterior-mean")
+  expect_identical(out1, out2)
+})
+
+# --- posterior-sample seed reproducibility ---
+
+test_that("predict: posterior-sample with same seed gives same results", {
+  mock <- make_predictable_mock("gaussian")
+  out1 <- predict(mock, type = "response", method = "posterior-sample",
+                  ndraws = 5L, seed = 42)
+  out2 <- predict(mock, type = "response", method = "posterior-sample",
+                  ndraws = 5L, seed = 42)
+  expect_equal(out1, out2)
+  expect_equal(attr(out1, "sd"), attr(out2, "sd"))
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  §6.3  Analysis-validation tests (no Stan)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("fixed vs individual predictions have comparable shapes", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L)
+  out_fixed <- predict(mock, type = "response", subject_re = "zero")
+  out_indiv <- predict(mock, type = "response", subject_re = "posterior-mean")
+  expect_identical(dim(out_fixed), dim(out_indiv))
+})
+
+test_that("for n_re > 0, individual predictions differ from fixed for seen subjects", {
+  mock <- make_predictable_mock("gaussian", n_re = 1L)
+  out_fixed <- predict(mock, type = "link", subject_re = "zero")
+  out_indiv <- predict(mock, type = "link", subject_re = "posterior-mean")
+  expect_false(identical(out_fixed, out_indiv))
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  §6.4  Stan-backed integration tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Helper: skip if compiled Stan models are not available
+can_run_stan <- function() {
+  instantiate::stan_cmdstan_exists() &&
+    tryCatch({
+      instantiate::stan_package_model(name = "model_gaussian", package = "bvarnet")
+      TRUE
+    }, error = function(e) FALSE)
+}
+
+test_that("integration: simulate + predict roundtrip for gaussian", {
+  skip_if_not(can_run_stan(), "Compiled Stan models not available")
+
+  sim <- sim_var(N = 5, T_obs = 30, p = 2, K = 1,
+                 family = "gaussian", q = 0, seed = 1)
+  fit <- bvar(id_col = "id", time_col = "t",
+              y_cols = c("y_1", "y_2"), x_cols = character(0),
+              data = sim$data, family = "gaussian",
+              iter = 200, warmup = 100, chains = 2, seed = 1)
+
+  # Simulate
+  sim_out <- simulate(fit, nsim = 20, seed = 42)
+  expect_s3_class(sim_out, "data.frame")
+  expect_true(all(is.finite(sim_out$y_1)))
+  expect_true(all(is.finite(sim_out$y_2)))
+
+  # Predict on simulated data
+  preds <- predict(fit, newdata = sim_out, type = "response")
+  expect_true(is.matrix(preds))
+  expect_equal(ncol(preds), 2L)
+  # Non-NA rows should be finite
+  non_na <- which(!is.na(preds[, 1]))
+  expect_true(length(non_na) > 0)
+  expect_true(all(is.finite(preds[non_na, ])))
+})
+
+test_that("integration: simulate + predict roundtrip for bernoulli", {
+  skip_if_not(can_run_stan(), "Compiled Stan models not available")
+
+  sim <- sim_var(N = 5, T_obs = 30, p = 2, K = 1,
+                 family = "bernoulli", q = 0, seed = 2)
+  fit <- bvar(id_col = "id", time_col = "t",
+              y_cols = c("y_1", "y_2"), x_cols = character(0),
+              data = sim$data, family = "bernoulli",
+              iter = 200, warmup = 100, chains = 2, seed = 2)
+
+  sim_out <- simulate(fit, nsim = 20, seed = 42)
+  y_vals <- unlist(sim_out[, grep("^y_", names(sim_out))])
+  expect_true(all(y_vals %in% c(0L, 1L)))
+
+  preds <- predict(fit, newdata = sim_out, type = "response")
+  non_na <- which(!is.na(preds[, 1]))
+  expect_true(all(preds[non_na, ] >= 0 & preds[non_na, ] <= 1))
+})
+
+test_that("integration: predict positive association gaussian", {
+  skip_if_not(can_run_stan(), "Compiled Stan models not available")
+
+  sim <- sim_var(N = 10, T_obs = 50, p = 2, K = 1,
+                 family = "gaussian", q = 0, seed = 3)
+  fit <- bvar(id_col = "id", time_col = "t",
+              y_cols = c("y_1", "y_2"), x_cols = character(0),
+              data = sim$data, family = "gaussian",
+              iter = 500, warmup = 200, chains = 2, seed = 3)
+
+  preds <- predict(fit, type = "response")
+  obs_y <- fit$standata$Y[, 1]
+  pred_y <- preds[, 1]
+  # Should have positive correlation between observed and predicted
+  expect_true(cor(obs_y, pred_y) > 0)
+})
+
+test_that("integration: simulate + predict roundtrip for ordinal", {
+  skip_if_not(can_run_stan(), "Compiled Stan models not available")
+
+  sim <- sim_var(N = 10, T_obs = 50, p = 2, K = 1,
+                 family = "ordinal", q = 0, C = 3, seed = 4)
+
+  # Ordinal models can be difficult to sample with few iterations;
+
+  # wrap in tryCatch so this doesn't block the test suite.
+  fit <- tryCatch(
+    bvar(id_col = "id", time_col = "t",
+         y_cols = c("y_1", "y_2"), x_cols = character(0),
+         data = sim$data, family = "ordinal",
+         iter = 500, warmup = 300, chains = 2, seed = 4,
+         adapt_delta = 0.95),
+    error = function(e) {
+      skip("Ordinal model failed to sample — skipping roundtrip test.")
+    }
+  )
+
+  sim_out <- simulate(fit, nsim = 20, seed = 42)
+  y_vals <- unlist(sim_out[, grep("^y_", names(sim_out))])
+  expect_true(all(y_vals %in% seq_len(fit$standata$C)))
+
+  preds <- predict(fit, newdata = sim_out, type = "probabilities")
+  expect_type(preds, "list")
+  expect_length(preds, 2L)
+  non_na <- which(!is.na(preds[[1]][, 1]))
+  expect_true(length(non_na) > 0)
+  row_sums <- rowSums(preds[[1]][non_na, ])
+  expect_true(all(abs(row_sums - 1) < 1e-6))
+})

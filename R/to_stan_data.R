@@ -184,10 +184,11 @@ to_stan_data <- function(data,
   }
 
   # center and add intercept ##make centering predictors an option
+  x_center_means <- NULL
   if (center_x == TRUE) {
     means_X <- colMeans(X)
     X <- sweep(X, 2, means_X, "-")
-
+    x_center_means <- means_X
   }
 
 
@@ -261,6 +262,24 @@ to_stan_data <- function(data,
     out$fe_interaction_terms    <- fe_interaction_terms
     out$fe_interaction_colnames <- fe_interaction_colnames
   }
+
+  ## prediction metadata (not passed to Stan)
+  out$id_levels <- as.character(ids_unique)
+  out$x_center_means <- x_center_means
+  out$design_spec <- list(
+    id_col          = id_col,
+    time_col        = time_col,
+    y_cols          = y_cols,
+    x_cols          = x_cols,
+    center_x        = center_x,
+    fe_interactions  = fe_interactions,
+    re_interactions  = re_interactions,
+    re_cols         = re_cols,
+    re_temporal     = re_temporal,
+    K               = K,
+    skip_lag        = skip_lag,
+    na_action       = na_action
+  )
 
   if (family == "ordinal") {
     out$C              <- C

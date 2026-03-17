@@ -16,8 +16,8 @@ bf_table(
 
 \item{type}{Character vector. Which parameter groups to test.
 Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
-\code{"intercepts"}, \code{"fe"}
-(non-intercept fixed effects).}
+\code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
+\code{"lag_fe"} (lag × predictor interaction joint tests).}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
 \code{"ar"}, \code{"cl"}, and \code{"phi"}.}
@@ -31,7 +31,15 @@ A data frame with columns: \code{type}, \code{predictor},
 }
 \description{
 Computes Savage-Dickey density ratio Bayes factors for each parameter in the
-requested subset and returns a tidy data frame.  For joint tests
-(\code{type = "ar"}, \code{"cl"}), both per-parameter
-(logspline) and joint (MVN) rows are returned.
+requested subset and returns a tidy data frame.
+}
+\details{
+For \code{type = "fe"} and \code{"intercepts"}, the table contains three
+levels: per-cell (logspline), per-predictor joint (MVN), and a global
+joint-all (MVN).  For \code{type = "ar"} and \code{"cl"}, the existing
+two-level structure (per-cell + per-type joint) is unchanged.
+
+\code{type = "lag_fe"} emits only grouped joint rows for lag × predictor
+interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
+these parameters are already included when \code{type = "fe"} is requested.
 }

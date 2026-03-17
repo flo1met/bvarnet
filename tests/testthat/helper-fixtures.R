@@ -232,8 +232,25 @@ make_mock_bvarnet <- function(family   = "bernoulli",
   }
 
   sd_list <- list(
-    p = p, K = K, n_fe = n_fe, n_re = n_re, n = n_obs,
-    J = J, Y = Y, X = X, B = B, Z = Z
+    p = p, K = K, n_fe = n_fe, n_re = n_re, n = n_obs, n_obs = n_obs,
+    J = J, Y = Y, X = X, B = B, Z = Z,
+    id = rep(seq_len(J), length.out = n_obs),
+    id_levels = as.character(seq_len(J)),
+    x_center_means = NULL,
+    design_spec = list(
+      id_col   = "id",
+      time_col = "t",
+      y_cols   = c("y_1", "y_2"),
+      x_cols   = "x_1",
+      center_x = FALSE,
+      fe_interactions = NULL,
+      re_interactions = NULL,
+      re_cols    = character(0),
+      re_temporal = FALSE,
+      K          = K,
+      skip_lag   = TRUE,
+      na_action  = "listwise"
+    )
   )
   if (family == "ordinal") sd_list$C <- 3L
 

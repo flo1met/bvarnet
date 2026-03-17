@@ -102,7 +102,10 @@ bvar <- function(id_col,
 
   stanfit <- stanmodel$sample(data = standata[!names(standata) %in%
                                       c("fe_interaction_terms",
-                                        "fe_interaction_colnames")],
+                                        "fe_interaction_colnames",
+                                        "id_levels",
+                                        "x_center_means",
+                                        "design_spec")],
                               seed = seed,
                               iter_warmup = warmup,
                               iter_sampling = iter,
