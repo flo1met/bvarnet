@@ -17,7 +17,9 @@ bf_table(
 \item{type}{Character vector. Which parameter groups to test.
 Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
 \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
-\code{"lag_fe"} (lag × predictor interaction joint tests).}
+\code{"lag_fe"} (lag × predictor interaction joint tests),
+\code{"temporal"} (joint test of all phi parameters across all lags,
+i.e. the entire temporal structure AR + CL, excluding covariates).}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
 \code{"ar"}, \code{"cl"}, and \code{"phi"}.}

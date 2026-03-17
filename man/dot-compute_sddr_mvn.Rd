@@ -4,7 +4,7 @@
 \alias{.compute_sddr_mvn}
 \title{Compute the SDDR using a multivariate normal approximation (internal)}
 \usage{
-.compute_sddr_mvn(draws_mat, prior_list, param_types, null_vec, ridge = 1e-08)
+.compute_sddr_mvn(draws_mat, prior_list, param_types, null_vec)
 }
 \arguments{
 \item{draws_mat}{Numeric matrix — S rows x d columns of posterior draws.}
@@ -14,8 +14,6 @@
 \item{param_types}{Character vector of prior types for each column.}
 
 \item{null_vec}{Numeric vector of null values.}
-
-\item{ridge}{Ridge regularisation for the covariance matrix.}
 }
 \value{
 Named list with elements \code{BF01}, \code{post_density},

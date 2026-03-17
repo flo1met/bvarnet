@@ -611,3 +611,54 @@ test_that("to_stan_data omits metadata when no fe_interactions", {
   expect_null(sd$fe_interaction_terms)
   expect_null(sd$fe_interaction_colnames)
 })
+
+
+# ── bf_table() temporal joint BF ─────────────────────────────────────────────
+
+test_that("bf_table temporal returns exactly one row for p=2, K=1", {
+  mock <- make_mock_bvarnet("gaussian")
+  res <- bf_table(mock, type = "temporal")
+
+  expect_s3_class(res, "data.frame")
+  expect_equal(nrow(res), 1)
+  expect_equal(res$type, "Temporal (joint)")
+  expect_equal(res$predictor, "all_phi")
+  expect_equal(res$outcome, "\u2014")
+  expect_true(res$BF01 > 0)
+  expect_true(is.finite(res$BF01))
+  expect_equal(res$BF01 * res$BF10, 1)
+  expect_equal(res$log_BF01, log(res$BF01))
+  expect_equal(res$method, "mvn")
+})
+
+test_that("bf_table temporal collects all phi params (p=2, K=1)", {
+  mock <- make_mock_bvarnet("gaussian")
+  sd   <- mock$standata
+  # p=2, K=1 → 4 phi params total (2 AR + 2 CL)
+  all_phi <- get_phi_indices(sd, lag = 1, effect = "all")
+  expect_length(all_phi, 4)
+
+  res <- bf_table(mock, type = "temporal")
+  # The method should be "mvn" since 4 > 1
+  expect_equal(res$method, "mvn")
+})
+
+test_that("bf_table temporal can be combined with ar and cl", {
+  mock <- make_mock_bvarnet("gaussian")
+  res <- bf_table(mock, type = c("ar", "cl", "temporal"))
+
+  # p=2, K=1: ar(2+1) + cl(2+1) + temporal(1) = 7
+  expect_equal(nrow(res), 7)
+  expect_true("Temporal (joint)" %in% res$type)
+  expect_true(any(grepl("Autoregressive", res$type)))
+  expect_true(any(grepl("Cross-lagged", res$type)))
+})
+
+test_that("bf_table temporal works for all families", {
+  for (fam in c("gaussian", "bernoulli", "ordinal")) {
+    mock <- make_mock_bvarnet(fam)
+    res  <- bf_table(mock, type = "temporal")
+    expect_equal(nrow(res), 1, info = paste("family:", fam))
+    expect_true(is.finite(res$BF01), info = paste("family:", fam))
+  }
+})

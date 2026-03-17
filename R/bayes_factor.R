@@ -302,18 +302,16 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @param prior_list Named list of \code{bvarnet_prior} objects.
 #' @param param_types Character vector of prior types for each column.
 #' @param null_vec   Numeric vector of null values.
-#' @param ridge      Ridge regularisation for the covariance matrix.
 #'
 #' @return Named list with elements \code{BF01}, \code{post_density},
 #'   \code{prior_density}.
 #' @keywords internal
-.compute_sddr_mvn <- function(draws_mat, prior_list, param_types, null_vec,
-                              ridge = 1e-8) {
+.compute_sddr_mvn <- function(draws_mat, prior_list, param_types, null_vec) {
   d <- ncol(draws_mat)
   S <- nrow(draws_mat)
 
   mu_hat    <- colMeans(draws_mat)
-  Sigma_hat <- stats::cov(draws_mat) + ridge * diag(d)
+  Sigma_hat <- stats::cov(draws_mat)
 
   post_den  <- mvtnorm::dmvnorm(null_vec, mean = mu_hat, sigma = Sigma_hat)
   prior_den <- eval_joint_prior_density(prior_list, param_types, null_vec)
@@ -488,7 +486,9 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @param type       Character vector. Which parameter groups to test.
 #'   Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
 #'   \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
-#'   \code{"lag_fe"} (lag × predictor interaction joint tests).
+#'   \code{"lag_fe"} (lag × predictor interaction joint tests),
+#'   \code{"temporal"} (joint test of all phi parameters across all lags,
+#'   i.e. the entire temporal structure AR + CL, excluding covariates).
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"}, \code{"cl"}, and \code{"phi"}.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
@@ -509,7 +509,7 @@ bf_table <- function(object,
   rows <- list()
 
   for (tp in type) {
-    tp <- match.arg(tp, c("ar", "cl", "intercepts", "fe", "lag_fe"))
+    tp <- match.arg(tp, c("ar", "cl", "intercepts", "fe", "lag_fe", "temporal"))
 
     # ------------------------------------------------------------------
     # AR / CL — unchanged two-level structure
@@ -680,8 +680,38 @@ bf_table <- function(object,
           )
         }
       }
-    }
-  }
+
+    # ------------------------------------------------------------------
+    # TEMPORAL — joint BF over entire phi (AR + CL, all lags)
+    # ------------------------------------------------------------------
+    } else if (tp == "temporal") {
+      K <- sd$K
+      all_phi <- character(0)
+      for (k in seq_len(K)) {
+        all_phi <- c(all_phi, get_phi_indices(sd, lag = k, effect = "all"))
+      }
+
+      if (length(all_phi) == 1L) {
+        # Single phi param (p=1, K=1): use logspline
+        tres <- savage_dickey(object, params = all_phi,
+                              null_value = null_value, method = "logspline")
+      } else {
+        tres <- savage_dickey(object, params = all_phi,
+                              null_value = null_value, method = "mvn")
+      }
+      rows[[length(rows) + 1L]] <- data.frame(
+        type          = "Temporal (joint)",
+        predictor     = "all_phi",
+        outcome       = "\u2014",
+        BF01          = tres$BF01,
+        BF10          = tres$BF10,
+        log_BF01      = tres$log_BF01,
+        post_density  = tres$post_density,
+        prior_density = tres$prior_density,
+        method        = tres$method,
+        stringsAsFactors = FALSE
+      )
+    }  }
 
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
