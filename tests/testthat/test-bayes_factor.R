@@ -662,3 +662,97 @@ test_that("bf_table temporal works for all families", {
     expect_true(is.finite(res$BF01), info = paste("family:", fam))
   }
 })
+
+test_that("bf_table temporal without lag interactions emits 1 row only", {
+  mock <- make_mock_bvarnet("gaussian")
+  res  <- bf_table(mock, type = "temporal")
+  # No lag interactions → only the base "Temporal (joint)" row
+  expect_equal(nrow(res), 1)
+  expect_equal(res$type, "Temporal (joint)")
+  expect_false("Temporal Interaction (joint)" %in% res$type)
+  expect_false("Temporal + Interactions (joint)" %in% res$type)
+})
+
+test_that("bf_table temporal with lag interaction emits interaction rows", {
+  p <- 2L; K <- 1L
+  fe_names <- c("Intercept", "x_1", "lag1_y_1:x_1", "lag1_y_2:x_1")
+  n_fe <- length(fe_names); n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(123L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(
+      p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z,
+      fe_interaction_terms    = list(c("lag", "x_1")),
+      fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
+    ),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "temporal")
+
+  # 1 base phi joint + 1 per-term interaction joint + 1 omnibus = 3
+  expect_equal(nrow(res), 3)
+  expect_true("Temporal (joint)" %in% res$type)
+  expect_true("Temporal Interaction (joint)" %in% res$type)
+  expect_true("Temporal + Interactions (joint)" %in% res$type)
+  expect_equal(res$predictor[res$type == "Temporal (joint)"], "all_phi")
+  expect_equal(res$predictor[res$type == "Temporal Interaction (joint)"], "x_1")
+  expect_equal(res$predictor[res$type == "Temporal + Interactions (joint)"],
+               "all_temporal")
+  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+})
+
+test_that("bf_table temporal with 2 interaction terms emits per-term rows", {
+  p <- 2L; K <- 1L
+  fe_names <- c("Intercept", "x_1", "x_2",
+                "lag1_y_1:x_1", "lag1_y_2:x_1",
+                "lag1_y_1:x_2", "lag1_y_2:x_2")
+  n_fe <- length(fe_names); n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(456L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(
+      p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z,
+      fe_interaction_terms    = list(c("lag", "x_1"), c("lag", "x_2")),
+      fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1",
+                                  "lag1_y_1:x_2", "lag1_y_2:x_2")
+    ),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "temporal")
+
+  # 1 base phi + 2 per-term interaction + 1 omnibus = 4
+  expect_equal(nrow(res), 4)
+  int_rows <- res[res$type == "Temporal Interaction (joint)", ]
+  expect_equal(nrow(int_rows), 2)
+  expect_setequal(int_rows$predictor, c("x_1", "x_2"))
+})

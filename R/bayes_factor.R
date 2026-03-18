@@ -488,7 +488,10 @@ savage_dickey <- function(object, params, null_value = 0,
 #'   \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
 #'   \code{"lag_fe"} (lag × predictor interaction joint tests),
 #'   \code{"temporal"} (joint test of all phi parameters across all lags,
-#'   i.e. the entire temporal structure AR + CL, excluding covariates).
+#'   i.e. the entire temporal structure AR + CL, excluding covariates; when
+#'   lag \ifelse{html}{\out{&times;}}{\eqn{\times}} covariate interactions
+#'   are present, additional rows are emitted for per-interaction-term and
+#'   full temporal + interactions omnibus joint tests).
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"}, \code{"cl"}, and \code{"phi"}.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
@@ -683,6 +686,7 @@ bf_table <- function(object,
 
     # ------------------------------------------------------------------
     # TEMPORAL — joint BF over entire phi (AR + CL, all lags)
+    #   plus lag × covariate interactions if present
     # ------------------------------------------------------------------
     } else if (tp == "temporal") {
       K <- sd$K
@@ -691,8 +695,8 @@ bf_table <- function(object,
         all_phi <- c(all_phi, get_phi_indices(sd, lag = k, effect = "all"))
       }
 
+      # Base temporal BF (phi only)
       if (length(all_phi) == 1L) {
-        # Single phi param (p=1, K=1): use logspline
         tres <- savage_dickey(object, params = all_phi,
                               null_value = null_value, method = "logspline")
       } else {
@@ -711,6 +715,55 @@ bf_table <- function(object,
         method        = tres$method,
         stringsAsFactors = FALSE
       )
+
+      # Lag × covariate interaction terms (if any)
+      term_groups <- get_lag_interaction_indices_by_term(sd)
+      if (length(term_groups) > 0L) {
+        lag_int_params <- unlist(
+          lapply(term_groups, `[[`, "full"), use.names = FALSE
+        )
+
+        # Per-term joint BFs
+        for (suffix in names(term_groups)) {
+          tg_params <- term_groups[[suffix]]$full
+          if (length(tg_params) > 0L) {
+            ires <- savage_dickey(
+              object, params = tg_params,
+              null_value = null_value,
+              method = if (length(tg_params) == 1L) "logspline" else "mvn"
+            )
+            rows[[length(rows) + 1L]] <- data.frame(
+              type          = "Temporal Interaction (joint)",
+              predictor     = suffix,
+              outcome       = "\u2014",
+              BF01          = ires$BF01,
+              BF10          = ires$BF10,
+              log_BF01      = ires$log_BF01,
+              post_density  = ires$post_density,
+              prior_density = ires$prior_density,
+              method        = ires$method,
+              stringsAsFactors = FALSE
+            )
+          }
+        }
+
+        # Full temporal + interactions omnibus
+        all_temporal <- c(all_phi, lag_int_params)
+        ares <- savage_dickey(object, params = all_temporal,
+                              null_value = null_value, method = "mvn")
+        rows[[length(rows) + 1L]] <- data.frame(
+          type          = "Temporal + Interactions (joint)",
+          predictor     = "all_temporal",
+          outcome       = "\u2014",
+          BF01          = ares$BF01,
+          BF10          = ares$BF10,
+          log_BF01      = ares$log_BF01,
+          post_density  = ares$post_density,
+          prior_density = ares$prior_density,
+          method        = ares$method,
+          stringsAsFactors = FALSE
+        )
+      }
     }  }
 
   out <- do.call(rbind, rows)
