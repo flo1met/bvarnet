@@ -19,7 +19,10 @@ Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
 \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
 \code{"lag_fe"} (lag × predictor interaction joint tests),
 \code{"temporal"} (joint test of all phi parameters across all lags,
-i.e. the entire temporal structure AR + CL, excluding covariates).}
+i.e. the entire temporal structure AR + CL, excluding covariates; when
+lag \ifelse{html}{\out{&times;}}{\eqn{\times}} covariate interactions
+are present, additional rows are emitted for per-interaction-term and
+full temporal + interactions omnibus joint tests).}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
 \code{"ar"}, \code{"cl"}, and \code{"phi"}.}

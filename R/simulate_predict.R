@@ -761,7 +761,7 @@ predict.bvarnet <- function(object,
   # --- dispatch by method ------------------------------------------------
   if (method == "posterior-mean") {
     # Single deterministic prediction
-    beta  <- .reshape_beta(.extract_param_draw(object, "beta", NULL), sd)
+    beta  <- if (sd$n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", NULL), sd) else matrix(0, 0L, sd$p)
     phi   <- .reshape_phi(.extract_param_draw(object, "phi", NULL), sd)
     sigma <- if (family == "gaussian") .reshape_sigma(
       .extract_param_draw(object, "sigma", NULL), sd) else NULL
@@ -815,7 +815,7 @@ predict.bvarnet <- function(object,
     }
 
     for (s in draw_idx) {
-      beta_s  <- .reshape_beta(.extract_param_draw(object, "beta", s), sd)
+      beta_s  <- if (sd$n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", s), sd) else matrix(0, 0L, sd$p)
       phi_s   <- .reshape_phi(.extract_param_draw(object, "phi", s), sd)
       sigma_s <- if (family == "gaussian") .reshape_sigma(
         .extract_param_draw(object, "sigma", s), sd) else NULL
@@ -978,7 +978,7 @@ simulate.bvarnet <- function(object,
 
   # --- inner simulation function ----------------------------------------
   .simulate_one <- function(draw_index) {
-    beta  <- .reshape_beta(.extract_param_draw(object, "beta", draw_index), sd)
+    beta  <- if (n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", draw_index), sd) else matrix(0, 0L, p)
     phi   <- .reshape_phi(.extract_param_draw(object, "phi", draw_index), sd)
     sigma <- if (family == "gaussian") .reshape_sigma(
       .extract_param_draw(object, "sigma", draw_index), sd) else NULL
