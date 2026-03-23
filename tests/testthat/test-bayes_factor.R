@@ -615,20 +615,33 @@ test_that("to_stan_data omits metadata when no fe_interactions", {
 
 # ── bf_table() temporal joint BF ─────────────────────────────────────────────
 
-test_that("bf_table temporal returns exactly one row for p=2, K=1", {
+test_that("bf_table temporal returns 3 rows (joint + AR + CL) for p=2, K=1", {
   mock <- make_mock_bvarnet("gaussian")
   res <- bf_table(mock, type = "temporal")
 
   expect_s3_class(res, "data.frame")
-  expect_equal(nrow(res), 1)
-  expect_equal(res$type, "Temporal (joint)")
-  expect_equal(res$predictor, "all_phi")
-  expect_equal(res$outcome, "\u2014")
-  expect_true(res$BF01 > 0)
-  expect_true(is.finite(res$BF01))
-  expect_equal(res$BF01 * res$BF10, 1)
-  expect_equal(res$log_BF01, log(res$BF01))
-  expect_equal(res$method, "mvn")
+  # 1 combined + 1 AR + 1 CL = 3
+  expect_equal(nrow(res), 3)
+  expect_true("Temporal (joint)"    %in% res$type)
+  expect_true("Temporal AR (joint)" %in% res$type)
+  expect_true("Temporal CL (joint)" %in% res$type)
+
+  combined <- res[res$type == "Temporal (joint)", ]
+  expect_equal(combined$predictor, "all_phi")
+  expect_equal(combined$outcome, "\u2014")
+  expect_true(combined$BF01 > 0)
+  expect_true(is.finite(combined$BF01))
+  expect_equal(combined$BF01 * combined$BF10, 1)
+  expect_equal(combined$log_BF01, log(combined$BF01))
+  expect_equal(combined$method, "mvn")
+
+  ar_row <- res[res$type == "Temporal AR (joint)", ]
+  expect_equal(ar_row$predictor, "all_ar")
+  expect_true(ar_row$BF01 > 0 & is.finite(ar_row$BF01))
+
+  cl_row <- res[res$type == "Temporal CL (joint)", ]
+  expect_equal(cl_row$predictor, "all_cl")
+  expect_true(cl_row$BF01 > 0 & is.finite(cl_row$BF01))
 })
 
 test_that("bf_table temporal collects all phi params (p=2, K=1)", {
@@ -639,17 +652,20 @@ test_that("bf_table temporal collects all phi params (p=2, K=1)", {
   expect_length(all_phi, 4)
 
   res <- bf_table(mock, type = "temporal")
+  combined <- res[res$type == "Temporal (joint)", ]
   # The method should be "mvn" since 4 > 1
-  expect_equal(res$method, "mvn")
+  expect_equal(combined$method, "mvn")
 })
 
 test_that("bf_table temporal can be combined with ar and cl", {
   mock <- make_mock_bvarnet("gaussian")
   res <- bf_table(mock, type = c("ar", "cl", "temporal"))
 
-  # p=2, K=1: ar(2+1) + cl(2+1) + temporal(1) = 7
-  expect_equal(nrow(res), 7)
+  # p=2, K=1: ar(2+1) + cl(2+1) + temporal(3: combined+AR+CL) = 9
+  expect_equal(nrow(res), 9)
   expect_true("Temporal (joint)" %in% res$type)
+  expect_true("Temporal AR (joint)" %in% res$type)
+  expect_true("Temporal CL (joint)" %in% res$type)
   expect_true(any(grepl("Autoregressive", res$type)))
   expect_true(any(grepl("Cross-lagged", res$type)))
 })
@@ -658,17 +674,19 @@ test_that("bf_table temporal works for all families", {
   for (fam in c("gaussian", "bernoulli", "ordinal")) {
     mock <- make_mock_bvarnet(fam)
     res  <- bf_table(mock, type = "temporal")
-    expect_equal(nrow(res), 1, info = paste("family:", fam))
-    expect_true(is.finite(res$BF01), info = paste("family:", fam))
+    # 3 rows: combined + AR + CL
+    expect_equal(nrow(res), 3, info = paste("family:", fam))
+    expect_true(all(is.finite(res$BF01)), info = paste("family:", fam))
   }
 })
 
-test_that("bf_table temporal without lag interactions emits 1 row only", {
+test_that("bf_table temporal without lag interactions emits 3 rows only", {
   mock <- make_mock_bvarnet("gaussian")
   res  <- bf_table(mock, type = "temporal")
-  # No lag interactions → only the base "Temporal (joint)" row
-  expect_equal(nrow(res), 1)
-  expect_equal(res$type, "Temporal (joint)")
+  # No lag interactions → combined + AR + CL = 3
+  expect_equal(nrow(res), 3)
+  expect_setequal(res$type,
+    c("Temporal (joint)", "Temporal AR (joint)", "Temporal CL (joint)"))
   expect_false("Temporal Interaction (joint)" %in% res$type)
   expect_false("Temporal + Interactions (joint)" %in% res$type)
 })
@@ -704,13 +722,21 @@ test_that("bf_table temporal with lag interaction emits interaction rows", {
 
   res <- bf_table(mock, type = "temporal")
 
-  # 1 base phi joint + 1 per-term interaction joint + 1 omnibus = 3
-  expect_equal(nrow(res), 3)
+  # 1 combined + 1 AR + 1 CL + 1 per-term interaction + 1 ARx + 1 CLx + 1 omnibus = 7
+  expect_equal(nrow(res), 7)
   expect_true("Temporal (joint)" %in% res$type)
+  expect_true("Temporal AR (joint)" %in% res$type)
+  expect_true("Temporal CL (joint)" %in% res$type)
   expect_true("Temporal Interaction (joint)" %in% res$type)
+  expect_true("Temporal AR × Interaction (joint)" %in% res$type)
+  expect_true("Temporal CL × Interaction (joint)" %in% res$type)
   expect_true("Temporal + Interactions (joint)" %in% res$type)
   expect_equal(res$predictor[res$type == "Temporal (joint)"], "all_phi")
+  expect_equal(res$predictor[res$type == "Temporal AR (joint)"], "all_ar")
+  expect_equal(res$predictor[res$type == "Temporal CL (joint)"], "all_cl")
   expect_equal(res$predictor[res$type == "Temporal Interaction (joint)"], "x_1")
+  expect_equal(res$predictor[res$type == "Temporal AR × Interaction (joint)"], "x_1")
+  expect_equal(res$predictor[res$type == "Temporal CL × Interaction (joint)"], "x_1")
   expect_equal(res$predictor[res$type == "Temporal + Interactions (joint)"],
                "all_temporal")
   expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
@@ -750,9 +776,118 @@ test_that("bf_table temporal with 2 interaction terms emits per-term rows", {
 
   res <- bf_table(mock, type = "temporal")
 
-  # 1 base phi + 2 per-term interaction + 1 omnibus = 4
-  expect_equal(nrow(res), 4)
+  # 1 combined + 1 AR + 1 CL
+  # + 2 per-term interaction + 2 AR×interaction + 2 CL×interaction
+  # + 1 omnibus = 10
+  expect_equal(nrow(res), 10)
   int_rows <- res[res$type == "Temporal Interaction (joint)", ]
   expect_equal(nrow(int_rows), 2)
   expect_setequal(int_rows$predictor, c("x_1", "x_2"))
+  expect_true("Temporal AR (joint)" %in% res$type)
+  expect_true("Temporal CL (joint)" %in% res$type)
+  arx_rows <- res[res$type == "Temporal AR \u00d7 Interaction (joint)", ]
+  expect_equal(nrow(arx_rows), 2)
+  expect_setequal(arx_rows$predictor, c("x_1", "x_2"))
+  clx_rows <- res[res$type == "Temporal CL \u00d7 Interaction (joint)", ]
+  expect_equal(nrow(clx_rows), 2)
+  expect_setequal(clx_rows$predictor, c("x_1", "x_2"))
+})
+
+test_that("bf_table temporal p=1: no CL row emitted", {
+  # p=1 → only 1 AR param, 0 CL params → combined + AR only = 2
+  p <- 1L; K <- 1L; n_fe <- 2L; n_re <- 0L
+  par_nms <- c("beta[1,1]", "beta[2,1]", "phi[1,1]", "sigma[1]")
+
+  set.seed(789L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, "y_1"))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, c("Intercept", "x_1")))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, "lag1_y_1"))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re,
+                     Y = Y, X = X, B = B, Z = Z),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock, type = "temporal")
+  expect_equal(nrow(res), 2)
+  expect_true("Temporal (joint)"    %in% res$type)
+  expect_true("Temporal AR (joint)" %in% res$type)
+  expect_false("Temporal CL (joint)" %in% res$type)
+  # combined and AR should have logspline since only 1 param each
+  expect_true(all(res$method == "logspline"))
+})
+
+
+# ── bf_table() type = "all" auto-detection ───────────────────────────────────
+
+test_that("bf_table type='all' works for gaussian (no interactions)", {
+  mock <- make_mock_bvarnet("gaussian")
+  res <- bf_table(mock)  # default type = "all"
+
+  expect_s3_class(res, "data.frame")
+  # intercepts + ar + cl + fe + temporal (no lag_fe)
+  # intercepts: 2 + 1 joint = 3
+  # ar: 2 + 1 joint = 3
+  # cl: 2 + 1 joint = 3
+  # fe: 2 + 1 joint = 3 (1 predictor, p=2 → joint; no global joint-all since 1 pred)
+  # temporal: 3 (combined + AR + CL)
+  expect_true(any(grepl("Intercept", res$type)))
+  expect_true(any(grepl("Autoregressive", res$type)))
+  expect_true(any(grepl("Cross-lagged", res$type)))
+  expect_true(any(grepl("Fixed Effect", res$type)))
+  expect_true(any(grepl("Temporal", res$type)))
+  # No lag interaction rows
+  expect_false(any(grepl("Lag Interaction", res$type)))
+  expect_true(all(res$BF01 > 0))
+})
+
+test_that("bf_table type='all' skips intercepts for ordinal", {
+  mock <- make_mock_bvarnet("ordinal")
+  res <- bf_table(mock)
+  expect_false(any(grepl("^Intercept", res$type)))
+  expect_true(any(grepl("Autoregressive", res$type)))
+})
+
+test_that("bf_table type='all' includes lag_fe when interactions exist", {
+  p <- 2L; K <- 1L
+  fe_names <- c("Intercept", "x_1", "lag1_y_1:x_1", "lag1_y_2:x_1")
+  n_fe <- length(fe_names); n_re <- 0L
+  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+  set.seed(111L)
+  draws <- array(rnorm(40 * 2 * length(par_nms)),
+                 dim = c(40L, 2L, length(par_nms)),
+                 dimnames = list(NULL, NULL, par_nms))
+
+  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
+  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
+  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+  Z <- matrix(0, 10, 0)
+
+  mock <- structure(list(
+    draws     = draws,
+    standata  = list(
+      p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z,
+      fe_interaction_terms    = list(c("lag", "x_1")),
+      fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
+    ),
+    priors    = set_priors(),
+    family    = "gaussian"
+  ), class = "bvarnet")
+
+  res <- bf_table(mock)
+  expect_true(any(grepl("Lag Interaction", res$type)))
+  expect_true(any(grepl("Temporal", res$type)))
+  expect_true(any(grepl("Intercept", res$type)))
+  expect_true(all(res$BF01 > 0))
 })
