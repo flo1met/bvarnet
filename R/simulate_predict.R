@@ -296,8 +296,8 @@
       } else {
         # unseen subject
         if (new_subject == "sample") {
-          sd_u_mean <- colMeans(.reshape_sd_u(
-            .extract_param_draw(object, "sd_u", NULL), sd))
+          sd_u_mean <- .reshape_sd_u(
+            .extract_param_draw(object, "sd_u", NULL), sd)
           out[r, ] <- rnorm(n_re, 0, sd_u_mean[node, ])
         }
         # else "zero" → leave as 0
@@ -677,10 +677,10 @@
 #' @param ... Ignored.
 #'
 #' @return For \code{type = "link"} or \code{"response"}: a numeric matrix with
-#'   \code{nrow(newdata)} rows and \code{p} columns, \code{NA} for the first K
-#'   rows per subject. For \code{type = "probabilities"}: a list of \code{p}
-#'   matrices. When \code{method = "posterior-sample"}, the output carries
-#'   \code{attr(,"sd")} and \code{attr(,"ndraws")}.
+#'   rows matching the original data (or \code{nrow(newdata)}), with \code{NA}
+#'   for the first K rows per subject. For \code{type = "probabilities"}: a list
+#'   of \code{p} matrices. When \code{method = "posterior-sample"}, the output
+#'   carries \code{attr(,"sd")} and \code{attr(,"ndraws")}.
 #'
 #' @examples
 #' if (instantiate::stan_cmdstan_exists()) {
@@ -733,8 +733,8 @@ predict.bvarnet <- function(object,
     Z       <- sd$Z
     Y_obs   <- sd$Y
     id_char <- as.character(sd$id_levels[sd$id])
-    row_map <- NULL
-    n_rows  <- NULL
+    row_map <- sd$row_map
+    n_rows  <- sd$n_rows_data
   } else {
     pred_sd <- .build_pred_standata(newdata, object)
     X       <- pred_sd$X

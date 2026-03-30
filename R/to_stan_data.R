@@ -96,6 +96,10 @@ to_stan_data <- function(data,
   q <- length(x_cols)
   PK <- p*K 
 
+  ## total rows in the clean data (before lag removal) — used for in-sample
+  ## predict expansion so output matches the original data dimensions
+  n_rows_data <- nrow(data)
+  data$.orig_row <- seq_len(n_rows_data)
   df_split <- split(data, data[[id_col]])
 
   #n_obs <- J * (T_obs - K)
@@ -111,6 +115,7 @@ to_stan_data <- function(data,
   X <- matrix(NA_real_, n_obs, q)
   B <- matrix(0, n_obs, PK)
   id_out <- integer(n_obs)
+  row_map <- integer(n_obs)
 
 
   ## begin creation of design matrices
@@ -133,6 +138,7 @@ to_stan_data <- function(data,
       row <- row + 1L
 
       id_out[row] <- jj
+      row_map[row] <- df_sub$.orig_row[t]
       Y[row, ] <- Ymat[t, ]
       X[row, ] <- Xmat[t, ]
 
@@ -162,6 +168,7 @@ to_stan_data <- function(data,
     X <- X[seq_len(row), , drop = FALSE]
     B <- B[seq_len(row), , drop = FALSE]
     id_out <- id_out[seq_len(row)]
+    row_map <- row_map[seq_len(row)]
     n_obs <- row
   }
 
@@ -266,6 +273,8 @@ to_stan_data <- function(data,
   ## prediction metadata (not passed to Stan)
   out$id_levels <- as.character(ids_unique)
   out$x_center_means <- x_center_means
+  out$row_map <- row_map
+  out$n_rows_data <- n_rows_data
   out$design_spec <- list(
     id_col          = id_col,
     time_col        = time_col,

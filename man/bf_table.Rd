@@ -4,25 +4,26 @@
 \alias{bf_table}
 \title{Compute Bayes factor table for a bvarnet model}
 \usage{
-bf_table(
-  object,
-  type = c("ar", "cl", "intercepts", "fe"),
-  lag = 1L,
-  null_value = 0
-)
+bf_table(object, type = "all", lag = 1L, null_value = 0)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{bvar()}.}
 
-\item{type}{Character vector. Which parameter groups to test.
+\item{type}{Character vector or \code{"all"} (default).  Which
+parameter groups to test.
 Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
 \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
 \code{"lag_fe"} (lag × predictor interaction joint tests),
 \code{"temporal"} (joint test of all phi parameters across all lags,
-i.e. the entire temporal structure AR + CL, excluding covariates; when
-lag \ifelse{html}{\out{&times;}}{\eqn{\times}} covariate interactions
-are present, additional rows are emitted for per-interaction-term and
-full temporal + interactions omnibus joint tests).}
+i.e. the entire temporal structure AR + CL, excluding covariates;
+additionally emits separate joint rows for AR-only and CL-only
+components; when lag \ifelse{html}{\out{&times;}}{\eqn{\times}}
+covariate interactions are present, additional rows are emitted for
+per-interaction-term and AR-only / CL-only interaction sub-tests,
+plus a full temporal + interactions omnibus).
+\code{"all"} auto-selects all applicable types (skips
+\code{"intercepts"} for ordinal models and \code{"lag_fe"} when
+no lag interactions exist).}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
 \code{"ar"}, \code{"cl"}, and \code{"phi"}.}

@@ -63,10 +63,10 @@ sampling.}
 }
 \value{
 For \code{type = "link"} or \code{"response"}: a numeric matrix with
-\code{nrow(newdata)} rows and \code{p} columns, \code{NA} for the first K
-rows per subject. For \code{type = "probabilities"}: a list of \code{p}
-matrices. When \code{method = "posterior-sample"}, the output carries
-\code{attr(,"sd")} and \code{attr(,"ndraws")}.
+rows matching the original data (or \code{nrow(newdata)}), with \code{NA}
+for the first K rows per subject. For \code{type = "probabilities"}: a list
+of \code{p} matrices. When \code{method = "posterior-sample"}, the output
+carries \code{attr(,"sd")} and \code{attr(,"ndraws")}.
 }
 \description{
 Computes one-step-ahead or recursive forecasts for long-format time-series

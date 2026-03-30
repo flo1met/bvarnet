@@ -10,8 +10,11 @@ get_lag_interaction_indices_by_term(sd)
 \item{sd}{The \code{standata} list.}
 }
 \value{
-Named list; each element has \code{full} (all params) and
-\code{by_lag} (list of per-lag-block param vectors).
+Named list; each element has \code{full} (all params),
+\code{by_lag} (list of per-lag-block param vectors), \code{ar}
+(AR-like interaction params where lagged outcome == target outcome),
+and \code{cl} (CL-like interaction params where lagged outcome !=
+target outcome).
 }
 \description{
 Group Stan beta names by lag×predictor interaction term (internal)
