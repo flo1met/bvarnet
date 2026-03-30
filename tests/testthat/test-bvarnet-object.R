@@ -20,7 +20,7 @@ test_that("bvarnet object has class 'bvarnet'", {
 
 test_that("bvarnet object contains expected top-level names", {
   obj <- make_mock_bvarnet()
-  expected <- c("draws", "summary", "diagnostics", "timing",
+  expected <- c("draws", "convergence", "diagnostics", "timing",
                 "metadata", "return_codes", "family", "standata", "priors")
   expect_true(all(expected %in% names(obj)))
 })
@@ -67,18 +67,18 @@ test_that("draws parameter names are in Stan bracket format", {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# §3 — summary slot
+# §3 — convergence slot
 # ═══════════════════════════════════════════════════════════════════════════════
 
-test_that("summary slot is a plain data.frame (not tibble)", {
+test_that("convergence slot is a plain data.frame (not tibble)", {
   obj <- make_mock_bvarnet()
-  expect_identical(class(obj$summary), "data.frame")
+  expect_identical(class(obj$convergence), "data.frame")
 })
 
 
-test_that("summary slot has required convergence columns", {
+test_that("convergence slot has required convergence columns", {
   obj  <- make_mock_bvarnet()
-  cols <- names(obj$summary)
+  cols <- names(obj$convergence)
   expect_true("variable"  %in% cols)
   expect_true("rhat"      %in% cols)
   expect_true("ess_bulk"  %in% cols)
@@ -86,15 +86,15 @@ test_that("summary slot has required convergence columns", {
 })
 
 
-test_that("summary slot has one row per parameter", {
+test_that("convergence slot has one row per parameter", {
   obj <- make_mock_bvarnet("bernoulli")
-  expect_equal(nrow(obj$summary), dim(obj$draws)[3])
+  expect_equal(nrow(obj$convergence), dim(obj$draws)[3])
 })
 
 
-test_that("summary rhat values are numeric", {
+test_that("convergence rhat values are numeric", {
   obj <- make_mock_bvarnet()
-  expect_true(is.numeric(obj$summary$rhat))
+  expect_true(is.numeric(obj$convergence$rhat))
 })
 
 
@@ -232,7 +232,7 @@ test_that("print.bvarnet warns when divergences > 0", {
 
 test_that("print.bvarnet warns when Rhat > 1.01", {
   obj <- make_mock_bvarnet()
-  obj$summary$rhat <- rep(1.05, nrow(obj$summary))
+  obj$convergence$rhat <- rep(1.05, nrow(obj$convergence))
   expect_output(print(obj), "WARNING")
 })
 

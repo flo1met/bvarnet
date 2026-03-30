@@ -478,8 +478,8 @@
   if (is.null(conditioning_window)) conditioning_window <- K
 
   if (length(conditioning_window) == 1L && is.null(names(conditioning_window))) {
-    cw <- setNames(rep(as.integer(conditioning_window), length(unique_ids)),
-                   as.character(unique_ids))
+    cw <- stats::setNames(rep(as.integer(conditioning_window), length(unique_ids)),
+                          as.character(unique_ids))
   } else if (!is.null(names(conditioning_window))) {
     ids_chr <- as.character(unique_ids)
     cw_names <- as.character(names(conditioning_window))
@@ -487,7 +487,7 @@
     if (any(is.na(matched)))
       stop("conditioning_window is missing entries for subjects: ",
            paste(ids_chr[is.na(matched)], collapse = ", "), call. = FALSE)
-    cw <- setNames(as.integer(conditioning_window[matched]), ids_chr)
+    cw <- stats::setNames(as.integer(conditioning_window[matched]), ids_chr)
   } else {
     stop("conditioning_window must be NULL, a scalar, or a named vector.",
          call. = FALSE)

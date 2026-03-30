@@ -204,12 +204,6 @@ make_mock_bvarnet <- function(family   = "bernoulli",
 
   smry <- data.frame(
     variable  = par_nms,
-    mean      = 0,
-    median    = 0,
-    sd        = 0.1,
-    mad       = 0.1,
-    q5        = -0.2,
-    q95       = 0.2,
     rhat      = 1.001,
     ess_bulk  = 3000,
     ess_tail  = 2800,
@@ -257,7 +251,7 @@ make_mock_bvarnet <- function(family   = "bernoulli",
   structure(
     list(
       draws        = draws,
-      summary      = smry,
+      convergence  = smry,
       diagnostics  = data.frame(
         num_divergent     = integer(n_chains),
         num_max_treedepth = integer(n_chains),

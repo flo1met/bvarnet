@@ -95,15 +95,14 @@ make_predictable_mock <- function(family = "gaussian", n_re = 0L, J = 5L,
   }
 
   smry <- data.frame(
-    variable = par_nms, mean = 0, median = 0, sd = 0.1,
-    mad = 0.1, q5 = -0.2, q95 = 0.2, rhat = 1.001,
+    variable = par_nms, rhat = 1.001,
     ess_bulk = 3000, ess_tail = 2800, stringsAsFactors = FALSE
   )
 
   structure(
     list(
       draws        = draws,
-      summary      = smry,
+      convergence  = smry,
       diagnostics  = data.frame(num_divergent = integer(n_chains),
                                 num_max_treedepth = integer(n_chains),
                                 ebfmi = rep(1.0, n_chains)),

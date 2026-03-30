@@ -13,7 +13,8 @@ Additional_repositories:
 Imports: 
     instantiate,
     logspline,
-    mvtnorm
+    mvtnorm,
+    posterior
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

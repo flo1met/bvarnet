@@ -44,7 +44,7 @@
 #'   \code{NULL} (CmdStan default of 10).
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
-#'   \code{draws}, \code{summary}, \code{diagnostics}, \code{timing},
+#'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
 #'   \code{priors}.
 #'
@@ -119,16 +119,21 @@ bvar <- function(id_col,
   raw_draws   <- stanfit$draws(format = "array")
   draws       <- unclass(raw_draws)         # strip draws_array class; dimnames preserved
   attr(draws, "class") <- NULL              # ensure it is a plain array
-  summary     <- as.data.frame(stanfit$summary())
-  diagnostics <- as.data.frame(stanfit$diagnostic_summary())
-  timing      <- stanfit$time()
-  metadata    <- stanfit$metadata()
+
+  # Compute convergence diagnostics from posterior draws (lightweight).
+  conv_tbl    <- posterior::summarise_draws(raw_draws,
+                   posterior::rhat, posterior::ess_bulk, posterior::ess_tail)
+  convergence <- as.data.frame(conv_tbl)
+
+  diagnostics  <- as.data.frame(stanfit$diagnostic_summary())
+  timing       <- stanfit$time()
+  metadata     <- stanfit$metadata()
   return_codes <- stanfit$return_codes()
 
   out <- structure(
     list(
       draws        = draws,
-      summary      = summary,
+      convergence  = convergence,
       diagnostics  = diagnostics,
       timing       = timing,
       metadata     = metadata,

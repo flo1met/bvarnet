@@ -45,10 +45,19 @@ build_summary_table <- function(draws, row_names, col_names, type) {
 
 
 ## ---- extract posterior draws as a matrix (Stan column names preserved) ----
-## Internal helper used by extract_param() and compare_to_truth().
-## Returns an (iterations*chains) x params matrix with Stan index names
-## e.g. "beta[1,1]", "phi[2,3]".  Call as bvarnet:::extract_draws() in tests.
-#' @keywords internal
+#' Extract raw posterior draws for a single parameter block
+#'
+#' Returns an \code{(iterations * chains)} by \code{params} matrix with
+#' Stan-indexed column names (e.g. \code{"beta[1,1]"}, \code{"phi[2,3]"}).
+#'
+#' @param object A \code{bvarnet} object returned by \code{\link{bvar}}.
+#' @param parameter Character. One of \code{"beta"}, \code{"phi"},
+#'   \code{"sd_u"}, \code{"sigma"}, or \code{"kappa"}.
+#'
+#' @return A numeric matrix with one row per posterior draw and one column
+#'   per Stan parameter element.
+#'
+#' @export
 extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa")) {
   stopifnot(inherits(object, "bvarnet"))
   parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
@@ -189,7 +198,7 @@ print.bvarnet <- function(x, ...) {
   cat("Observations:", sd$n,    "\n")
 
   # Convergence
-  smry <- x$summary
+  smry <- x$convergence
   if (!is.null(smry) && "rhat" %in% names(smry)) {
     rhat_max <- max(smry$rhat, na.rm = TRUE)
     cat(sprintf("Rhat max:    %.3f\n", rhat_max))

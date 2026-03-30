@@ -22,9 +22,9 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
 
   sd   <- object$standata
   nm   <- get_param_names(sd)
-  smry <- object$summary   # data.frame: variable, mean, sd, ..., rhat, ess_bulk, ess_tail
+  smry <- object$convergence   # data.frame: variable, rhat, ess_bulk, ess_tail
 
-  # Join Rhat + ESS from object$summary by Stan parameter name.
+  # Join Rhat + ESS from object$convergence by Stan parameter name.
   # stan_colnames: character vector aligned with rows of tab.
   join_convergence <- function(tab, stan_colnames) {
     idx          <- match(stan_colnames, smry$variable)

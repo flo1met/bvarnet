@@ -92,7 +92,7 @@ hierarchical logistic models) but increases computation. Default
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
-\code{draws}, \code{summary}, \code{diagnostics}, \code{timing},
+\code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
 \code{priors}.
 }
