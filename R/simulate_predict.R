@@ -1137,8 +1137,13 @@ simulate.bvarnet <- function(object,
     Y_keep <- Y_full[, keep_idx, , drop = FALSE]
     X_keep <- X_cov[, keep_idx, , drop = FALSE]
 
-    # Assemble long-format data frame
-    y_cols_out <- paste0("y_", seq_len(p))
+    # Assemble long-format data frame (preserve original y_cols names if available)
+    y_cols_out <- if (!is.null(sd$design_spec$y_cols) &&
+                      length(sd$design_spec$y_cols) == p) {
+      sd$design_spec$y_cols
+    } else {
+      paste0("y_", seq_len(p))
+    }
     rows <- vector("list", N)
     for (i in seq_len(N)) {
       row_data <- data.frame(id = rep(i, nsim), t = seq_len(nsim))

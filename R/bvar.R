@@ -124,6 +124,7 @@ bvar <- function(id_col,
   conv_tbl    <- posterior::summarise_draws(raw_draws,
                    posterior::rhat, posterior::ess_bulk, posterior::ess_tail)
   convergence <- as.data.frame(conv_tbl)
+  names(convergence) <- gsub("^posterior::", "", names(convergence))
 
   diagnostics  <- as.data.frame(stanfit$diagnostic_summary())
   timing       <- stanfit$time()
