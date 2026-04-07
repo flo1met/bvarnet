@@ -204,8 +204,10 @@
 
   colnames(X) <- x_cols
 
-  # --- intercept (family-specific) ----------------------------------------
-  if (family %in% c("bernoulli", "gaussian")) {
+  # --- intercept (add only if stored standata has one) --------------------
+  # Combined mixed standata (.to_stan_data_shared) always includes Intercept.
+  # Homogeneous ordinal (to_stan_data) does not.
+  if ("Intercept" %in% colnames(sd$X)) {
     X <- cbind(Intercept = 1, X)
     colnames(X) <- c("Intercept", x_cols)
   }
@@ -248,9 +250,22 @@
 #' @param node  Integer, which node/column (1..p).
 #' @return Numeric vector of length n_obs.
 #' @noRd
-.predict_eta_node <- function(X, B, beta, phi, Z, u_rows, node) {
-  # Fixed part:  X %*% beta[, node] + B %*% phi[, node]
-  eta <- as.numeric(X %*% beta[, node]) +
+.predict_eta_node <- function(X, B, beta, phi, Z, u_rows, node,
+                              family_node = "gaussian") {
+  # Fixed part: skip intercept row/col for ordinal nodes (D4)
+  # Only strip if X actually has an Intercept column (combined standata from
+  # .to_stan_data_shared always includes it; homogeneous ordinal from
+  # to_stan_data() already excludes it).
+  has_intercept <- "Intercept" %in% colnames(X)
+  if (family_node == "ordinal" && has_intercept) {
+    icept_col <- which(colnames(X) == "Intercept")
+    X_node    <- X[, -icept_col, drop = FALSE]
+    beta_node <- beta[-1, node]
+  } else {
+    X_node    <- X
+    beta_node <- beta[, node]
+  }
+  eta <- as.numeric(X_node %*% beta_node) +
          as.numeric(B %*% phi[, node])
 
   # Random effect part
@@ -328,66 +343,56 @@
 #' Convert linear predictor matrix to the requested output type
 #'
 #' @param eta_mat Matrix [n_obs, p] of linear predictor values.
-#' @param family Character.
+#' @param family_vec Character vector of length p (or scalar, recycled).
 #' @param type Character: "link", "response", "probabilities".
-#' @param sigma Numeric vector length p (gaussian only).
-#' @param kappa List of p ordered vectors (ordinal only).
+#' @param sigma Numeric vector length p (NA for non-gaussian nodes).
+#' @param kappa List of p elements (NULL for non-ordinal nodes).
 #' @return For "link"/"response": matrix [n_obs, p].
 #'   For "probabilities": list of p matrices.
 #' @noRd
-.eta_to_output <- function(eta_mat, family, type, sigma = NULL, kappa = NULL) {
-  n   <- nrow(eta_mat)
-  p   <- ncol(eta_mat)
+.eta_to_output <- function(eta_mat, family_vec, type, sigma = NULL, kappa = NULL) {
+  n <- nrow(eta_mat)
+  p <- ncol(eta_mat)
 
-  if (type == "link") {
-    return(eta_mat)
-  }
+  if (length(family_vec) == 1L) family_vec <- rep(family_vec, p)
+
+  if (type == "link") return(eta_mat)
 
   if (type == "response") {
-    if (family == "bernoulli") {
-      # inverse logit
-      return(1 / (1 + exp(-eta_mat)))
-    } else if (family == "gaussian") {
-      return(eta_mat)  # identity link
-    } else if (family == "ordinal") {
-      # expected value = sum( c * P(Y=c) )
-      C <- length(kappa[[1]]) + 1L
-      out <- matrix(NA_real_, n, p)
-      for (node in seq_len(p)) {
-        probs <- .ordinal_probs(eta_mat[, node], kappa[[node]], C)
-        out[, node] <- probs %*% seq_len(C)
+    out <- matrix(NA_real_, n, p)
+    for (j in seq_len(p)) {
+      if (family_vec[j] == "bernoulli") {
+        out[, j] <- 1 / (1 + exp(-eta_mat[, j]))
+      } else if (family_vec[j] == "gaussian") {
+        out[, j] <- eta_mat[, j]
+      } else if (family_vec[j] == "ordinal") {
+        C_j <- length(kappa[[j]]) + 1L
+        probs <- .ordinal_probs(eta_mat[, j], kappa[[j]], C_j)
+        out[, j] <- probs %*% seq_len(C_j)
       }
-      return(out)
     }
+    return(out)
   }
 
   if (type == "probabilities") {
-    if (family == "bernoulli") {
-      prob1 <- 1 / (1 + exp(-eta_mat))
-      out <- vector("list", p)
-      for (node in seq_len(p)) {
-        m <- matrix(prob1[, node], ncol = 1)
+    out <- vector("list", p)
+    for (j in seq_len(p)) {
+      if (family_vec[j] == "bernoulli") {
+        prob1 <- 1 / (1 + exp(-eta_mat[, j]))
+        m <- matrix(prob1, ncol = 1)
         colnames(m) <- "p1"
-        out[[node]] <- m
+        out[[j]] <- m
+      } else if (family_vec[j] == "gaussian") {
+        out[[j]] <- cbind(mean = eta_mat[, j],
+                          sd = rep(sigma[j], n))
+      } else if (family_vec[j] == "ordinal") {
+        C_j <- length(kappa[[j]]) + 1L
+        probs <- .ordinal_probs(eta_mat[, j], kappa[[j]], C_j)
+        colnames(probs) <- paste0("cat_", seq_len(C_j))
+        out[[j]] <- probs
       }
-      return(out)
-    } else if (family == "gaussian") {
-      out <- vector("list", p)
-      for (node in seq_len(p)) {
-        m <- cbind(mean = eta_mat[, node], sd = rep(sigma[node], n))
-        out[[node]] <- m
-      }
-      return(out)
-    } else if (family == "ordinal") {
-      C <- length(kappa[[1]]) + 1L
-      out <- vector("list", p)
-      for (node in seq_len(p)) {
-        probs <- .ordinal_probs(eta_mat[, node], kappa[[node]], C)
-        colnames(probs) <- paste0("cat_", seq_len(C))
-        out[[node]] <- probs
-      }
-      return(out)
     }
+    return(out)
   }
 
   stop("Unknown type: ", type, call. = FALSE)
@@ -521,34 +526,96 @@
 
 #' Convert a row of eta to the value used for recursive lag updates
 #'
-#' Rules from the plan:
-#' - gaussian: predicted mean (identity link, so just eta).
-#' - bernoulli: P(Y=1) = inverse logit of eta (continuous expected value,
-#'   avoids unstable stepwise paths from hard thresholds).
-#' - ordinal: E[Y] = sum(c * P(Y=c)).
-#'
 #' @param eta_row Numeric vector of length p (linear predictor per node).
-#' @param family Character.
-#' @param sigma Numeric vector (gaussian) or NULL.
-#' @param kappa List of p ordered vectors (ordinal) or NULL.
+#' @param family_vec Character vector of length p (or scalar, recycled).
+#' @param sigma Numeric vector (NA for non-gaussian) or NULL.
+#' @param kappa List of p elements (NULL for non-ordinal) or NULL.
 #' @return Numeric vector of length p.
 #' @noRd
-.recursive_lag_value <- function(eta_row, family, sigma, kappa) {
-  if (family == "gaussian") {
-    return(eta_row)
-  } else if (family == "bernoulli") {
-    return(1 / (1 + exp(-eta_row)))
-  } else if (family == "ordinal") {
-    p <- length(eta_row)
-    C <- length(kappa[[1]]) + 1L
-    vals <- numeric(p)
-    for (node in seq_len(p)) {
-      probs <- .ordinal_probs(eta_row[node], kappa[[node]], C)
-      vals[node] <- sum(probs * seq_len(C))
+.recursive_lag_value <- function(eta_row, family_vec, sigma, kappa) {
+  p <- length(eta_row)
+  if (length(family_vec) == 1L) family_vec <- rep(family_vec, p)
+  vals <- numeric(p)
+  for (j in seq_len(p)) {
+    if (family_vec[j] == "gaussian") {
+      vals[j] <- eta_row[j]
+    } else if (family_vec[j] == "bernoulli") {
+      vals[j] <- 1 / (1 + exp(-eta_row[j]))
+    } else if (family_vec[j] == "ordinal") {
+      C_j <- length(kappa[[j]]) + 1L
+      probs <- .ordinal_probs(eta_row[j], kappa[[j]], C_j)
+      vals[j] <- sum(probs * seq_len(C_j))
     }
-    return(vals)
   }
-  stop("Unknown family: ", family, call. = FALSE)
+  vals
+}
+
+
+#' Extract sigma (length-p vector, NA for non-gaussian) and kappa
+#' (length-p list, NULL for non-ordinal) from a bvarnet object
+#'
+#' @param object A `bvarnet` object.
+#' @param draw_index NULL for posterior mean, integer for a specific draw.
+#' @return Named list with `sigma` and `kappa`.
+#' @noRd
+.extract_sigma_kappa <- function(object, draw_index = NULL) {
+  p <- object$standata$p
+  family_vec <- object$family
+
+  sigma <- rep(NA_real_, p)
+  if (.family_has(object, "gaussian")) {
+    sigma_raw <- .extract_param_draw(object, "sigma", draw_index)
+    sigma_names <- names(sigma_raw)
+    sigma_idx <- as.integer(gsub("sigma\\[|\\]", "", sigma_names))
+    sigma[sigma_idx] <- as.numeric(sigma_raw)
+  }
+
+  kappa <- vector("list", p)
+  if (.family_has(object, "ordinal")) {
+    kappa_raw <- .extract_param_draw(object, "kappa", draw_index)
+    kappa_names <- names(kappa_raw)
+    parts <- strsplit(gsub("kappa\\[|\\]", "", kappa_names), ",")
+    j_vals <- as.integer(vapply(parts, `[[`, character(1L), 1L))
+    c_vals <- as.integer(vapply(parts, `[[`, character(1L), 2L))
+    for (j in unique(j_vals)) {
+      mask <- j_vals == j
+      kappa[[j]] <- as.numeric(kappa_raw[mask])[order(c_vals[mask])]
+    }
+  }
+
+  list(sigma = sigma, kappa = kappa)
+}
+
+
+#' Generate a response vector for all p nodes (per-node family dispatch)
+#'
+#' Used by \code{simulate.bvarnet()} in the forward simulation loop.
+#'
+#' @param eta Numeric vector of length p. Linear predictor per node.
+#' @param family_vec Character vector of length p.
+#' @param sigma Numeric vector of length p (NA for non-gaussian).
+#' @param kappa List of length p (NULL entries for non-ordinal).
+#' @param p Integer. Number of nodes.
+#' @return Numeric vector of length p.
+#' @noRd
+.generate_response_node_vec <- function(eta, family_vec, sigma, kappa, p) {
+  y <- numeric(p)
+  for (j in seq_len(p)) {
+    y[j] <- switch(family_vec[j],
+      bernoulli = rbinom(1L, 1L, 1 / (1 + exp(-eta[j]))),
+      gaussian  = rnorm(1L, eta[j], sigma[j]),
+      ordinal   = {
+        kappa_cumsum <- c(0, cumsum(kappa[[j]]))
+        C_j <- length(kappa[[j]]) + 1L
+        lambda <- (seq_len(C_j) - 1L) * eta[j] - kappa_cumsum
+        lambda <- lambda - max(lambda)
+        probs  <- exp(lambda) / sum(exp(lambda))
+        sample.int(C_j, 1L, prob = probs)
+      },
+      stop("Unknown family: ", family_vec[j])
+    )
+  }
+  y
 }
 
 
@@ -571,7 +638,7 @@
 #' @param subject_re Character.
 #' @param new_subject Character.
 #' @param draw_index NULL or integer.
-#' @param family Character.
+#' @param family_vec Character vector of length p (or scalar, recycled).
 #' @param cw_by_subject Named integer vector (conditioning window per subject).
 #' @param K Integer lag order.
 #' @param p Integer number of nodes.
@@ -579,9 +646,10 @@
 #' @noRd
 .compute_recursive_eta <- function(X, B, Z, Y_obs, beta, phi, sigma, kappa,
                                     id_char, object, subject_re, new_subject,
-                                    draw_index, family, cw_by_subject, K, p) {
+                                    draw_index, family_vec, cw_by_subject, K, p) {
   n_obs <- nrow(X)
   eta_mat <- matrix(NA_real_, n_obs, p)
+  if (length(family_vec) == 1L) family_vec <- rep(family_vec, p)
 
   # Pre-compute RE values for each node (full vectorised extraction)
   has_re <- !is.null(Z) && ncol(Z) > 0L
@@ -609,10 +677,12 @@
       B_row <- if (ti <= n_cond) B[r, ] else lag_buffer
 
       for (node in seq_len(p)) {
-        eta_val <- sum(X[r, ] * beta[, node]) + sum(B_row * phi[, node])
-        if (has_re) {
-          eta_val <- eta_val + sum(Z[r, ] * u_list[[node]][r, ])
-        }
+        u_rows_node <- if (has_re) u_list[[node]][r, , drop = FALSE] else NULL
+        eta_val <- .predict_eta_node(
+          X[r, , drop = FALSE], matrix(B_row, nrow = 1L),
+          beta, phi, Z[r, , drop = FALSE], u_rows_node, node,
+          family_node = family_vec[node]
+        )
         eta_mat[r, node] <- eta_val
       }
 
@@ -620,7 +690,7 @@
       if (ti <= n_cond) {
         lag_buffer <- .update_lag_buffer(lag_buffer, Y_obs[r, ], K, p)
       } else {
-        y_pred <- .recursive_lag_value(eta_mat[r, ], family, sigma, kappa)
+        y_pred <- .recursive_lag_value(eta_mat[r, ], family_vec, sigma, kappa)
         lag_buffer <- .update_lag_buffer(lag_buffer, y_pred, K, p)
       }
     }
@@ -712,18 +782,13 @@ predict.bvarnet <- function(object,
   new_subject <- match.arg(new_subject)
 
   sd     <- object$standata
-  family <- object$family
+  family_vec <- object$family
   p      <- sd$p
   n_re   <- sd$n_re
 
   # Degrade subject_re to "zero" when no RE
 
   if (n_re == 0L) subject_re <- "zero"
-
-  # --- validate type vs family ---
-  if (type == "probabilities" && family == "gaussian") {
-    # gaussian probabilities returns mean + sd columns — this is fine
-  }
 
   # --- build design matrices / use stored ---
   if (is.null(newdata)) {
@@ -763,28 +828,28 @@ predict.bvarnet <- function(object,
     # Single deterministic prediction
     beta  <- if (sd$n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", NULL), sd) else matrix(0, 0L, sd$p)
     phi   <- .reshape_phi(.extract_param_draw(object, "phi", NULL), sd)
-    sigma <- if (family == "gaussian") .reshape_sigma(
-      .extract_param_draw(object, "sigma", NULL), sd) else NULL
-    kappa <- if (family == "ordinal") .reshape_kappa(
-      .extract_param_draw(object, "kappa", NULL), sd) else NULL
+    sk    <- .extract_sigma_kappa(object, NULL)
+    sigma <- sk$sigma
+    kappa <- sk$kappa
 
     eta_mat <- matrix(NA_real_, n_obs, p)
     if (forecast == "recursive") {
       eta_mat <- .compute_recursive_eta(
         X, B, Z, Y_obs, beta, phi, sigma, kappa,
         id_char, object, subject_re, new_subject,
-        NULL, family, cw_by_subject, K, p
+        NULL, family_vec, cw_by_subject, K, p
       )
     } else {
       for (node in seq_len(p)) {
         u_rows <- .get_re_for_rows(object, id_char, subject_re,
                                     new_subject, NULL, node)
-        eta_mat[, node] <- .predict_eta_node(X, B, beta, phi, Z, u_rows, node)
+        eta_mat[, node] <- .predict_eta_node(X, B, beta, phi, Z, u_rows, node,
+                                              family_node = family_vec[node])
       }
     }
     colnames(eta_mat) <- colnames(sd$Y)
 
-    result <- .eta_to_output(eta_mat, family, type, sigma, kappa)
+    result <- .eta_to_output(eta_mat, family_vec, type, sigma, kappa)
 
     # Name columns for matrix outputs
     if (is.matrix(result)) colnames(result) <- colnames(sd$Y)
@@ -800,45 +865,46 @@ predict.bvarnet <- function(object,
       sum_out  <- matrix(0, n_obs, p)
       sum_sq   <- matrix(0, n_obs, p)
     } else {
-      # probabilities: need per-node accumulators
-      if (family == "bernoulli") {
-        sum_out <- lapply(seq_len(p), function(.) matrix(0, n_obs, 1))
-        sum_sq  <- lapply(seq_len(p), function(.) matrix(0, n_obs, 1))
-      } else if (family == "gaussian") {
-        sum_out <- lapply(seq_len(p), function(.) matrix(0, n_obs, 2))
-        sum_sq  <- lapply(seq_len(p), function(.) matrix(0, n_obs, 2))
-      } else {  # ordinal
-        C <- sd$C
-        sum_out <- lapply(seq_len(p), function(.) matrix(0, n_obs, C))
-        sum_sq  <- lapply(seq_len(p), function(.) matrix(0, n_obs, C))
+      # probabilities: per-node accumulators with family-specific ncol
+      sk_mean <- .extract_sigma_kappa(object, NULL)
+      sum_out <- vector("list", p)
+      sum_sq  <- vector("list", p)
+      for (j in seq_len(p)) {
+        nc <- switch(family_vec[j],
+          bernoulli = 1L,
+          gaussian  = 2L,
+          ordinal   = length(sk_mean$kappa[[j]]) + 1L
+        )
+        sum_out[[j]] <- matrix(0, n_obs, nc)
+        sum_sq[[j]]  <- matrix(0, n_obs, nc)
       }
     }
 
     for (s in draw_idx) {
       beta_s  <- if (sd$n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", s), sd) else matrix(0, 0L, sd$p)
       phi_s   <- .reshape_phi(.extract_param_draw(object, "phi", s), sd)
-      sigma_s <- if (family == "gaussian") .reshape_sigma(
-        .extract_param_draw(object, "sigma", s), sd) else NULL
-      kappa_s <- if (family == "ordinal") .reshape_kappa(
-        .extract_param_draw(object, "kappa", s), sd) else NULL
+      sk_s    <- .extract_sigma_kappa(object, s)
+      sigma_s <- sk_s$sigma
+      kappa_s <- sk_s$kappa
 
       eta_s <- matrix(NA_real_, n_obs, p)
       if (forecast == "recursive") {
         eta_s <- .compute_recursive_eta(
           X, B, Z, Y_obs, beta_s, phi_s, sigma_s, kappa_s,
           id_char, object, subject_re, new_subject,
-          s, family, cw_by_subject, K, p
+          s, family_vec, cw_by_subject, K, p
         )
       } else {
         for (node in seq_len(p)) {
           u_rows <- .get_re_for_rows(object, id_char, subject_re,
                                       new_subject, s, node)
-          eta_s[, node] <- .predict_eta_node(X, B, beta_s, phi_s, Z, u_rows, node)
+          eta_s[, node] <- .predict_eta_node(X, B, beta_s, phi_s, Z, u_rows, node,
+                                              family_node = family_vec[node])
         }
       }
       colnames(eta_s) <- colnames(sd$Y)
 
-      out_s <- .eta_to_output(eta_s, family, type, sigma_s, kappa_s)
+      out_s <- .eta_to_output(eta_s, family_vec, type, sigma_s, kappa_s)
 
       if (type %in% c("link", "response")) {
         sum_out <- sum_out + out_s
@@ -953,7 +1019,7 @@ simulate.bvarnet <- function(object,
   subject_re <- match.arg(subject_re)
 
   sd     <- object$standata
-  family <- object$family
+  family_vec <- object$family
   p      <- sd$p
   K      <- sd$K
   n_re   <- sd$n_re
@@ -980,21 +1046,27 @@ simulate.bvarnet <- function(object,
   .simulate_one <- function(draw_index) {
     beta  <- if (n_fe > 0L) .reshape_beta(.extract_param_draw(object, "beta", draw_index), sd) else matrix(0, 0L, p)
     phi   <- .reshape_phi(.extract_param_draw(object, "phi", draw_index), sd)
-    sigma <- if (family == "gaussian") .reshape_sigma(
-      .extract_param_draw(object, "sigma", draw_index), sd) else NULL
-    kappa <- if (family == "ordinal") .reshape_kappa(
-      .extract_param_draw(object, "kappa", draw_index), sd) else NULL
+    sk    <- .extract_sigma_kappa(object, draw_index)
+    sigma <- sk$sigma
+    kappa <- sk$kappa
     sd_u  <- if (n_re > 0L) .reshape_sd_u(
       .extract_param_draw(object, "sd_u", draw_index), sd) else NULL
 
-    # Extract intercept and covariate effects from beta
-    # beta is [n_fe, p]; for bernoulli/gaussian row 1 = intercept
-    if (family %in% c("bernoulli", "gaussian")) {
-      alpha <- beta[1, ]  # intercept
+    # Extract intercept and covariate effects from beta per-node
+    # For mixed families, beta always has intercept row (from combined standata).
+    # For homogeneous ordinal, to_stan_data strips intercept → all rows are covariates.
+    has_intercept_row <- any(family_vec != "ordinal") || n_fe > q
+    alpha <- numeric(p)
+    if (has_intercept_row) {
+      for (j in seq_len(p)) {
+        if (family_vec[j] != "ordinal") {
+          alpha[j] <- beta[1, j]  # intercept row
+        }
+        # ordinal: alpha stays 0 (absorbed in kappa)
+      }
       gamma <- if (n_fe > 1L) beta[2:n_fe, , drop = FALSE] else matrix(0, 0, p)
     } else {
-      # ordinal: no intercept in beta
-      alpha <- rep(0, p)
+      # Homogeneous ordinal: no intercept in beta; all rows are covariates
       gamma <- if (n_fe > 0L) beta else matrix(0, 0, p)
     }
 
@@ -1037,13 +1109,7 @@ simulate.bvarnet <- function(object,
     }
 
     # Forward simulation
-    if (family == "gaussian") {
-      Y_full <- array(NA_real_, dim = c(N, T_total, p))
-    } else if (family == "ordinal") {
-      Y_full <- array(NA_integer_, dim = c(N, T_total, p))
-    } else {
-      Y_full <- array(0L, dim = c(N, T_total, p))
-    }
+    Y_full <- array(NA_real_, dim = c(N, T_total, p))
 
     for (i in seq_len(N)) {
       # Build alpha_i: intercept + RE contribution for the intercept RE
@@ -1107,8 +1173,8 @@ simulate.bvarnet <- function(object,
           x_vec <- matrix(X_cov[i, t, ], nrow = 1L)
           eta   <- eta + as.numeric(x_vec %*% g_mat)
         }
-        Y_full[i, t, ] <- generate_response(eta, family, sigma, kappa,
-                                             if (family == "ordinal") sd$C else NULL, p)
+        Y_full[i, t, ] <- .generate_response_node_vec(
+          eta, family_vec, sigma, kappa, p)
       }
 
       # --- Forward simulate t = K+1 .. T_total ---
@@ -1127,8 +1193,8 @@ simulate.bvarnet <- function(object,
           eta   <- eta + as.numeric(x_vec %*% g_mat)
         }
 
-        Y_full[i, t, ] <- generate_response(eta, family, sigma, kappa,
-                                             if (family == "ordinal") sd$C else NULL, p)
+        Y_full[i, t, ] <- .generate_response_node_vec(
+          eta, family_vec, sigma, kappa, p)
       }
     }
 

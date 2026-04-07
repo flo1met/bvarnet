@@ -39,17 +39,21 @@ test_that("sim_var returns correct structure for all families", {
 test_that("truth structure varies correctly by family", {
   gauss <- sim_var(N = 3, T_obs = 20, p = 2, family = "gaussian", seed = 1, burnin = 10)
   expect_true("sigma" %in% names(gauss$truth))
-  expect_null(gauss$truth$kappa)
+  expect_true(all(!is.na(gauss$truth$sigma)))
+  # kappa entries are NULL for non-ordinal
+
+  expect_true(all(vapply(gauss$truth$kappa, is.null, logical(1L))))
   expect_null(gauss$truth$C)
 
   ordinal <- sim_var(N = 3, T_obs = 20, p = 2, family = "ordinal", seed = 1, burnin = 10)
   expect_true("kappa" %in% names(ordinal$truth))
   expect_true("C" %in% names(ordinal$truth))
-  expect_null(ordinal$truth$sigma)
+  # sigma is NA for ordinal nodes
+  expect_true(all(is.na(ordinal$truth$sigma)))
 
   bern <- sim_var(N = 3, T_obs = 20, p = 2, family = "bernoulli", seed = 1, burnin = 10)
-  expect_null(bern$truth$sigma)
-  expect_null(bern$truth$kappa)
+  expect_true(all(is.na(bern$truth$sigma)))
+  expect_true(all(vapply(bern$truth$kappa, is.null, logical(1L))))
 })
 
 

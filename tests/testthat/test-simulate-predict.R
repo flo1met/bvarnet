@@ -99,6 +99,9 @@ make_predictable_mock <- function(family = "gaussian", n_re = 0L, J = 5L,
     ess_bulk = 3000, ess_tail = 2800, stringsAsFactors = FALSE
   )
 
+  # Normalise family to named vector
+  family_vec <- setNames(rep(family, p), y_cols)
+
   structure(
     list(
       draws        = draws,
@@ -109,7 +112,7 @@ make_predictable_mock <- function(family = "gaussian", n_re = 0L, J = 5L,
       timing       = list(total = 5.0),
       metadata     = list(),
       return_codes = rep(0L, n_chains),
-      family       = family,
+      family       = family_vec,
       standata     = sd,
       priors       = set_priors()
     ),

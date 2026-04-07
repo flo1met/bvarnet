@@ -73,7 +73,7 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
   cat("BVAR Network Summary\n")
   cat(strrep("=", 50), "\n")
   cat(sprintf("Family: %s | p=%d | K=%d | n=%d\n",
-              x$family, x$p, x$K, x$n))
+              .format_family(x$family), x$p, x$K, x$n))
   cat(sprintf("Rhat max: %.3f | Divergences: %d\n",
               x$rhat_max, x$n_divergences))
 

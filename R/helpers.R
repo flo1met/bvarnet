@@ -1,3 +1,26 @@
+## ---- family vector helpers (D2) ----
+
+#' Does any node have a given family?
+#' @keywords internal
+.family_has <- function(object, fam) any(object$family == fam)
+
+#' Which nodes have a given family?
+#' @keywords internal
+.family_which <- function(object, fam) which(object$family == fam)
+
+#' Is the model mixed-family?
+#' @keywords internal
+.is_mixed <- function(object) length(unique(object$family)) > 1L
+
+#' Format a family vector for display
+#' @keywords internal
+.format_family <- function(family_vec) {
+  if (length(unique(family_vec)) == 1L) return(unname(family_vec[1]))
+  paste0("mixed (", paste(names(family_vec), family_vec,
+                          sep = "=", collapse = ", "), ")")
+}
+
+
 ## ---- resolve variable names from standata ----
 #' @keywords internal
 get_param_names <- function(sd) {
@@ -62,9 +85,9 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
   stopifnot(inherits(object, "bvarnet"))
   parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
 
-  if (parameter == "sigma" && object$family != "gaussian")
+  if (parameter == "sigma" && !.family_has(object, "gaussian"))
     stop("Parameter 'sigma' only exists for gaussian models.")
-  if (parameter == "kappa" && object$family != "ordinal")
+  if (parameter == "kappa" && !.family_has(object, "ordinal"))
     stop("Parameter 'kappa' only exists for ordinal models.")
   if (parameter == "sd_u" && object$standata$n_re == 0)
     stop("Parameter 'sd_u' not available \u2014 model has no random effects (n_re = 0).")
@@ -187,7 +210,7 @@ print.bvarnet <- function(x, ...) {
   cat(strrep("=", 40), "\n")
 
   # Family
-  cat("Family:      ", x$family, "\n", sep = "")
+  cat("Family:      ", .format_family(x$family), "\n", sep = "")
 
   # Dimensions
   cat("Outcomes (p):", sd$p,    "\n")
@@ -223,11 +246,9 @@ print.bvarnet <- function(x, ...) {
   # Priors
   if (!is.null(x$priors) && inherits(x$priors, "bvarnet_priors")) {
     half_pars <- c("sd_u", "sigma")
-    family_pars <- switch(x$family,
-      bernoulli = c("beta", "phi", "sd_u"),
-      ordinal   = c("beta", "phi", "sd_u", "kappa"),
-      gaussian  = c("beta", "phi", "sd_u", "sigma")
-    )
+    family_pars <- c("beta", "phi", "sd_u")
+    if (.family_has(x, "gaussian")) family_pars <- c(family_pars, "sigma")
+    if (.family_has(x, "ordinal"))  family_pars <- c(family_pars, "kappa")
     prior_str <- paste(
       vapply(family_pars, function(nm) {
         half <- nm %in% half_pars

@@ -46,190 +46,43 @@ to_stan_data <- function(data,
                          na_action = c("listwise"), # add automatic LW deletion
                          skip_lag = TRUE,           # skipping lag mechanism on/off
                          priors = set_priors()) {
-  ## Input
-  # df: data in "long" format, cols: id, time, y, covariates
 
-  ## Output
-  # list with
-  #(
-  # p: no parameters
-  # q: no covariates
-  # w: no interactions
-  # J: no people/gorups
-  # T: no timepoints
-  # K: AR(K)
-  # n_obs: length Y, J*T-K
-  # n_fe: no FEs
-  # n_re: no RE
-  # id: person identifier
-  # Y: outcome matrix in long format
-  # X: design matrix FE
-  # B: design matrix lags
-  # Z: design matrix RE
-  #)
-
-  ## Checks
+  ## Use shared helper for all family-agnostic data wrangling
   family <- match.arg(family, choices = c("bernoulli", "ordinal", "gaussian"))
-  K <- as.integer(K) # ensure its an integer to not break fun
-  stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
-  ##
 
+  shared <- .to_stan_data_shared(
+    data = data, id_col = id_col, time_col = time_col,
+    y_cols = y_cols, x_cols = x_cols, center_x = center_x,
+    fe_interactions = fe_interactions, re_interactions = re_interactions,
+    re_cols = re_cols, re_temporal = re_temporal, K = K,
+    na_action = na_action, skip_lag = skip_lag
+  )
 
-
-  ## ensure the data is properly ordered by id and time to prevent data wrangling errors
-  data <- data[order(data[[id_col]], data[[time_col]]), ]
-
-  ## Listwise deletion
-  na_action <- match.arg(na_action)
-
-  if (na_action == "listwise") {
-    check_cols <- c(y_cols, x_cols)
-    complete <- complete.cases(data[, check_cols, drop = FALSE])
-    n_na <- sum(!complete)
-    data <- data[complete , , drop = FALSE]
-  }
-
-  ## "summary statistics"
-  ids_unique <- unique(data[[id_col]])
-  J <- length(ids_unique)
-  p <- length(y_cols)
-  q <- length(x_cols)
-  PK <- p*K 
-
-  ## total rows in the clean data (before lag removal) — used for in-sample
-  ## predict expansion so output matches the original data dimensions
-  n_rows_data <- nrow(data)
-  data$.orig_row <- seq_len(n_rows_data)
-  df_split <- split(data, data[[id_col]])
-
-  #n_obs <- J * (T_obs - K)
-  # total number of modeled rows (one per observed row after first K within each subject)
-  n_obs_initial <- n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
-
-  ## initialize design matrices and id
-  if (family == "gaussian") {
-    Y <- matrix(NA_real_, n_obs, p)
-  } else {
-    Y <- matrix(NA_integer_, n_obs, p)
-  }
-  X <- matrix(NA_real_, n_obs, q)
-  B <- matrix(0, n_obs, PK)
-  id_out <- integer(n_obs)
-  row_map <- integer(n_obs)
-
-
-  ## begin creation of design matrices
-  row <- 0L # bookkeeping row number outcome
-
-  for(jj in seq_len(J)) { # safe with J = 0
-    this_id <- ids_unique[jj]
-    df_sub <- df_split[[as.character(this_id)]]
-    df_sub <- df_sub[order(df_sub[[time_col]]),, drop = FALSE] # ensure ordering stays!, drop = F to ensure dimension stays the same
-
-    Ti <- nrow(df_sub)
-    if (Ti <= K) next # skips subjects that cant contribute to likelihood, atleast K+1 obs needed per subject
-
-    times <- df_sub[[time_col]]
-    Ymat <- as.matrix(df_sub[, y_cols, drop = FALSE])
-    Xmat <- as.matrix(df_sub[, x_cols, drop = FALSE])
-
-    ## begin onstruction of B
-    for (t in (K+1L):Ti) {
-      row <- row + 1L
-
-      id_out[row] <- jj
-      row_map[row] <- df_sub$.orig_row[t]
-      Y[row, ] <- Ymat[t, ]
-      X[row, ] <- Xmat[t, ]
-
-      # missing data handling: if we skip lags as mechanism this is what we use. TODO: make an option
-
-      valid <- TRUE
-      for(lag in 1:K) {
-        if ((times[t] - times[t - lag]) != lag) {
-          valid <- FALSE
-          break
-        }
-      }
-
-      if(valid) {
-        for(lag in 1:K) {
-          B[row, ((lag - 1L)*p+1L):(lag*p)] <- Ymat[t - lag, ]
-        }
-      } else if (!skip_lag) {
-        row <- row - 1L # deletes created row
-        next
-      }
+  ## Family-specific Y casting
+  Y <- shared$Y
+  X <- shared$X
+  if (family == "ordinal") {
+    Y <- matrix(as.integer(Y), nrow = nrow(Y), ncol = ncol(Y))
+    colnames(Y) <- colnames(shared$Y)
+    # Strip intercept from X for ordinal
+    if ("Intercept" %in% colnames(X)) {
+      X <- X[, colnames(X) != "Intercept", drop = FALSE]
     }
+  } else if (family == "bernoulli") {
+    Y <- matrix(as.integer(Y), nrow = nrow(Y), ncol = ncol(Y))
+    colnames(Y) <- colnames(shared$Y)
   }
 
-  if (row < n_obs) { # trim in case of listwise deletion without lag skipping
-    Y <- Y[seq_len(row), , drop = FALSE]
-    X <- X[seq_len(row), , drop = FALSE]
-    B <- B[seq_len(row), , drop = FALSE]
-    id_out <- id_out[seq_len(row)]
-    row_map <- row_map[seq_len(row)]
-    n_obs <- row
-  }
+  n_fe <- ncol(X)
 
-  if (n_obs == 0L) { # if all obs removed, stop function
-    stop("All observations removed after missing-data handling. ",
-         "Check your data for NAs and irregular time gaps.")
-  }
-  if(family == "ordinal") {
+  if (family == "ordinal") {
     C <- max(Y, na.rm = TRUE)
     if (min(Y, na.rm = TRUE) < 1L) {
       stop("Ordinal Y must be coded as integers starting at 1. Found values < 1.")
     }
   }
 
-  n_dropped <- n_obs_initial - n_obs
-
-  if (n_dropped > 0) {
-    message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
-                n_dropped, na_action, skip_lag, n_obs))
-  }
-
-  # center and add intercept ##make centering predictors an option
-  x_center_means <- NULL
-  if (center_x == TRUE) {
-    means_X <- colMeans(X)
-    X <- sweep(X, 2, means_X, "-")
-    x_center_means <- means_X
-  }
-
-
-  if (family %in% c("bernoulli", "gaussian")) { #naming and adding intercept to X
-    X <- cbind(Intercept = 1, X) # add option to not add intercepts ( = constrain intercept to 0)
-    colnames(X) <- c("Intercept", x_cols) # name X
-  } else {
-    colnames(X) <- x_cols
-  }
-
-
-  colnames(Y) <- y_cols
-  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
-  colnames(B) <- b_names
-
-  ## build FE interactions, subj to change
-  tmp <- add_terms_to_X(X, B, fe_interactions)
-  X <- tmp$X
-
-  ## store interaction metadata for downstream BF grouping
-  fe_interaction_terms    <- normalize_terms(fe_interactions)
-  fe_interaction_colnames <- tmp$new_names
-  ##
-
-  Z <- build_Z(X, B, re_cols = re_cols, re_temporal = re_temporal)
-
-  ## build RE interactions, subj to change
-  Z <- add_re_interactions_from_X(Z, X, B, re_interactions) # name B
-
-
-  ## Data-dependent scaling for Gaussian: scale default beta and sigma priors
-  ## by the empirical SD of Y so the prior is weakly informative regardless of
-  ## outcome units. Only applied when the prior is still at its package default
-  ## (is_default = TRUE); user-specified priors are never modified.
+  ## Data-dependent scaling for Gaussian
   if (family == "gaussian") {
     s_y <- mean(apply(Y, 2, sd, na.rm = TRUE))
     if (is.finite(s_y) && s_y > 0) {
@@ -238,57 +91,48 @@ to_stan_data <- function(data,
     }
   }
 
-  out <- list(
-  p = p,
-  J = J,
-  K = K,
-  n_obs = n_obs,
-  n_fe = ncol(X),
-  n_re = ncol(Z),
-  id = id_out,
-  Y = Y,
-  X = X,
-  B = B,
-  Z = Z,
-  prior_beta_fam = priors$beta$family_int,
-  beta_loc       = priors$beta$loc,
-  beta_scale     = priors$beta$scale,
-  beta_df        = priors$beta$df,
-  prior_phi_fam  = priors$phi$family_int,
-  phi_loc        = priors$phi$loc,
-  phi_scale      = priors$phi$scale,
-  phi_df         = priors$phi$df,
-  prior_sd_fam   = priors$sd_u$family_int,
-  sd_loc         = priors$sd_u$loc,
-  sd_scale       = priors$sd_u$scale,
-  sd_df          = priors$sd_u$df
-)
+  ## Rebuild Z from the (possibly stripped) X
+  Z <- build_Z(X, shared$B, re_cols = re_cols, re_temporal = re_temporal)
+  Z <- add_re_interactions_from_X(Z, X, shared$B, re_interactions)
 
-  ## attach FE interaction metadata (used by bf_table for joint BF grouping)
-  if (length(fe_interaction_terms) > 0L) {
-    out$fe_interaction_terms    <- fe_interaction_terms
-    out$fe_interaction_colnames <- fe_interaction_colnames
+  out <- list(
+    p = shared$p,
+    J = shared$J,
+    K = shared$K,
+    n_obs = shared$n_obs,
+    n_fe = n_fe,
+    n_re = ncol(Z),
+    id = shared$id,
+    Y = Y,
+    X = X,
+    B = shared$B,
+    Z = Z,
+    prior_beta_fam = priors$beta$family_int,
+    beta_loc       = priors$beta$loc,
+    beta_scale     = priors$beta$scale,
+    beta_df        = priors$beta$df,
+    prior_phi_fam  = priors$phi$family_int,
+    phi_loc        = priors$phi$loc,
+    phi_scale      = priors$phi$scale,
+    phi_df         = priors$phi$df,
+    prior_sd_fam   = priors$sd_u$family_int,
+    sd_loc         = priors$sd_u$loc,
+    sd_scale       = priors$sd_u$scale,
+    sd_df          = priors$sd_u$df
+  )
+
+  ## attach FE interaction metadata
+  if (length(shared$fe_interaction_terms) > 0L) {
+    out$fe_interaction_terms    <- shared$fe_interaction_terms
+    out$fe_interaction_colnames <- shared$fe_interaction_colnames
   }
 
   ## prediction metadata (not passed to Stan)
-  out$id_levels <- as.character(ids_unique)
-  out$x_center_means <- x_center_means
-  out$row_map <- row_map
-  out$n_rows_data <- n_rows_data
-  out$design_spec <- list(
-    id_col          = id_col,
-    time_col        = time_col,
-    y_cols          = y_cols,
-    x_cols          = x_cols,
-    center_x        = center_x,
-    fe_interactions  = fe_interactions,
-    re_interactions  = re_interactions,
-    re_cols         = re_cols,
-    re_temporal     = re_temporal,
-    K               = K,
-    skip_lag        = skip_lag,
-    na_action       = na_action
-  )
+  out$id_levels <- shared$id_levels
+  out$x_center_means <- shared$x_center_means
+  out$row_map <- shared$row_map
+  out$n_rows_data <- shared$n_rows_data
+  out$design_spec <- shared$design_spec
 
   if (family == "ordinal") {
     out$C              <- C
@@ -305,8 +149,255 @@ to_stan_data <- function(data,
     out$sigma_df        <- priors$sigma$df
   }
 
-return(out)
+  return(out)
+}
 
+
+# ---- .to_stan_data_shared() — family-agnostic design matrices ----
+
+#' Build shared design matrices (family-agnostic)
+#'
+#' Always includes the Intercept column in X. Does NOT pack priors or do
+#' family-specific type casting. Used by both \code{to_stan_data()} (joint
+#' path) and \code{.bvar_nodewise()} (mixed path).
+#'
+#' @return A list with p, J, K, n_obs, n_fe, n_re, id, Y, X, B, Z,
+#'   id_levels, x_center_means, row_map, n_rows_data, design_spec,
+#'   fe_interaction_terms, fe_interaction_colnames.
+#' @keywords internal
+.to_stan_data_shared <- function(data, id_col, time_col, y_cols, x_cols,
+                                  center_x = FALSE, fe_interactions = NULL,
+                                  re_interactions = NULL, re_cols = character(0),
+                                  re_temporal = FALSE, K, na_action = "listwise",
+                                  skip_lag = TRUE) {
+
+  K <- as.integer(K)
+  stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
+
+  data <- data[order(data[[id_col]], data[[time_col]]), ]
+
+  na_action <- match.arg(na_action, "listwise")
+  if (na_action == "listwise") {
+    check_cols <- c(y_cols, x_cols)
+    complete <- complete.cases(data[, check_cols, drop = FALSE])
+    data <- data[complete, , drop = FALSE]
+  }
+
+  ids_unique <- unique(data[[id_col]])
+  J <- length(ids_unique)
+  p <- length(y_cols)
+  q <- length(x_cols)
+  PK <- p * K
+
+  n_rows_data <- nrow(data)
+  data$.orig_row <- seq_len(n_rows_data)
+  df_split <- split(data, data[[id_col]])
+
+  n_obs_initial <- n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
+
+  # Y stored as real (family-agnostic)
+  Y <- matrix(NA_real_, n_obs, p)
+  X <- matrix(NA_real_, n_obs, q)
+  B <- matrix(0, n_obs, PK)
+  id_out <- integer(n_obs)
+  row_map <- integer(n_obs)
+
+  row <- 0L
+  for (jj in seq_len(J)) {
+    this_id <- ids_unique[jj]
+    df_sub <- df_split[[as.character(this_id)]]
+    df_sub <- df_sub[order(df_sub[[time_col]]), , drop = FALSE]
+
+    Ti <- nrow(df_sub)
+    if (Ti <= K) next
+
+    times <- df_sub[[time_col]]
+    Ymat <- as.matrix(df_sub[, y_cols, drop = FALSE])
+    Xmat <- as.matrix(df_sub[, x_cols, drop = FALSE])
+
+    for (t in (K + 1L):Ti) {
+      row <- row + 1L
+      id_out[row] <- jj
+      row_map[row] <- df_sub$.orig_row[t]
+      Y[row, ] <- Ymat[t, ]
+      X[row, ] <- Xmat[t, ]
+
+      valid <- TRUE
+      for (lag in 1:K) {
+        if ((times[t] - times[t - lag]) != lag) {
+          valid <- FALSE
+          break
+        }
+      }
+
+      if (valid) {
+        for (lag in 1:K) {
+          B[row, ((lag - 1L) * p + 1L):(lag * p)] <- Ymat[t - lag, ]
+        }
+      } else if (!skip_lag) {
+        row <- row - 1L
+        next
+      }
+    }
+  }
+
+  if (row < n_obs) {
+    Y <- Y[seq_len(row), , drop = FALSE]
+    X <- X[seq_len(row), , drop = FALSE]
+    B <- B[seq_len(row), , drop = FALSE]
+    id_out <- id_out[seq_len(row)]
+    row_map <- row_map[seq_len(row)]
+    n_obs <- row
+  }
+
+  if (n_obs == 0L) {
+    stop("All observations removed after missing-data handling. ",
+         "Check your data for NAs and irregular time gaps.")
+  }
+
+  n_dropped <- n_obs_initial - n_obs
+  if (n_dropped > 0) {
+    message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
+                    n_dropped, na_action, skip_lag, n_obs))
+  }
+
+  x_center_means <- NULL
+  if (isTRUE(center_x)) {
+    means_X <- colMeans(X)
+    X <- sweep(X, 2, means_X, "-")
+    x_center_means <- means_X
+  }
+
+  # Always add intercept (shared convention)
+  X <- cbind(Intercept = 1, X)
+  colnames(X) <- c("Intercept", x_cols)
+
+  colnames(Y) <- y_cols
+  b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
+  colnames(B) <- b_names
+
+  ## build FE interactions
+  tmp <- add_terms_to_X(X, B, fe_interactions)
+  X <- tmp$X
+  fe_interaction_terms    <- normalize_terms(fe_interactions)
+  fe_interaction_colnames <- tmp$new_names
+
+  Z <- build_Z(X, B, re_cols = re_cols, re_temporal = re_temporal)
+  Z <- add_re_interactions_from_X(Z, X, B, re_interactions)
+
+  list(
+    p = p, J = J, K = K, n_obs = n_obs,
+    n_fe = ncol(X), n_re = ncol(Z),
+    id = id_out, Y = Y, X = X, B = B, Z = Z,
+    id_levels = as.character(ids_unique),
+    x_center_means = x_center_means,
+    row_map = row_map, n_rows_data = n_rows_data,
+    design_spec = list(
+      id_col = id_col, time_col = time_col,
+      y_cols = y_cols, x_cols = x_cols,
+      center_x = center_x,
+      fe_interactions = fe_interactions,
+      re_interactions = re_interactions,
+      re_cols = re_cols, re_temporal = re_temporal,
+      K = K, skip_lag = skip_lag, na_action = na_action
+    ),
+    fe_interaction_terms = fe_interaction_terms,
+    fe_interaction_colnames = fe_interaction_colnames
+  )
+}
+
+
+# ---- .to_stan_data_node() — per-node Stan data for node-wise fitting ----
+
+#' Build Stan data for a single node from shared matrices
+#'
+#' @param shared List from \code{.to_stan_data_shared()}.
+#' @param node Integer, which node (1..p).
+#' @param family Character scalar, family for this node.
+#' @param priors A \code{bvarnet_priors} object (original, unmodified).
+#' @return Named list ready for \code{CmdStanModel$sample()}.
+#' @keywords internal
+.to_stan_data_node <- function(shared, node, family, priors) {
+  Y_node <- shared$Y[, node]
+
+  if (family == "ordinal") {
+    Y_out <- matrix(as.integer(Y_node), ncol = 1L)
+    X_out <- shared$X[, -1, drop = FALSE]  # strip intercept
+    C     <- max(Y_out)
+    n_fe  <- ncol(X_out)
+  } else if (family == "bernoulli") {
+    Y_out <- matrix(as.integer(Y_node), ncol = 1L)
+    X_out <- shared$X
+    n_fe  <- ncol(X_out)
+  } else {
+    Y_out <- matrix(Y_node, ncol = 1L)
+    X_out <- shared$X
+    n_fe  <- ncol(X_out)
+  }
+
+  # Rebuild Z from the (possibly stripped) X for this node
+  Z_out <- build_Z(X_out, shared$B, re_cols = shared$design_spec$re_cols,
+                    re_temporal = shared$design_spec$re_temporal)
+  Z_out <- add_re_interactions_from_X(Z_out, X_out, shared$B,
+                                       shared$design_spec$re_interactions)
+
+  # Per-node Gaussian prior scaling (D3)
+  node_priors <- priors
+  if (family == "gaussian") {
+    s_y <- sd(Y_node, na.rm = TRUE)
+    if (is.finite(s_y) && s_y > 0) {
+      if (node_priors$beta$is_default)
+        node_priors$beta$scale <- node_priors$beta$scale * s_y
+      if (node_priors$sigma$is_default)
+        node_priors$sigma$scale <- node_priors$sigma$scale * s_y
+    }
+  }
+
+  # Abused K: Stan sees p=1, so K_node = p_full * K_orig to keep B correct
+  K_node <- shared$p * shared$K
+
+  out <- list(
+    p      = 1L,
+    J      = shared$J,
+    K      = K_node,
+    n_obs  = shared$n_obs,
+    n_fe   = n_fe,
+    n_re   = ncol(Z_out),
+    id     = shared$id,
+    Y      = Y_out,
+    X      = X_out,
+    B      = shared$B,
+    Z      = Z_out,
+    prior_beta_fam = node_priors$beta$family_int,
+    beta_loc  = node_priors$beta$loc,
+    beta_scale = node_priors$beta$scale,
+    beta_df   = node_priors$beta$df,
+    prior_phi_fam = node_priors$phi$family_int,
+    phi_loc   = node_priors$phi$loc,
+    phi_scale = node_priors$phi$scale,
+    phi_df    = node_priors$phi$df,
+    prior_sd_fam = node_priors$sd_u$family_int,
+    sd_loc    = node_priors$sd_u$loc,
+    sd_scale  = node_priors$sd_u$scale,
+    sd_df     = node_priors$sd_u$df
+  )
+
+  if (family == "gaussian") {
+    out$prior_sigma_fam <- node_priors$sigma$family_int
+    out$sigma_loc  <- node_priors$sigma$loc
+    out$sigma_scale <- node_priors$sigma$scale
+    out$sigma_df   <- node_priors$sigma$df
+  }
+
+  if (family == "ordinal") {
+    out$C <- C
+    out$prior_kappa_fam <- node_priors$kappa$family_int
+    out$kappa_loc  <- node_priors$kappa$loc
+    out$kappa_scale <- node_priors$kappa$scale
+    out$kappa_df   <- node_priors$kappa$df
+  }
+
+  out
 }
 
 build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {

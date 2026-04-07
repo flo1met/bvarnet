@@ -36,12 +36,41 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
 
   # ---------- Intercepts & fixed effects (beta) ----------
   draws_beta <- extract_draws(object, "beta")
-  beta_tab   <- build_summary_table(draws_beta, nm$fe, nm$y, "placeholder")
-  beta_tab$type <- ifelse(
-    beta_tab$predictor == "Intercept",
-    "Intercept", "Fixed Effect"
+
+  # Remove ordinal-intercept NA sentinel columns (D4) BEFORE summary
+  ord_names <- names(object$family)[object$family == "ordinal"]
+  beta_cols <- colnames(draws_beta)
+  # Identify sentinel columns: beta[1, j] where j is an ordinal node index
+  ord_indices <- which(object$family == "ordinal")
+  sentinel_cols <- paste0("beta[1,", ord_indices, "]")
+  keep_beta_cols <- !beta_cols %in% sentinel_cols
+  draws_beta_clean <- draws_beta[, keep_beta_cols, drop = FALSE]
+
+  # Build filtered name lists for row/col mapping
+  # Original order: (fe1,y1), (fe2,y1), ..., (fe_nfe,y1), (fe1,y2), ...
+  all_beta_indices <- expand.grid(fe = seq_len(length(nm$fe)),
+                                   node = seq_len(length(nm$y)))
+  keep_idx <- keep_beta_cols
+  kept_fe <- all_beta_indices$fe[keep_idx]
+  kept_node <- all_beta_indices$node[keep_idx]
+
+  # Build summary table manually for the filtered columns
+  d_mean   <- colMeans(draws_beta_clean)
+  d_median <- apply(draws_beta_clean, 2L, stats::median)
+  d_q5     <- apply(draws_beta_clean, 2L, stats::quantile, probs = 0.05)
+  d_q95    <- apply(draws_beta_clean, 2L, stats::quantile, probs = 0.95)
+  beta_tab <- data.frame(
+    type      = ifelse(nm$fe[kept_fe] == "Intercept", "Intercept", "Fixed Effect"),
+    predictor = nm$fe[kept_fe],
+    outcome   = nm$y[kept_node],
+    mean      = as.numeric(d_mean),
+    median    = as.numeric(d_median),
+    q5        = as.numeric(d_q5),
+    q95       = as.numeric(d_q95),
+    stringsAsFactors = FALSE
   )
-  beta_tab <- join_convergence(beta_tab, colnames(draws_beta))
+  beta_stan_names <- colnames(draws_beta_clean)
+  beta_tab <- join_convergence(beta_tab, beta_stan_names)
 
   # ---------- Autoregressive & Cross-lagged effects (phi) ----------
   draws_phi <- extract_draws(object, "phi")
@@ -67,16 +96,17 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
   } else NULL
 
   # ---------- Residual SD (sigma, gaussian only) ----------
-  sigma_tab <- if (object$family == "gaussian") {
+  gauss_idx <- .family_which(object, "gaussian")
+  sigma_tab <- if (length(gauss_idx) > 0) {
     draws_sigma <- extract_draws(object, "sigma")
-    tab <- build_summary_table(draws_sigma, nm$y, "sigma", "Residual SD")
+    gauss_names <- nm$y[gauss_idx]
+    tab <- build_summary_table(draws_sigma, gauss_names, "sigma", "Residual SD")
     join_convergence(tab, colnames(draws_sigma))
   } else NULL
 
   # ---------- Thresholds (kappa, ordinal only) ----------
-  # kappa[j,c]: j = node (1..p), c = cutpoint (1..C-1).
-  # Stan column-major: j varies fastest -> kappa[1,1], kappa[2,1], ..., kappa[p,1], kappa[1,2], ...
-  kappa_tab <- if (object$family == "ordinal") {
+  ord_idx <- .family_which(object, "ordinal")
+  kappa_tab <- if (length(ord_idx) > 0) {
     draws_kappa <- extract_draws(object, "kappa")
     cn    <- colnames(draws_kappa)
     parts <- strsplit(gsub("kappa\\[|\\]", "", cn), ",")
@@ -108,7 +138,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
     # Identify rows with Stan param names we can compute BFs for
     # beta and phi rows have matching Stan colnames from their draws
     bf_types <- c("Intercept", "Fixed Effect", "Autoregressive", "Cross-lagged")
-    bf_stan_names <- c(colnames(draws_beta), colnames(draws_phi))
+    bf_stan_names <- c(beta_stan_names, colnames(draws_phi))
 
     bf_idx <- which(out$type %in% bf_types)
     for (i in seq_along(bf_idx)) {

@@ -63,7 +63,7 @@ test_that("sim_var rejects negative sigma", {
   expect_error(
     sim_var(N = 3, T_obs = 20, p = 2, family = "gaussian",
             sigma = c(-1, 1), seed = 1, burnin = 0),
-    "sigma > 0"
+    "sigma.*> 0"
   )
 })
 

@@ -563,8 +563,10 @@ bf_table <- function(object,
 
   # Resolve "all" to applicable types
   if (identical(type, "all")) {
-    type <- c("ar", "cl", "fe", "temporal")
-    if (object$family != "ordinal" && "Intercept" %in% colnames(sd$X))
+    type <- c("ar", "cl", "temporal")
+    if (sd$n_fe >= 2L)
+      type <- c(type, "fe")
+    if (any(object$family != "ordinal") && "Intercept" %in% colnames(sd$X))
       type <- c("intercepts", type)
     lag_terms <- get_lag_interaction_indices_by_term(sd)
     if (length(lag_terms) > 0L)

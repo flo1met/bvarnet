@@ -82,7 +82,6 @@ sim_var <- function(
     seed     = NULL
 ) {
   ## ── 0. Validation & setup ──────────────────────────────────────────────────
-  family <- match.arg(family)
   N      <- as.integer(N)
   T_obs  <- as.integer(T_obs)
   p      <- as.integer(p)
@@ -94,7 +93,18 @@ sim_var <- function(
 
   stopifnot(N >= 1L, T_obs >= K + 1L, p >= 1L, K >= 1L, q >= 0L, burnin >= 0L)
 
-  if (family == "ordinal") stopifnot(C >= 2L)
+  # Parse family: scalar (or default match.arg triple) vs per-node vector
+  y_cols <- paste0("y_", seq_len(p))
+  valid_families <- c("bernoulli", "ordinal", "gaussian")
+  if (length(family) == 1L || identical(family, valid_families)) {
+    # Scalar string or untouched default arg → match.arg, then recycle
+    family <- match.arg(family, valid_families)
+    family_vec <- setNames(rep(family, p), y_cols)
+  } else {
+    family_vec <- .parse_family(family, y_cols)
+  }
+
+  if (any(family_vec == "ordinal")) stopifnot(C >= 2L)
   if (!is.null(seed)) set.seed(seed)
 
   PK <- p * K
@@ -118,13 +128,10 @@ sim_var <- function(
   }
 
   ## ── 2. Population parameters ──────────────────────────────────────────────
-  # Intercepts (not used for ordinal — kappa absorbs intercept)
+  # Intercepts (ordinal nodes get 0 — kappa absorbs intercept)
   if (is.null(alpha)) {
-    if (family == "ordinal") {
-      alpha <- rep(0, p)  # no intercept for ordinal
-    } else {
-      alpha <- runif(p, -1, 1)
-    }
+    alpha <- runif(p, -1, 1)
+    alpha[family_vec == "ordinal"] <- 0
   }
   stopifnot(length(alpha) == p)
 
@@ -149,22 +156,34 @@ sim_var <- function(
     Phi <- rescale_to_stable(Phi, p, K)
   }
 
-  # Gaussian: residual SD
-  if (family == "gaussian") {
-    if (is.null(sigma)) sigma <- runif(p, 0.5, 1.5)
-    stopifnot(length(sigma) == p, all(sigma > 0))
+  # Gaussian: residual SD (NA for non-gaussian nodes)
+  gauss_idx <- which(family_vec == "gaussian")
+  if (length(gauss_idx) > 0L) {
+    if (is.null(sigma)) {
+      sigma <- rep(NA_real_, p)
+      sigma[gauss_idx] <- runif(length(gauss_idx), 0.5, 1.5)
+    }
+    stopifnot(length(sigma) == p, all(sigma[gauss_idx] > 0, na.rm = TRUE))
+  } else {
+    sigma <- rep(NA_real_, p)
   }
 
-  # Ordinal: cutpoints
-  if (family == "ordinal") {
+  # Ordinal: cutpoints (NULL for non-ordinal nodes)
+  ord_idx <- which(family_vec == "ordinal")
+  if (length(ord_idx) > 0L) {
     if (is.null(kappa)) {
-      kappa <- replicate(p, generate_default_kappa(C), simplify = FALSE)
+      kappa <- vector("list", p)
+      for (node in ord_idx) {
+        kappa[[node]] <- generate_default_kappa(C)
+      }
     }
     stopifnot(is.list(kappa), length(kappa) == p)
-    for (node in seq_len(p)) {
+    for (node in ord_idx) {
       stopifnot(length(kappa[[node]]) == C - 1L)
       stopifnot(!is.unsorted(kappa[[node]], strictly = TRUE))
     }
+  } else {
+    kappa <- vector("list", p)
   }
 
   ## ── 3. Person-level random effects ────────────────────────────────────────
@@ -202,13 +221,7 @@ sim_var <- function(
 
   ## ── 4. Forward simulation ─────────────────────────────────────────────────
   # Simulate T_total = burnin + T_obs time points; discard first `burnin`
-  if (family == "gaussian") {
-    Y_full <- array(NA_real_, dim = c(N, T_total, p))
-  } else if (family == "ordinal") {
-    Y_full <- array(NA_integer_, dim = c(N, T_total, p))
-  } else {
-    Y_full <- array(0L, dim = c(N, T_total, p))
-  }
+  Y_full <- array(NA_real_, dim = c(N, T_total, p))
 
   for (i in seq_len(N)) {
     # --- Initialize first K time points (intercept + covariates only) ---
@@ -219,7 +232,11 @@ sim_var <- function(
         x_vec <- matrix(X_cov[i, t, ], nrow = 1L)
         eta <- eta + as.numeric(x_vec %*% g_mat)
       }
-      Y_full[i, t, ] <- generate_response(eta, family, sigma, kappa, C, p)
+      for (j in seq_len(p)) {
+        Y_full[i, t, j] <- generate_response_node(
+          eta[j], family_vec[j], sigma[j], kappa[[j]]
+        )
+      }
     }
 
     # --- Forward simulate t = K+1 .. T_total ---
@@ -241,7 +258,11 @@ sim_var <- function(
         eta <- eta + as.numeric(x_vec %*% g_mat)
       }
 
-      Y_full[i, t, ] <- generate_response(eta, family, sigma, kappa, C, p)
+      for (j in seq_len(p)) {
+        Y_full[i, t, j] <- generate_response_node(
+          eta[j], family_vec[j], sigma[j], kappa[[j]]
+        )
+      }
     }
   }
 
@@ -275,20 +296,20 @@ sim_var <- function(
     alpha      = alpha,
     gamma      = if (q > 0L) gamma else NULL,
     Phi        = Phi,
-    sigma      = if (family == "gaussian") sigma else NULL,
-    kappa      = if (family == "ordinal") kappa else NULL,
+    sigma      = sigma,
+    kappa      = kappa,
     sd_alpha   = sd_alpha,
     sd_u       = sd_u,
     alpha_i    = alpha_i,
     Phi_i      = Phi_i,
     gamma_i    = if (q > 0L) gamma_i else NULL,
-    family     = family,
+    family     = family_vec,
     N          = N,
     T_obs      = T_obs,
     p          = p,
     K          = K,
     q          = q,
-    C          = if (family == "ordinal") C else NULL,
+    C          = if (any(family_vec == "ordinal")) C else NULL,
     burnin     = burnin
   )
 
@@ -423,6 +444,32 @@ generate_response <- function(eta, family, sigma = NULL, kappa = NULL,
 }
 
 
+#' Generate response for a single node (scalar eta)
+#'
+#' @param eta Numeric scalar. Linear predictor for this node.
+#' @param family Character. Family for this node.
+#' @param sigma Numeric scalar (gaussian) or NA.
+#' @param kappa Numeric vector of cutpoints (ordinal) or NULL.
+#' @return Scalar response value.
+#' @noRd
+generate_response_node <- function(eta, family, sigma = NA_real_,
+                                   kappa = NULL) {
+  switch(family,
+    bernoulli = rbinom(1L, 1L, 1 / (1 + exp(-eta))),
+    gaussian  = rnorm(1L, eta, sigma),
+    ordinal   = {
+      kappa_cumsum <- c(0, cumsum(kappa))
+      C_j <- length(kappa) + 1L
+      lambda <- (seq_len(C_j) - 1L) * eta - kappa_cumsum
+      lambda <- lambda - max(lambda)
+      probs  <- exp(lambda) / sum(exp(lambda))
+      sample.int(C_j, 1L, prob = probs)
+    },
+    stop("Unknown family: ", family)
+  )
+}
+
+
 #' Binary response: logistic link + Bernoulli draw
 #' @noRd
 generate_response_binary <- function(eta) {
@@ -520,7 +567,9 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
   alpha_lo <- (1 - ci_width) / 2
   alpha_hi <- 1 - alpha_lo
   p <- truth$p
-  family <- truth$family
+  family_vec <- truth$family
+  if (length(family_vec) == 1L)
+    family_vec <- rep(family_vec, p)
 
   results <- list()
 
@@ -529,19 +578,23 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
   # Stan layout: beta[fe_idx, node]
   n_fe <- fit$standata$n_fe
   for (node in seq_len(p)) {
+    family_node <- family_vec[node]
     for (fe in seq_len(n_fe)) {
       par_name <- paste0("beta[", fe, ",", node, "]")
       d <- draws_beta[, par_name]
 
       # Map to truth:
       #   fe=1 for bernoulli/gaussian is intercept → alpha[node]
-      #   fe=1 for ordinal is first covariate (no intercept)
+      #   fe=1 for ordinal is NA sentinel (skip)
       #   fe>1 is gamma[fe-1, node] (bernoulli/gaussian) or gamma[fe, node] (ordinal)
-      if (family %in% c("bernoulli", "gaussian") && fe == 1L) {
+      if (family_node %in% c("bernoulli", "gaussian") && fe == 1L) {
         true_val <- truth$alpha[node]
         par_label <- "intercept"
+      } else if (family_node == "ordinal" && fe == 1L) {
+        # NA sentinel — skip ordinal intercept row
+        next
       } else {
-        gamma_idx <- if (family == "ordinal") fe else fe - 1L
+        gamma_idx <- if (family_node == "ordinal") fe else fe - 1L
         true_val <- if (!is.null(truth$gamma) && gamma_idx <= nrow(truth$gamma)) {
           truth$gamma[gamma_idx, node]
         } else {
@@ -587,10 +640,11 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
     }
   }
 
-  # ── sigma (gaussian only) ──────────────────────────────────────────────
-  if (family == "gaussian") {
+  # ── sigma (gaussian nodes) ───────────────────────────────────────────
+  gauss_nodes <- which(family_vec == "gaussian")
+  if (length(gauss_nodes) > 0L) {
     draws_sigma <- extract_draws(fit, "sigma")
-    for (node in seq_len(p)) {
+    for (node in gauss_nodes) {
       par_name <- paste0("sigma[", node, "]")
       d <- draws_sigma[, par_name]
 
@@ -608,11 +662,12 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
     }
   }
 
-  # ── kappa (ordinal only) ───────────────────────────────────────────────
-  if (family == "ordinal") {
+  # ── kappa (ordinal nodes) ───────────────────────────────────────────
+  ord_nodes <- which(family_vec == "ordinal")
+  if (length(ord_nodes) > 0L) {
     draws_kappa <- extract_draws(fit, "kappa")
     C <- truth$C
-    for (node in seq_len(p)) {
+    for (node in ord_nodes) {
       for (k in seq_len(C - 1L)) {
         par_name <- paste0("kappa[", node, ",", k, "]")
         d <- draws_kappa[, par_name]

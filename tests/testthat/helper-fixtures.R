@@ -153,6 +153,11 @@ make_test_df <- function(N = 5, T_obs = 20, p = 2, q = 0,
 #' For ordinal: C=3 (2 cutpoints).  For gaussian: sigma included.
 #' When \code{n_re > 0}, \code{sd_u} and \code{u} draw columns are added
 #' with \code{J} subjects and \code{n_re} random-effect columns.
+#'
+#' \code{family} can be a scalar (applied to all p nodes) or a character
+#' vector of length p for mixed-family mocks. When mixed, sigma columns are
+#' only generated for gaussian nodes and kappa columns only for ordinal nodes.
+#' Ordinal nodes get \code{beta[1,j] = NA_real_} sentinel (D4).
 make_mock_bvarnet <- function(family   = "bernoulli",
                                n_iter   = 20L,
                                n_chains = 2L,
@@ -160,14 +165,35 @@ make_mock_bvarnet <- function(family   = "bernoulli",
                                J        = 5L) {
   p <- 2L; K <- 1L; n_fe <- 2L
 
+  # Normalise family to a named vector of length p
+  y_cols <- c("y_1", "y_2")
+  if (length(family) == 1L) {
+    family_vec <- setNames(rep(family, p), y_cols)
+  } else {
+    stopifnot(length(family) == p)
+    family_vec <- setNames(family, y_cols)
+  }
+
   beta_nm <- c("beta[1,1]", "beta[2,1]", "beta[1,2]", "beta[2,2]")
   phi_nm  <- c("phi[1,1]",  "phi[2,1]",  "phi[1,2]",  "phi[2,2]")
   par_nms <- c(beta_nm, phi_nm)
 
-  if (family == "gaussian")
-    par_nms <- c(par_nms, "sigma[1]", "sigma[2]")
-  if (family == "ordinal")
-    par_nms <- c(par_nms, "kappa[1,1]", "kappa[2,1]", "kappa[1,2]", "kappa[2,2]")
+  # sigma only for gaussian nodes
+  gauss_idx <- which(family_vec == "gaussian")
+  if (length(gauss_idx) > 0L) {
+    sigma_nm <- paste0("sigma[", gauss_idx, "]")
+    par_nms <- c(par_nms, sigma_nm)
+  }
+
+  # kappa only for ordinal nodes (C=3 → 2 cutpoints each)
+  ord_idx <- which(family_vec == "ordinal")
+  if (length(ord_idx) > 0L) {
+    kappa_nm <- character(0)
+    for (node in ord_idx)
+      for (k in 1:2)
+        kappa_nm <- c(kappa_nm, sprintf("kappa[%d,%d]", node, k))
+    par_nms <- c(par_nms, kappa_nm)
+  }
 
   # sd_u parameters: sd_u[node,re]
   if (n_re > 0L) {
@@ -195,6 +221,28 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     dim      = c(n_iter, n_chains, n_par),
     dimnames = list(NULL, NULL, par_nms)
   )
+
+  # Make sigma draws positive
+  if (length(gauss_idx) > 0L) {
+    sigma_idx_arr <- grep("^sigma\\[", par_nms)
+    draws[, , sigma_idx_arr] <- abs(draws[, , sigma_idx_arr]) + 0.1
+  }
+
+  # Make kappa draws ordered (ascending per node)
+  if (length(ord_idx) > 0L) {
+    for (node in ord_idx) {
+      k1 <- paste0("kappa[", node, ",1]")
+      k2 <- paste0("kappa[", node, ",2]")
+      draws[, , k1] <- -1 + runif(n_iter * n_chains, -0.2, 0.2)
+      draws[, , k2] <-  1 + runif(n_iter * n_chains, -0.2, 0.2)
+    }
+  }
+
+  # Set ordinal beta[1,j] to NA sentinel (D4)
+  for (j in ord_idx) {
+    nm <- paste0("beta[1,", j, "]")
+    draws[, , nm] <- NA_real_
+  }
 
   # Make sd_u draws positive (half-prior)
   if (n_re > 0L) {
@@ -246,7 +294,12 @@ make_mock_bvarnet <- function(family   = "bernoulli",
       na_action  = "listwise"
     )
   )
-  if (family == "ordinal") sd_list$C <- 3L
+  if (length(ord_idx) > 0L) sd_list$C <- 3L
+  if (length(ord_idx) > 0L) {
+    C_per_node <- setNames(rep(NA_integer_, p), y_cols)
+    C_per_node[ord_idx] <- 3L
+    sd_list$C_per_node <- C_per_node
+  }
 
   structure(
     list(
@@ -260,7 +313,7 @@ make_mock_bvarnet <- function(family   = "bernoulli",
       timing       = list(total = 5.0),
       metadata     = list(),
       return_codes = rep(0L, n_chains),
-      family       = family,
+      family       = family_vec,
       standata     = sd_list,
       priors       = set_priors()
     ),
