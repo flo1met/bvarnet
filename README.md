@@ -2,6 +2,9 @@
 # bvarnet
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/flo1met/bvarnet/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/flo1met/bvarnet/actions/workflows/R-CMD-check.yml)
+[![codecov](https://codecov.io/gh/flo1met/bvarnet/graph/badge.svg)](https://codecov.io/gh/flo1met/bvarnet)
+[![pkgdown](https://github.com/flo1met/bvarnet/actions/workflows/pkgdown.yml/badge.svg)](https://flo1met.github.io/bvarnet/)
 <!-- badges: end -->
 
 ## Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN

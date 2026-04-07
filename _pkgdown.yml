@@ -1,0 +1,46 @@
+url: https://flo1met.github.io/bvarnet/
+
+template:
+  bootstrap: 5
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [search, github]
+
+reference:
+  - title: "Model Fitting"
+    desc: "Estimate Bayesian multilevel VAR models"
+    contents:
+      - bvar
+      - get_default_priors
+      - prior
+      - set_priors
+
+  - title: "Parameter Extraction"
+    desc: "Extract and summarize model parameters"
+    contents:
+      - extract_param
+      - extract_draws
+      - extract_network_matrix
+      - extract_temporal
+      - extract_random_effects
+
+  - title: "Inference"
+    desc: "Bayes factors and model comparison"
+    contents:
+      - bf_table
+
+  - title: "Simulation & Prediction"
+    desc: "Simulate data and generate predictions"
+    contents:
+      - sim_var
+      - starts_with("predict")
+      - starts_with("simulate")
+
+  - title: "Summaries"
+    desc: "Print and summarise model objects"
+    contents:
+      - starts_with("summary")
+      - starts_with("print")
+      - compare_to_truth

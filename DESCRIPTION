@@ -3,9 +3,13 @@ Title: Bayesian Estimation of Dynamic VAR Models using STAN
 Version: 0.0.0.9000
 Authors@R: 
     person("Florian", "Metwaly", , "f.j.metwaly@uva.nl", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Description: Bayesian estimation of multilevel Vector Autoregression (VAR) models
+    using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category) outcome
+    variables with random effects and customizable priors.
 License: GPL (>= 3)
 Encoding: UTF-8
+URL: https://flo1met.github.io/bvarnet/, https://github.com/flo1met/bvarnet
+BugReports: https://github.com/flo1met/bvarnet/issues
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Additional_repositories:
@@ -18,3 +22,4 @@ Imports:
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+Config/Needs/website: pkgdown
