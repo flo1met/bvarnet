@@ -34,21 +34,8 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, local::.
           needs: check
-
-      - name: Cache CmdStan
-        uses: actions/cache@v4
-        with:
-          path: ~/.cmdstan
-          key: ${{ runner.os }}-cmdstan-${{ hashFiles('DESCRIPTION') }}
-          restore-keys: ${{ runner.os }}-cmdstan-
-
-      - name: Install CmdStan
-        run: |
-          cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
-          cmdstanr::install_cmdstan(quiet = TRUE)
-        shell: Rscript {0}
 
       - uses: r-lib/actions/check-r-package@v2
         with:
