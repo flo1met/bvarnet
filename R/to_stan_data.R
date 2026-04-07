@@ -62,6 +62,9 @@ to_stan_data <- function(data,
   Y <- shared$Y
   X <- shared$X
   if (family == "ordinal") {
+    if (any(Y != floor(Y), na.rm = TRUE)) {
+      stop("Ordinal Y must contain integer values. Found non-integer entries.")
+    }
     Y <- matrix(as.integer(Y), nrow = nrow(Y), ncol = ncol(Y))
     colnames(Y) <- colnames(shared$Y)
     # Strip intercept from X for ordinal
@@ -321,6 +324,9 @@ to_stan_data <- function(data,
   Y_node <- shared$Y[, node]
 
   if (family == "ordinal") {
+    if (any(Y_node != floor(Y_node), na.rm = TRUE)) {
+      stop("Ordinal Y must contain integer values. Found non-integer entries.")
+    }
     Y_out <- matrix(as.integer(Y_node), ncol = 1L)
     X_out <- shared$X[, -1, drop = FALSE]  # strip intercept
     C     <- max(Y_out)

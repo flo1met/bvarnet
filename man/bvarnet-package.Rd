@@ -6,7 +6,16 @@
 \alias{bvarnet-package}
 \title{bvarnet: Bayesian Estimation of Dynamic VAR Models using STAN}
 \description{
-What the package does (one paragraph).
+Bayesian estimation of multilevel Vector Autoregression (VAR) models using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category) outcome variables with random effects and customizable priors.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://flo1met.github.io/bvarnet/}
+  \item \url{https://github.com/flo1met/bvarnet}
+  \item Report bugs at \url{https://github.com/flo1met/bvarnet/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Florian Metwaly \email{f.j.metwaly@uva.nl}
