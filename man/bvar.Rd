@@ -63,8 +63,10 @@ gaps have their lag set to zero rather than being dropped.}
 
 \item{data}{Data frame in long format.}
 
-\item{family}{Character. Observation model: \code{"bernoulli"},
-\code{"ordinal"}, or \code{"gaussian"}.}
+\item{family}{Character scalar or vector. Observation model per node.
+A scalar is recycled to all \code{y_cols}. A vector of length
+\code{length(y_cols)} (named or positional) specifies per-node families.
+Valid values: \code{"bernoulli"}, \code{"ordinal"}, \code{"gaussian"}.}
 
 \item{priors}{A \code{bvarnet_priors} object from \code{set_priors()}.
 Defaults to \code{set_priors()} (package defaults).}
