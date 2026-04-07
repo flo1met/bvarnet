@@ -43,4 +43,5 @@ reference:
     contents:
       - starts_with("summary")
       - starts_with("print")
+      - starts_with("format")
       - compare_to_truth
