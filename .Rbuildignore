@@ -4,3 +4,6 @@
 ^bvarnet\.Rproj$
 ^dev$
 ^AGENTS.md
+^_pkgdown\.yml$
+^docs$
+^\.github$
