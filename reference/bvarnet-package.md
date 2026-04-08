@@ -16,4 +16,5 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Florian Metwaly <f.j.metwaly@uva.nl>
+**Maintainer**: Florian Metwaly <f.j.metwaly@uva.nl> \[copyright
+holder\]
