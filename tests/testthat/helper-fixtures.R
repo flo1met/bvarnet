@@ -279,6 +279,7 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     id = rep(seq_len(J), length.out = n_obs),
     id_levels = as.character(seq_len(J)),
     x_center_means = NULL,
+    fe_interaction_terms = list(),
     design_spec = list(
       id_col   = "id",
       time_col = "t",

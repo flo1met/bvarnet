@@ -185,10 +185,11 @@ get_lag_interaction_indices_by_term <- function(sd) {
   fe_names <- colnames(sd$X)
   p <- sd$p; K <- sd$K
 
-  if (is.null(terms) || length(terms) == 0) {
-    # Fallback: parse column names for pre-implementation fits (dev only)
-    return(.parse_lag_interaction_cols(sd))
+  if (is.null(terms)) {
+    stop("fe_interaction_terms metadata is missing from standata.",
+         call. = FALSE)
   }
+  if (length(terms) == 0L) return(list())
 
   out <- list()
   for (fac in terms) {
@@ -240,68 +241,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 }
 
 
-#' Parse lag×predictor interaction columns from X colnames (dev fallback)
-#'
-#' Temporary internal helper for pre-implementation fit objects that lack
-#' \code{fe_interaction_terms} metadata. Scheduled for removal before alpha.
-#'
-#' @param sd The \code{standata} list.
-#' @return Same structure as \code{get_lag_interaction_indices_by_term()}.
-#' @keywords internal
-.parse_lag_interaction_cols <- function(sd) {
-  fe_names <- colnames(sd$X)
-  lag_pat  <- "^(lag(\\d+)_[^:]+):(.+)$"
-  matches  <- regmatches(fe_names, regexec(lag_pat, fe_names))
 
-  hit <- vapply(matches, length, integer(1)) == 4L
-  if (!any(hit)) return(list())
-
-  m <- do.call(rbind, matches[hit])
-  suffixes <- unique(m[, 4L])
-  p <- sd$p; K <- sd$K
-  y_names <- colnames(sd$Y)
-
-  out <- list()
-  for (suf in suffixes) {
-    suf_idx <- which(hit & vapply(matches, function(x)
-      length(x) == 4L && x[4L] == suf, logical(1)))
-    ks <- as.integer(vapply(matches[suf_idx], `[[`, character(1), 3L))
-    beta_rows <- suf_idx
-
-    lag_groups <- lapply(seq_len(K), function(k) {
-      r_slice <- beta_rows[ks == k]
-      unlist(lapply(r_slice, function(r)
-        vapply(seq_len(p), function(col) sprintf("beta[%d,%d]", r, col), character(1L))
-      ))
-    })
-    names(lag_groups) <- paste0("lag", seq_len(K), ":", suf)
-
-    # AR/CL split: parse the lagged outcome from the column name
-    ar_params <- character(0)
-    cl_params <- character(0)
-    for (k in seq_len(K)) {
-      r_slice <- beta_rows[ks == k]
-      for (r in r_slice) {
-        lag_var  <- sub(":.*$", "", fe_names[r])
-        var_name <- sub("^lag\\d+_", "", lag_var)
-        j <- match(var_name, y_names)
-        for (col in seq_len(p)) {
-          pname <- sprintf("beta[%d,%d]", r, col)
-          if (!is.na(j) && j == col) ar_params <- c(ar_params, pname)
-          else                       cl_params <- c(cl_params, pname)
-        }
-      }
-    }
-
-    out[[suf]] <- list(
-      full   = unlist(lag_groups, use.names = FALSE),
-      by_lag = lag_groups,
-      ar     = ar_params,
-      cl     = cl_params
-    )
-  }
-  out
-}
 
 
 # ---- Density estimation internals -------------------------------------------

@@ -124,9 +124,9 @@ to_stan_data <- function(data,
     sd_df          = priors$sd_u$df
   )
 
-  ## attach FE interaction metadata
+  ## attach FE interaction metadata (always set, even when empty)
+  out$fe_interaction_terms <- shared$fe_interaction_terms
   if (length(shared$fe_interaction_terms) > 0L) {
-    out$fe_interaction_terms    <- shared$fe_interaction_terms
     out$fe_interaction_colnames <- shared$fe_interaction_colnames
   }
 

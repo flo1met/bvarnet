@@ -554,37 +554,7 @@ test_that("bf_table lag_fe errors when no lag interactions present", {
   )
 })
 
-test_that("bf_table lag_fe fallback: parser recovers from missing metadata", {
-  # Build mock with lag interaction columns but without fe_interaction_terms
-  p <- 2L; K <- 1L
-  fe_names <- c("Intercept", "x_1", "lag1_y_1:x_1", "lag1_y_2:x_1")
-  n_fe <- length(fe_names); n_re <- 0L
-  beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
-  phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
-  par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
 
-  set.seed(95L)
-  draws <- array(rnorm(40 * 2 * length(par_nms)),
-                 dim = c(40L, 2L, length(par_nms)),
-                 dimnames = list(NULL, NULL, par_nms))
-
-  Y <- matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2")))
-  X <- matrix(0, 10, n_fe, dimnames = list(NULL, fe_names))
-  B <- matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
-  Z <- matrix(0, 10, 0)
-
-  mock <- structure(list(
-    draws     = draws,
-    standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re,
-                     Y = Y, X = X, B = B, Z = Z),
-    priors    = set_priors(),
-    family    = "gaussian"
-  ), class = "bvarnet")
-
-  # No fe_interaction_terms → fallback parser should detect columns
-  res <- bf_table(mock, type = "lag_fe")
-  expect_equal(nrow(res), 2)
-})
 
 
 # ── to_stan_data metadata persistence ────────────────────────────────────────
@@ -604,11 +574,11 @@ test_that("to_stan_data stores fe_interaction_terms and colnames", {
   expect_true(all(grepl(":x_1$", sd$fe_interaction_colnames)))
 })
 
-test_that("to_stan_data omits metadata when no fe_interactions", {
+test_that("to_stan_data sets empty metadata when no fe_interactions", {
   df <- make_test_df(N = 3, T_obs = 20, p = 2, q = 1, family = "bernoulli")
   sd <- to_stan_data(df, "bernoulli", "id", "t",
                      paste0("y_", 1:2), "x_1", K = 1)
-  expect_null(sd$fe_interaction_terms)
+  expect_equal(sd$fe_interaction_terms, list())
   expect_null(sd$fe_interaction_colnames)
 })
 
@@ -811,7 +781,8 @@ test_that("bf_table temporal p=1: no CL row emitted", {
   mock <- structure(list(
     draws     = draws,
     standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re,
-                     Y = Y, X = X, B = B, Z = Z),
+                     Y = Y, X = X, B = B, Z = Z,
+                     fe_interaction_terms = list()),
     priors    = set_priors(),
     family    = "gaussian"
   ), class = "bvarnet")
