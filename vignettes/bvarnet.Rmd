@@ -18,6 +18,7 @@ This package implements methods to analyse (multilevel) Vector Autoregression co
 
 In the following vignette we will introduce the basic functionality of the package. For more elaborated usecases, we refer to the additional vignettes
 
+- `vignette("Hypothesis-Testing")`
 - `vignette("Mixed-Model")`
 - `vignette("Missing-Data")`
 - `vignette("Random-Effect")`
@@ -27,6 +28,10 @@ First, we have to load the package:
 
 ```{r setup}
 library(bvarnet)
+
+# subject to be removed again...
+library(openesm)
+library(qgraph)
 ```
 
 There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
@@ -64,18 +69,41 @@ fit <- bvar(
 )
 ```
 
+Most models will give a warning when initiating sampling, that looks like this:
+
+```text
+Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
+Chain 1 Exception: categorical_logit_glm_lpmf: Intercept[3] is -inf, but must be finite! (in '/var/folders/n5/38kfmkv55hq8bnd03344d2b40000gn/T/RtmpkjgDq1/model-a60f79e9a37c.stan', line 153, column 8 to column 94)
+Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
+Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
+Chain 1 
+```
+
+We can print an overview of the model we just ran using the `print(fit)` functions:
 ```{r}
-summary(fit)
 print(fit)
-fit
-
-params <- extract_param(fit)
-
-extract_temporal(fit)
-extract_network_matrix(fit)
 ```
+
+Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
+
+To further inspect the model parameters we can use the `summary(fit)` function:
 
 ```{r}
 summary(fit)
 ```
+
+Here we can see, that we can not see all category threshold parameters ($\kappa$). To inspect them completely we have to extract them using `extract_param()`:
+
+```{r}
+params <- extract_param(fit)
+params[params$type == "Threshold",] # add seperate extractor function for kappa, sigma..
+```
+
+If we are interested in the temporal network structure, we can inspect this using either the `extract_temporal(fit)`, or the `extract_network_matrix(fit)` functions. Here we will use the `extract_network_matrix(fit)` to plot the network:
+
+```{r}
+nw_mat <- extract_network_matrix(fit)
+qgraph::qgraph(nw_mat)
+```
+
 
