@@ -1,6 +1,8 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://flo1met.github.io/bvarnet/404.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/LICENSE.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/articles/Missing-Data.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/articles/Mixed-Model.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/articles/Prediction.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/articles/Random-Effects.html</loc></url>

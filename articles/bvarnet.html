@@ -34,7 +34,9 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
+<li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
+    <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
     <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
@@ -68,8 +70,202 @@
 
     
     
+<p>This package implements methods to analyse (multilevel) Vector
+Autoregression commonly used for the analysis of intensive longitudinal
+datasets like EMA data.</p>
+<p>In the following vignette we will introduce the basic functionality
+of the package. For more elaborated usecases, we refer to the additional
+vignettes</p>
+<ul>
+<li><code><a href="../articles/Hypothesis-Testing.html">vignette("Hypothesis-Testing")</a></code></li>
+<li><code><a href="../articles/Mixed-Model.html">vignette("Mixed-Model")</a></code></li>
+<li><code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code></li>
+<li><code>vignette("Random-Effect")</code></li>
+<li><code><a href="../articles/Prediction.html">vignette("Prediction")</a></code></li>
+</ul>
+<p>First, we have to load the package:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># subject to be removed again...</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/openesm-project/openesm-r" class="external-link">openesm</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; Welcome to openesm!</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Find documentation and usage examples at https://openesmdata.org</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Get started:</span></span>
+<span><span class="co">#&gt;   * list_datasets() to browse available datasets</span></span>
+<span><span class="co">#&gt;   * get_dataset('dataset_id') to download a specific dataset</span></span>
+<span><span class="co">#&gt;   * ?get_dataset or visit the website for detailed guides</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Attaching package: 'openesm'</span></span>
+<span><span class="co">#&gt; The following object is masked from 'package:utils':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     cite</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></code></pre></div>
+<p>There is some missing data in the dataset. The models default options
+handle this by themselves. For a further elaboration on this, you can
+read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">openesm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openesm/man/get_dataset.html" class="external-link">get_dataset</a></span><span class="op">(</span><span class="st">"0004"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; ℹ Using cached dataset index (less than 24 hours old).</span></span>
+<span><span class="co">#&gt; ✔ Loading dataset "0004" version "1.0.0"</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── openESM Dataset: "0004" ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span></span>
+<span><span class="co">#&gt; • Dataset version: "1.0.0"</span></span>
+<span><span class="co">#&gt; • Metadata version: "1.0.1"</span></span>
+<span><span class="co">#&gt; • Authors: Wang et al. (2014)</span></span>
+<span><span class="co">#&gt; • Paper DOI: https://doi.org/10.1371/journal.pone.0266516</span></span>
+<span><span class="co">#&gt; • License: CC BY-NC 4.0</span></span>
+<span><span class="co">#&gt; • Data: A tibble with 49 participants and 64 maximum time points per participant</span></span>
+<span><span class="co">#&gt; ℹ Use `cite(dataset)` for citation information.</span></span>
+<span><span class="co">#&gt; ℹ Use `notes(dataset)` for additional information about the dataset.</span></span>
+<span><span class="co">#&gt; ℹ Please ensure you follow the license terms for this dataset.</span></span>
+<span></span>
+<span><span class="va">df</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">$</span><span class="va">data</span></span>
+<span></span>
+<span><span class="va">df</span><span class="op">$</span><span class="va">anxious</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">anxious</span><span class="op">)</span></span>
+<span><span class="va">df</span><span class="op">$</span><span class="va">calm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">calm</span><span class="op">)</span></span>
+<span><span class="va">df</span><span class="op">$</span><span class="va">conventional</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">conventional</span><span class="op">)</span></span>
+<span><span class="va">df</span><span class="op">$</span><span class="va">critical</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">critical</span><span class="op">)</span></span>
+<span><span class="va">df</span><span class="op">$</span><span class="va">dependable</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">dependable</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
+<span>  y_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"anxious"</span>, <span class="st">"calm"</span>, <span class="st">"conventional"</span>, <span class="st">"critical"</span>, <span class="st">"dependable"</span><span class="op">)</span>,</span>
+<span>  x_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_temporal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">df</span>,</span>
+<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ordinal"</span><span class="op">)</span>,</span>
+<span>  priors <span class="op">=</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  iter <span class="op">=</span> <span class="fl">4000</span>,</span>
+<span>  warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  cores <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">1337</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! Stan model file "" not found.</span></span></code></pre></div>
+<p>Most models will give a warning when initiating sampling, that looks
+like this:</p>
+<pre class="text"><code>Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
+Chain 1 Exception: categorical_logit_glm_lpmf: Intercept[3] is -inf, but must be finite! (in '/var/folders/n5/38kfmkv55hq8bnd03344d2b40000gn/T/RtmpkjgDq1/model-a60f79e9a37c.stan', line 153, column 8 to column 94)
+Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
+Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
+Chain 1 </code></pre>
+<p>We can print an overview of the model we just ran using the
+<code>print(fit)</code> functions:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network fit</span></span>
+<span><span class="co">#&gt; ======================================== </span></span>
+<span><span class="co">#&gt; Family:      ordinal</span></span>
+<span><span class="co">#&gt; Outcomes (p): 5 </span></span>
+<span><span class="co">#&gt; Lags (K):     1 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   0 </span></span>
+<span><span class="co">#&gt; Observations: 147 </span></span>
+<span><span class="co">#&gt; Rhat max:    1.001</span></span>
+<span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Priors:      beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2)</span></span>
+<span><span class="co">#&gt; Total time:  17.8 sec</span></span>
+<span><span class="co">#&gt; ========================================</span></span></code></pre></div>
+<p>Here we get information about the number of variables and lags, the
+number of observations and some first indications if the model did
+converge.</p>
+<p>To further inspect the model parameters we can use the
+<code>summary(fit)</code> function:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network Summary</span></span>
+<span><span class="co">#&gt; ================================================== </span></span>
+<span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=147</span></span>
+<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 2</span></span>
+<span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Autoregressive ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_anxious      anxious      0.203 0.203  -0.054 0.460 1    15617.37 12599.58</span></span>
+<span><span class="co">#&gt;  lag1_calm         calm         0.176 0.174  -0.058 0.415 1    13025.39 11190.21</span></span>
+<span><span class="co">#&gt;  lag1_conventional conventional 0.558 0.554   0.280 0.843 1    14346.16 11205.97</span></span>
+<span><span class="co">#&gt;  lag1_critical     critical     0.278 0.277   0.075 0.492 1    18103.80 11283.74</span></span>
+<span><span class="co">#&gt;  lag1_dependable   dependable   0.476 0.473   0.247 0.714 1    15253.27 12152.74</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_calm         anxious      -0.308 -0.307 -0.556 -0.069 1    12276.01 12256.25</span></span>
+<span><span class="co">#&gt;  lag1_conventional anxious       0.113  0.112 -0.145  0.375 1    15288.24 12209.56</span></span>
+<span><span class="co">#&gt;  lag1_critical     anxious       0.065  0.065 -0.142  0.273 1    21335.42 11693.19</span></span>
+<span><span class="co">#&gt;  lag1_dependable   anxious       0.054  0.052 -0.158  0.267 1    14645.31 12404.76</span></span>
+<span><span class="co">#&gt;  lag1_anxious      calm         -0.085 -0.085 -0.338  0.168 1    15499.73 13047.83</span></span>
+<span><span class="co">#&gt;  lag1_conventional calm         -0.162 -0.162 -0.423  0.096 1    14847.92 12191.17</span></span>
+<span><span class="co">#&gt;  lag1_critical     calm         -0.077 -0.077 -0.286  0.131 1    20946.54 12223.59</span></span>
+<span><span class="co">#&gt;  lag1_dependable   calm          0.116  0.115 -0.096  0.328 1    15982.24 11988.57</span></span>
+<span><span class="co">#&gt;  lag1_anxious      conventional -0.184 -0.184 -0.462  0.095 1    14348.25 12403.62</span></span>
+<span><span class="co">#&gt;  lag1_calm         conventional -0.105 -0.105 -0.349  0.134 1    12989.52 12059.56</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Threshold ---</span></span>
+<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail </span></span>
+<span><span class="co">#&gt;  kappa(anxious, c1)      —       -1.033 -1.029 -1.470 -0.613 1.000 11123.68  9566.673</span></span>
+<span><span class="co">#&gt;  kappa(calm, c1)         —       -1.300 -1.266 -1.869 -0.848 1.000 14564.11 10916.416</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c1) —       -1.033 -1.012 -1.471 -0.674 1.000 14373.14 11229.523</span></span>
+<span><span class="co">#&gt;  kappa(critical, c1)     —        0.086  0.095 -0.239  0.379 1.000 12541.34 10745.366</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c1)   —       -1.726 -1.680 -2.521 -1.081 1.000 10748.70 10274.783</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.459  0.464  0.139  0.765 1.000 13762.57 12456.461</span></span>
+<span><span class="co">#&gt;  kappa(calm, c2)         —       -0.884 -0.875 -1.244 -0.552 1.000 18423.96 13368.980</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c2) —       -0.707 -0.710 -1.008 -0.397 1.000 15460.49 10840.830</span></span>
+<span><span class="co">#&gt;  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ==================================================</span></span>
+<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
+<p>Here we can see, that we can not see all category threshold
+parameters
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>).
+To inspect them completely we have to extract them using
+<code><a href="../reference/extract_param.html">extract_param()</a></code>:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">params</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_param.html">extract_param</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">params</span><span class="op">[</span><span class="va">params</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"Threshold"</span>,<span class="op">]</span> <span class="co"># add seperate extractor function for kappa, sigma..</span></span>
+<span><span class="co">#&gt;         type               predictor outcome        mean      median         q5        q95      rhat ess_bulk  ess_tail</span></span>
+<span><span class="co">#&gt; 26 Threshold      kappa(anxious, c1)       — -1.03285109 -1.02852445 -1.4703235 -0.6134608 1.0001894 11123.68  9566.673</span></span>
+<span><span class="co">#&gt; 27 Threshold         kappa(calm, c1)       — -1.30014533 -1.26565785 -1.8692502 -0.8476075 1.0001328 14564.11 10916.416</span></span>
+<span><span class="co">#&gt; 28 Threshold kappa(conventional, c1)       — -1.03336729 -1.01205985 -1.4711615 -0.6738048 1.0000887 14373.13 11229.523</span></span>
+<span><span class="co">#&gt; 29 Threshold     kappa(critical, c1)       —  0.08567509  0.09505895 -0.2386167  0.3793493 1.0003189 12541.34 10745.366</span></span>
+<span><span class="co">#&gt; 30 Threshold   kappa(dependable, c1)       — -1.72568614 -1.68045880 -2.5214071 -1.0805193 1.0003006 10748.70 10274.783</span></span>
+<span><span class="co">#&gt; 31 Threshold      kappa(anxious, c2)       —  0.45936818  0.46442090  0.1385890  0.7650862 1.0000192 13762.57 12456.461</span></span>
+<span><span class="co">#&gt; 32 Threshold         kappa(calm, c2)       — -0.88438434 -0.87529079 -1.2444187 -0.5517570 1.0001721 18423.96 13368.980</span></span>
+<span><span class="co">#&gt; 33 Threshold kappa(conventional, c2)       — -0.70673963 -0.71005004 -1.0081459 -0.3967633 0.9999131 15460.49 10840.830</span></span>
+<span><span class="co">#&gt; 34 Threshold     kappa(critical, c2)       —  0.54833491  0.54694036  0.2981471  0.8061212 1.0002716 16603.34 12957.191</span></span>
+<span><span class="co">#&gt; 35 Threshold   kappa(dependable, c2)       — -0.85949747 -0.85968742 -1.2632601 -0.4558807 1.0010041 10048.09  6937.794</span></span>
+<span><span class="co">#&gt; 36 Threshold      kappa(anxious, c3)       —  0.95189554  0.93533212  0.5917419  1.3648925 0.9999869 14502.71 11369.641</span></span>
+<span><span class="co">#&gt; 37 Threshold         kappa(calm, c3)       — -0.36802642 -0.37436518 -0.6744710 -0.0440537 1.0001101 13760.73 12421.296</span></span>
+<span><span class="co">#&gt; 38 Threshold kappa(conventional, c3)       —  0.62996635  0.62775770  0.2608396  1.0047809 0.9999474 13535.62 10171.390</span></span>
+<span><span class="co">#&gt; 39 Threshold     kappa(critical, c3)       —  0.76699860  0.75749318  0.5062937  1.0600305 0.9999889 17305.51 12710.418</span></span>
+<span><span class="co">#&gt; 40 Threshold   kappa(dependable, c3)       —  0.12516613  0.12449102 -0.2202632  0.4724522 1.0004251 11098.90  7811.925</span></span>
+<span><span class="co">#&gt; 41 Threshold      kappa(anxious, c4)       —  1.92440208  1.88030470  1.1873595  2.8280811 1.0000381 14967.02 10543.057</span></span>
+<span><span class="co">#&gt; 42 Threshold         kappa(calm, c4)       —  1.35545685  1.34728995  0.9012824  1.8378872 0.9999767 18072.38 11041.277</span></span>
+<span><span class="co">#&gt; 43 Threshold kappa(conventional, c4)       —  2.57589420  2.55145715  1.8081027  3.4241004 1.0004303 19188.28 10144.966</span></span>
+<span><span class="co">#&gt; 44 Threshold     kappa(critical, c4)       —  1.15580404  1.10903125  0.7258669  1.7561748 1.0001773 20899.16 12835.077</span></span>
+<span><span class="co">#&gt; 45 Threshold   kappa(dependable, c4)       —  1.15106984  1.14520455  0.6797434  1.6414832 1.0000701 14456.67 10624.680</span></span></code></pre></div>
+<p>If we are interested in the temporal network structure, we can
+inspect this using either the <code>extract_temporal(fit)</code>, or the
+<code>extract_network_matrix(fit)</code> functions. Here we will use the
+<code>extract_network_matrix(fit)</code> to plot the network:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="fu">qgraph</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
+<div class="float">
+<img src="figure/unnamed-chunk-31-1.png" alt="plot of chunk unnamed-chunk-31"><div class="figcaption">plot of chunk unnamed-chunk-31</div>
+</div>
   </main>
 </div>
 
