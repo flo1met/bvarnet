@@ -1,0 +1,5 @@
+# bvarnet
+
+``` r
+library(bvarnet)
+```

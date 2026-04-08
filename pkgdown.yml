@@ -1,8 +1,12 @@
 pandoc: 3.1.3
 pkgdown: 2.2.0
 pkgdown_sha: ~
-articles: {}
-last_built: 2026-04-07T19:48Z
+articles:
+  bvarnet: bvarnet.html
+  Mixed-Model: Mixed-Model.html
+  Prediction: Prediction.html
+  Random-Effects: Random-Effects.html
+last_built: 2026-04-08T11:05Z
 urls:
   reference: https://flo1met.github.io/bvarnet/reference
   article: https://flo1met.github.io/bvarnet/articles

@@ -1,0 +1,5 @@
+# Prediction
+
+``` r
+library(bvarnet)
+```

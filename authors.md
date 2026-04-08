@@ -2,7 +2,7 @@
 
 ## Authors
 
-- **Florian Metwaly**. Author, maintainer.
+- **Florian Metwaly**. Author, maintainer, copyright holder.
 
 ## Citation
 

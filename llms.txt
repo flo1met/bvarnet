@@ -98,3 +98,11 @@ Print and summarise model objects
 - [`compare_to_truth()`](https://flo1met.github.io/bvarnet/reference/compare_to_truth.md)
   : Compare fitted model parameters to simulation truth
 
+# Articles
+
+### All vignettes
+
+- [bvarnet](https://flo1met.github.io/bvarnet/articles/bvarnet.md):
+- [Mixed-Model](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md):
+- [Prediction](https://flo1met.github.io/bvarnet/articles/Prediction.md):
+- [Random-Effects](https://flo1met.github.io/bvarnet/articles/Random-Effects.md):
