@@ -1,0 +1,109 @@
+---
+title: "bvarnet"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{bvarnet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+has_cmdstan <- instantiate::stan_cmdstan_exists()
+```
+
+This package implements methods to analyse (multilevel) Vector Autoregression commonly used for the analysis of intensive longitudinal datasets like EMA data.
+
+In the following vignette we will introduce the basic functionality of the package. For more elaborated usecases, we refer to the additional vignettes
+
+- `vignette("Hypothesis-Testing")`
+- `vignette("Mixed-Model")`
+- `vignette("Missing-Data")`
+- `vignette("Random-Effect")`
+- `vignette("Prediction")`
+
+First, we have to load the package:
+
+```{r setup}
+library(bvarnet)
+
+# subject to be removed again...
+library(openesm)
+library(qgraph)
+```
+
+There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
+
+```{r}
+data <- openesm::get_dataset("0004")
+
+df <- data$data
+
+df$anxious <- floor(df$anxious)
+df$calm <- floor(df$calm)
+df$conventional <- floor(df$conventional)
+df$critical <- floor(df$critical)
+df$dependable <- floor(df$dependable)
+```
+
+
+```{r, eval = has_cmdstan}
+fit <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  data = df,
+  family = c("ordinal"),
+  priors = set_priors(),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+```
+
+Most models will give a warning when initiating sampling, that looks like this:
+
+```text
+Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
+Chain 1 Exception: categorical_logit_glm_lpmf: Intercept[3] is -inf, but must be finite! (in '/var/folders/n5/38kfmkv55hq8bnd03344d2b40000gn/T/RtmpkjgDq1/model-a60f79e9a37c.stan', line 153, column 8 to column 94)
+Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
+Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
+Chain 1 
+```
+
+We can print an overview of the model we just ran using the `print(fit)` functions:
+```{r, eval = has_cmdstan}
+print(fit)
+```
+
+Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
+
+To further inspect the model parameters we can use the `summary(fit)` function:
+
+```{r, eval = has_cmdstan}
+summary(fit)
+```
+
+Here we can see, that we can not see all category threshold parameters ($\kappa$). To inspect them completely we have to extract them using `extract_param()`:
+
+```{r, eval = has_cmdstan}
+params <- extract_param(fit)
+params[params$type == "Threshold",] # add seperate extractor function for kappa, sigma..
+```
+
+If we are interested in the temporal network structure, we can inspect this using either the `extract_temporal(fit)`, or the `extract_network_matrix(fit)` functions. Here we will use the `extract_network_matrix(fit)` to plot the network:
+
+```{r, eval = has_cmdstan}
+nw_mat <- extract_network_matrix(fit)
+qgraph::qgraph(nw_mat)
+```
