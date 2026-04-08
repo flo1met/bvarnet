@@ -192,6 +192,26 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 }
 
 
+## ---- text formatter for data frames (knitr-safe) ----
+# Format a data frame as aligned text lines, bypassing print.data.frame
+# which may be intercepted by knitr/rmarkdown in Rmd rendering.
+.fmt_df <- function(df, right = FALSE) {
+  m    <- format.data.frame(df, na.encode = FALSE)
+  flag <- if (right) "" else "-"
+  widths <- vapply(seq_along(m), function(j)
+    max(nchar(names(m)[j]), max(nchar(m[[j]]))), integer(1))
+  hdr <- vapply(seq_along(m), function(j)
+    formatC(names(m)[j], width = widths[j], flag = flag), character(1))
+  out <- character(nrow(m) + 1L)
+  out[1L] <- paste0(" ", paste(hdr, collapse = " "))
+  for (i in seq_len(nrow(m))) {
+    vals <- vapply(seq_along(m), function(j)
+      formatC(m[[j]][i], width = widths[j], flag = flag), character(1))
+    out[i + 1L] <- paste0(" ", paste(vals, collapse = " "))
+  }
+  out
+}
+
 ## ---- print method for bvarnet objects ----
 #' Print a bvarnet model object
 #'
@@ -218,7 +238,7 @@ print.bvarnet <- function(x, ...) {
   if (!is.null(sd$n_fe)) cat("Fixed eff.:  ", sd$n_fe, "\n")
   if (!is.null(sd$n_re) && sd$n_re > 0)
     cat("Random eff.: ", sd$n_re, "\n")
-  cat("Observations:", sd$n,    "\n")
+  cat("Observations:", sd$n_obs, "\n")
 
   # Convergence
   smry <- x$convergence

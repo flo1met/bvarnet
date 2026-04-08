@@ -45,7 +45,7 @@ summary.bvarnet <- function(object, bayes_factor = FALSE, null_value = 0, ...) {
       family        = object$family,
       p             = sd$p,
       K             = sd$K,
-      n             = sd$n,
+      n             = sd$n_obs,
       rhat_max      = rhat_max,
       n_divergences = n_div
     ),
@@ -111,16 +111,22 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
     num_cols <- vapply(sub, is.numeric, logical(1))
     sub[num_cols] <- lapply(sub[num_cols], round, digits = digits)
 
-    print(sub, row.names = FALSE, right = FALSE)
+    cat(.fmt_df(sub, right = FALSE), sep = "\n")
+    cat("\n")
 
-    if (truncated)
-      cat(sprintf("... %d more rows. Use extract_param() for full output.\n",
-                  n_total - max_rows))
+    if (truncated) {
+      hint <- switch(tp,
+        "Autoregressive"   = "extract_temporal(fit, effect = \"ar\")",
+        "Cross-lagged"     = "extract_temporal(fit, effect = \"cl\")",
+        "Random Effect SD" = "extract_random_effects(fit)",
+        "extract_param(fit)")
+      cat(sprintf("... %d more rows. Use %s for full output.\n",
+                  n_total - max_rows, hint))
+    }
   }
 
   cat("\n", strrep("=", 50), "\n", sep = "")
   cat("Use extract_param() for the full parameter table.\n")
-  cat("Use extract_temporal() for autoregressive / cross-lagged effects.\n")
-  cat("Use extract_network_matrix() for p x p network matrices.\n")
+  cat("Use extract_network_matrix() for the temporal network matrix.\n")
   invisible(x)
 }

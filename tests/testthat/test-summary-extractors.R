@@ -68,7 +68,7 @@ test_that("print.summary.bvarnet truncates groups and shows footer", {
   txt <- paste(out, collapse = "\n")
   expect_true(grepl("more rows", txt))
   expect_true(grepl("extract_param\\(\\)", txt))
-  expect_true(grepl("extract_temporal\\(\\)", txt))
+  expect_true(grepl("extract_temporal", txt))
   expect_true(grepl("extract_network_matrix\\(\\)", txt))
 })
 
