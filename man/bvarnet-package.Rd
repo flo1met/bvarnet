@@ -18,7 +18,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Florian Metwaly \email{f.j.metwaly@uva.nl}
+\strong{Maintainer}: Florian Metwaly \email{f.j.metwaly@uva.nl} [copyright holder]
 
 }
 \keyword{internal}
