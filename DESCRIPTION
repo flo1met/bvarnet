@@ -2,7 +2,7 @@ Package: bvarnet
 Title: Bayesian Estimation of Dynamic VAR Models using STAN
 Version: 0.0.0.9000
 Authors@R: 
-    person("Florian", "Metwaly", , "f.j.metwaly@uva.nl", role = c("aut", "cre"))
+    person("Florian", "Metwaly", , "f.j.metwaly@uva.nl", role = c("aut", "cre", "cph"))
 Description: Bayesian estimation of multilevel Vector Autoregression (VAR) models
     using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category) outcome
     variables with random effects and customizable priors.
@@ -20,6 +20,9 @@ Imports:
     mvtnorm,
     posterior
 Suggests:
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/Needs/website: pkgdown
+VignetteBuilder: knitr

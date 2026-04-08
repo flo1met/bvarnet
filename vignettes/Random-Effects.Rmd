@@ -1,0 +1,19 @@
+---
+title: "Random-Effects"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Random-Effects}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(bvarnet)
+```

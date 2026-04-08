@@ -1,0 +1,19 @@
+---
+title: "bvarnet"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{bvarnet}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(bvarnet)
+```
