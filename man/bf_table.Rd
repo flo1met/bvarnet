@@ -2,9 +2,10 @@
 % Please edit documentation in R/bayes_factor.R
 \name{bf_table}
 \alias{bf_table}
-\title{Compute Bayes factor table for a bvarnet model}
+\title{Computes Savage-Dickey density ratio Bayes factors for each parameter in the
+requested subset and returns a tidy data frame.}
 \usage{
-bf_table(object, type = "all", lag = 1L, null_value = 0)
+bf_table(object, type = "all", lag = 1L, null_value = 0, variable = NULL)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{bvar()}.}
@@ -23,12 +24,20 @@ per-interaction-term and AR-only / CL-only interaction sub-tests,
 plus a full temporal + interactions omnibus).
 \code{"all"} auto-selects all applicable types (skips
 \code{"intercepts"} for ordinal models and \code{"lag_fe"} when
-no lag interactions exist).}
+no lag interactions exist).  When \code{variable} is set,
+\code{"all"} also skips \code{"intercepts"} and \code{"fe"}.
+Per-cell \code{"ar"} and \code{"cl"} rows respect the \code{lag}
+argument; \code{"temporal"} always covers all lags via joint tests.}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
-\code{"ar"}, \code{"cl"}, and \code{"phi"}.}
+\code{"ar"} and \code{"cl"} types.}
 
 \item{null_value}{Numeric scalar; the null hypothesis value (default 0).}
+
+\item{variable}{Character vector or \code{NULL} (default).  One or more
+variable names (must match \code{colnames(standata$Y)}).  When set, only
+effects \strong{from} these variables as lagged predictors are included.
+Cannot be combined with \code{type = "fe"} or \code{type = "intercepts"}.}
 }
 \value{
 A data frame with columns: \code{type}, \code{predictor},
@@ -36,16 +45,24 @@ A data frame with columns: \code{type}, \code{predictor},
 \code{post_density}, \code{prior_density}, \code{method}.
 }
 \description{
-Computes Savage-Dickey density ratio Bayes factors for each parameter in the
-requested subset and returns a tidy data frame.
-}
-\details{
 For \code{type = "fe"} and \code{"intercepts"}, the table contains three
 levels: per-cell (logspline), per-predictor joint (MVN), and a global
 joint-all (MVN).  For \code{type = "ar"} and \code{"cl"}, the existing
 two-level structure (per-cell + per-type joint) is unchanged.
-
+}
+\details{
 \code{type = "lag_fe"} emits only grouped joint rows for lag × predictor
 interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
 these parameters are already included when \code{type = "fe"} is requested.
+
+When \code{variable} is non-NULL, only effects \strong{from} the named
+variable(s) as lagged predictors are included.
+This filters phi rows and lag × covariate interaction rows so that only
+parameters where the lagged predictor matches the requested variable(s)
+are retained.  \code{variable} is combinable with \code{type} and
+\code{lag}; when \code{type = "all"} and \code{variable} is set, only
+temporal types (\code{"ar"}, \code{"cl"}, \code{"temporal"}) and
+\code{"lag_fe"} (if applicable) are auto-selected, since
+\code{"intercepts"} and \code{"fe"} are covariate effects unrelated to
+specific network variables.
 }

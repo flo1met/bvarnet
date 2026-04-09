@@ -152,6 +152,21 @@ test_that("extract_param includes kappa rows for ordinal", {
 })
 
 
+test_that("extract_param retains FE rows for pure ordinal (no sentinel filtering)", {
+  obj <- make_mock_bvarnet("ordinal")
+  res <- extract_param(obj)
+
+  # Pure ordinal: beta[1,j] is x_1, not an intercept sentinel
+  fe_rows <- res[res$type == "Fixed Effect", ]
+  expect_equal(nrow(fe_rows), obj$standata$p)
+  expect_true(all(fe_rows$predictor == "x_1"))
+  expect_false(any(is.na(fe_rows$mean)))
+  # No Intercept rows expected
+
+  expect_equal(sum(res$type == "Intercept"), 0L)
+})
+
+
 test_that("extract_param filtering by type works", {
   obj <- make_mock_bvarnet("bernoulli")
   res <- extract_param(obj)

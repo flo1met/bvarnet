@@ -163,7 +163,7 @@ make_mock_bvarnet <- function(family   = "bernoulli",
                                n_chains = 2L,
                                n_re     = 0L,
                                J        = 5L) {
-  p <- 2L; K <- 1L; n_fe <- 2L
+  p <- 2L; K <- 1L
 
   # Normalise family to a named vector of length p
   y_cols <- c("y_1", "y_2")
@@ -174,7 +174,15 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     family_vec <- setNames(family, y_cols)
   }
 
-  beta_nm <- c("beta[1,1]", "beta[2,1]", "beta[1,2]", "beta[2,2]")
+  # Pure ordinal: no Intercept, n_fe = 1; otherwise n_fe = 2
+  is_pure_ordinal <- all(family_vec == "ordinal")
+  n_fe <- if (is_pure_ordinal) 1L else 2L
+
+  if (is_pure_ordinal) {
+    beta_nm <- c("beta[1,1]", "beta[1,2]")
+  } else {
+    beta_nm <- c("beta[1,1]", "beta[2,1]", "beta[1,2]", "beta[2,2]")
+  }
   phi_nm  <- c("phi[1,1]",  "phi[2,1]",  "phi[1,2]",  "phi[2,2]")
   par_nms <- c(beta_nm, phi_nm)
 
@@ -238,8 +246,8 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     }
   }
 
-  # Set ordinal beta[1,j] to NA sentinel (D4)
-  for (j in ord_idx) {
+  # Set ordinal beta[1,j] to NA sentinel (D4) — only for mixed-family
+  if (!is_pure_ordinal) for (j in ord_idx) {
     nm <- paste0("beta[1,", j, "]")
     draws[, , nm] <- NA_real_
   }
@@ -260,10 +268,17 @@ make_mock_bvarnet <- function(family   = "bernoulli",
 
   n_obs <- 10L
   Y <- matrix(0L, n_obs, p, dimnames = list(NULL, c("y_1", "y_2")))
-  X <- matrix(0,  n_obs, n_fe,
-              dimnames = list(NULL, c("Intercept", "x_1")))
   B <- matrix(0,  n_obs, p * K,
               dimnames = list(NULL, c("lag1_y_1", "lag1_y_2")))
+
+  # Pure ordinal models have no Intercept in X; mixed/other families do
+  is_pure_ordinal <- all(family_vec == "ordinal")
+  if (is_pure_ordinal) {
+    X <- matrix(0, n_obs, 1L, dimnames = list(NULL, "x_1"))
+    n_fe <- 1L
+  } else {
+    X <- matrix(0, n_obs, n_fe, dimnames = list(NULL, c("Intercept", "x_1")))
+  }
 
   if (n_re > 0L) {
     re_colnames <- paste0("z_", seq_len(n_re))

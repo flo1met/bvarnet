@@ -37,13 +37,18 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
   # ---------- Intercepts & fixed effects (beta) ----------
   draws_beta <- extract_draws(object, "beta")
 
-  # Remove ordinal-intercept NA sentinel columns (D4) BEFORE summary
-  ord_names <- names(object$family)[object$family == "ordinal"]
+  # Remove ordinal-intercept NA sentinel columns (D4) BEFORE summary.
+  # Sentinels only exist in mixed-family models where X retains the Intercept
+  # row; pure ordinal strips the Intercept so beta[1,j] is a real covariate.
   beta_cols <- colnames(draws_beta)
-  # Identify sentinel columns: beta[1, j] where j is an ordinal node index
-  ord_indices <- which(object$family == "ordinal")
-  sentinel_cols <- paste0("beta[1,", ord_indices, "]")
-  keep_beta_cols <- !beta_cols %in% sentinel_cols
+  has_intercept <- "Intercept" %in% colnames(sd$X)
+  if (has_intercept) {
+    ord_indices <- which(object$family == "ordinal")
+    sentinel_cols <- paste0("beta[1,", ord_indices, "]")
+    keep_beta_cols <- !beta_cols %in% sentinel_cols
+  } else {
+    keep_beta_cols <- rep(TRUE, length(beta_cols))
+  }
   draws_beta_clean <- draws_beta[, keep_beta_cols, drop = FALSE]
 
   # Build filtered name lists for row/col mapping
