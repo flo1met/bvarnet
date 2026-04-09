@@ -451,6 +451,115 @@ savage_dickey <- function(object, params, null_value = 0,
 }
 
 
+# ---- Parameter-block helpers for `parameter` mode ----------------------------
+
+#' Classify a Stan parameter name into a human-readable type (internal)
+#'
+#' @param stan_name Single Stan parameter name (e.g. \code{"phi[1,2]"}).
+#' @param sd        The \code{standata} list from a \code{bvarnet} object.
+#' @return Character scalar: one of \code{"Autoregressive"},
+#'   \code{"Cross-lagged"}, \code{"Intercept"}, \code{"Fixed Effect"}.
+#' @keywords internal
+.classify_param_type <- function(stan_name, sd) {
+  parts <- regmatches(stan_name,
+                      regexec("^(\\w+)\\[(\\d+),(\\d+)\\]$", stan_name))[[1]]
+  if (length(parts) != 4L)
+    stop(sprintf("Cannot classify parameter '%s'.", stan_name), call. = FALSE)
+
+  param <- parts[2]
+  row_i <- as.integer(parts[3])
+  col_i <- as.integer(parts[4])
+
+  if (param == "phi") {
+    row_within <- ((row_i - 1L) %% sd$p) + 1L
+    if (row_within == col_i) "Autoregressive" else "Cross-lagged"
+  } else if (param == "beta") {
+    fe_names <- colnames(sd$X)
+    if (!is.null(fe_names) && row_i <= length(fe_names) &&
+        fe_names[row_i] == "Intercept") {
+      "Intercept"
+    } else {
+      "Fixed Effect"
+    }
+  } else {
+    stop(sprintf("Unsupported parameter block '%s' in .classify_param_type().",
+                 param), call. = FALSE)
+  }
+}
+
+
+#' Build per-cell + joint BF rows for a parameter block (internal)
+#'
+#' @param object     A \code{bvarnet} object.
+#' @param block      Character scalar: \code{"phi"} or \code{"beta"}.
+#' @param null_value Numeric scalar; null hypothesis value.
+#' @return A list of 1-row data frames (per-cell + optional joint).
+#' @keywords internal
+.bf_block_rows <- function(object, block, null_value) {
+  sd <- object$standata
+  nm <- get_param_names(sd)
+
+  draws <- extract_draws(object, block)
+  param_names <- colnames(draws)
+
+  # For beta: filter out ordinal sentinel columns (beta[1,j] for ordinal nodes)
+  if (block == "beta") {
+    ord_indices <- which(object$family == "ordinal")
+    if (length(ord_indices) > 0L) {
+      sentinel_cols <- paste0("beta[1,", ord_indices, "]")
+      param_names <- param_names[!param_names %in% sentinel_cols]
+    }
+  }
+
+  param_names <- unique(param_names)
+  rows <- list()
+
+  # Per-cell BFs (logspline)
+  for (pnm in param_names) {
+    res <- savage_dickey(object, params = pnm, null_value = null_value,
+                         method = "logspline")
+    lab  <- .param_label(pnm, nm)
+    tp   <- .classify_param_type(pnm, sd)
+    rows[[length(rows) + 1L]] <- data.frame(
+      type          = tp,
+      predictor     = lab$predictor,
+      outcome       = lab$outcome,
+      BF01          = res$BF01,
+      BF10          = res$BF10,
+      log_BF01      = res$log_BF01,
+      post_density  = res$post_density,
+      prior_density = res$prior_density,
+      method        = res$method,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  # Joint BF (MVN) when more than one parameter
+  if (length(param_names) > 1L) {
+    joint_res <- savage_dickey(object, params = param_names,
+                               null_value = null_value, method = "mvn")
+    block_label <- switch(block,
+      phi  = "Phi (joint)",
+      beta = "Beta (joint)"
+    )
+    rows[[length(rows) + 1L]] <- data.frame(
+      type          = block_label,
+      predictor     = paste0("all_", block),
+      outcome       = "\u2014",
+      BF01          = joint_res$BF01,
+      BF10          = joint_res$BF10,
+      log_BF01      = joint_res$log_BF01,
+      post_density  = joint_res$post_density,
+      prior_density = joint_res$prior_density,
+      method        = joint_res$method,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  rows
+}
+
+
 # ---- Primary export: bf_table() ----------------------------------------------
 
 #' Compute Bayes factor table for a bvarnet model
@@ -458,6 +567,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' Computes Savage-Dickey density ratio Bayes factors for each parameter in the
 #' requested subset and returns a tidy data frame.
 #'
+#' **Type mode** (\code{parameter = NULL}, default): uses semantic groupings.
 #' For \code{type = "fe"} and \code{"intercepts"}, the table contains three
 #' levels: per-cell (logspline), per-predictor joint (MVN), and a global
 #' joint-all (MVN).  For \code{type = "ar"} and \code{"cl"}, the existing
@@ -466,6 +576,10 @@ savage_dickey <- function(object, params, null_value = 0,
 #' \code{type = "lag_fe"} emits only grouped joint rows for lag × predictor
 #' interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
 #' these parameters are already included when \code{type = "fe"} is requested.
+#'
+#' **Parameter mode** (\code{parameter} non-NULL): returns per-cell BFs plus
+#' a joint BF for each requested Stan parameter block.  Mutually exclusive
+#' with non-default \code{type} or \code{lag}.
 #'
 #' @param object     A \code{bvarnet} object returned by \code{bvar()}.
 #' @param type       Character vector or \code{"all"} (default).  Which
@@ -483,9 +597,18 @@ savage_dickey <- function(object, params, null_value = 0,
 #'   \code{"all"} auto-selects all applicable types (skips
 #'   \code{"intercepts"} for ordinal models and \code{"lag_fe"} when
 #'   no lag interactions exist).
+#'   Ignored when \code{parameter} is non-NULL.
 #' @param lag        Integer; which lag block to use (default 1). Applies to
-#'   \code{"ar"}, \code{"cl"}, and \code{"phi"}.
+#'   \code{"ar"}, \code{"cl"}, and \code{"phi"} in type mode only.
+#'   Ignored (and must be default) when \code{parameter} is non-NULL.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
+#' @param parameter  Character vector or \code{NULL} (default).  Stan
+#'   parameter block names to compute per-cell + joint BFs for.  Currently
+#'   supported: \code{"phi"} and \code{"beta"}.  \code{"sigma"} and
+#'   \code{"sd_u"} are rejected (half-prior makes SDDR invalid).
+#'   \code{"kappa"} is not yet supported (ordered constraint requires
+#'   specialised density evaluation).  Mutually exclusive with non-default
+#'   \code{type} or \code{lag}.
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
 #'   \code{outcome}, \code{BF01}, \code{BF10}, \code{log_BF01},
@@ -495,9 +618,57 @@ savage_dickey <- function(object, params, null_value = 0,
 bf_table <- function(object,
                      type = "all",
                      lag = 1L,
-                     null_value = 0) {
+                     null_value = 0,
+                     parameter = NULL) {
   stopifnot(inherits(object, "bvarnet"))
 
+  # ---- Parameter mode (early return) ----
+  if (!is.null(parameter)) {
+    # Mutual exclusivity
+    if (!identical(type, "all"))
+      stop("'parameter' and 'type' are mutually exclusive. ",
+           "Use one or the other, not both.", call. = FALSE)
+    if (!identical(lag, 1L))
+      stop("'parameter' and 'lag' are mutually exclusive. ",
+           "In parameter mode all lags are included automatically.",
+           call. = FALSE)
+
+    parameter <- unique(parameter)
+
+    # Validate requested blocks
+    half_prior_blocks <- c("sigma", "sd_u")
+    bad_half <- intersect(parameter, half_prior_blocks)
+    if (length(bad_half) > 0L)
+      stop(sprintf(
+        "Cannot compute SDDR for half-prior parameter(s): %s. ",
+        paste(bad_half, collapse = ", ")
+      ), "Parameters with half-priors (sigma, sd_u) are not supported ",
+      "because the Savage-Dickey density ratio is not valid for ",
+      "distributions bounded at zero.", call. = FALSE)
+
+    if ("kappa" %in% parameter)
+      stop("Cannot compute SDDR for 'kappa'. ",
+           "Kappa has an ordered constraint in Stan, so the unconstrained ",
+           "prior density used by the Savage-Dickey method is incorrect. ",
+           "This feature may be added in a future version.", call. = FALSE)
+
+    valid_blocks <- c("phi", "beta")
+    bad <- setdiff(parameter, valid_blocks)
+    if (length(bad) > 0L)
+      stop(sprintf("Unsupported parameter block(s): %s. Supported: %s.",
+                   paste(bad, collapse = ", "),
+                   paste(valid_blocks, collapse = ", ")), call. = FALSE)
+
+    rows <- list()
+    for (blk in parameter)
+      rows <- c(rows, .bf_block_rows(object, blk, null_value))
+
+    out <- do.call(rbind, rows)
+    rownames(out) <- NULL
+    return(out)
+  }
+
+  # ---- Type mode (existing logic) ----
   sd <- object$standata
   nm <- get_param_names(sd)
 

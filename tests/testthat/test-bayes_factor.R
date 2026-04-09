@@ -862,3 +862,90 @@ test_that("bf_table type='all' includes lag_fe when interactions exist", {
   expect_true(any(grepl("Intercept", res$type)))
   expect_true(all(res$BF01 > 0))
 })
+
+
+# ── Layer 5: bf_table() parameter mode ────────────────────────────────────────
+
+test_that("bf_table(parameter = 'phi') returns per-cell + joint rows", {
+  mock <- make_mock_bvarnet("bernoulli")
+  res  <- bf_table(mock, parameter = "phi")
+
+  # p=2, K=1 → 4 per-cell + 1 joint = 5
+  expect_equal(nrow(res), 5L)
+  expect_true(all(c("Autoregressive", "Cross-lagged") %in% res$type))
+  expect_true("Phi (joint)" %in% res$type)
+  expect_true(all(is.numeric(res$BF01)))
+  expect_true(all(is.numeric(res$BF10)))
+  expect_true(all(res$BF01 > 0))
+})
+
+test_that("bf_table(parameter = 'beta') returns per-cell + joint rows", {
+  mock <- make_mock_bvarnet("bernoulli")
+  res  <- bf_table(mock, parameter = "beta")
+
+  # n_fe=2, p=2 → 4 per-cell + 1 joint = 5
+  expect_equal(nrow(res), 5L)
+  expect_true(all(c("Intercept", "Fixed Effect") %in% res$type))
+  expect_true("Beta (joint)" %in% res$type)
+  expect_true(all(res$BF01 > 0))
+})
+
+test_that("bf_table(parameter = 'beta') excludes ordinal sentinel columns", {
+  mock <- make_mock_bvarnet(c("gaussian", "ordinal"))
+  res  <- bf_table(mock, parameter = "beta")
+
+  # n_fe=2, p=2 minus 1 ordinal sentinel (beta[1,2]) = 3 per-cell + 1 joint = 4
+  expect_equal(nrow(res), 4L)
+  # No row should have predictor matching the ordinal sentinel
+  expect_false(any(grepl("beta\\[1,2\\]", res$predictor)))
+})
+
+test_that("bf_table(parameter = 'kappa') errors with ordered constraint message", {
+  mock <- make_mock_bvarnet("ordinal")
+  expect_error(
+    bf_table(mock, parameter = "kappa"),
+    "ordered constraint"
+  )
+})
+
+test_that("bf_table(parameter = 'sigma') errors with half-prior message", {
+  mock <- make_mock_bvarnet("gaussian")
+  expect_error(
+    bf_table(mock, parameter = "sigma"),
+    "half-prior"
+  )
+})
+
+test_that("bf_table(parameter = 'sd_u') errors with half-prior message", {
+  mock <- make_mock_bvarnet("bernoulli")
+  expect_error(
+    bf_table(mock, parameter = "sd_u"),
+    "half-prior"
+  )
+})
+
+test_that("bf_table(parameter = c('phi', 'beta')) returns combined rows", {
+  mock <- make_mock_bvarnet("bernoulli")
+  res  <- bf_table(mock, parameter = c("phi", "beta"))
+
+  # phi: 4 + 1 joint = 5, beta: 4 + 1 joint = 5 → 10
+  expect_equal(nrow(res), 10L)
+  expect_true("Phi (joint)" %in% res$type)
+  expect_true("Beta (joint)" %in% res$type)
+})
+
+test_that("bf_table errors when parameter and type both specified", {
+  mock <- make_mock_bvarnet("bernoulli")
+  expect_error(
+    bf_table(mock, type = "ar", parameter = "phi"),
+    "mutually exclusive"
+  )
+})
+
+test_that("bf_table errors when parameter and non-default lag specified", {
+  mock <- make_mock_bvarnet("bernoulli")
+  expect_error(
+    bf_table(mock, lag = 2L, parameter = "phi"),
+    "mutually exclusive"
+  )
+})
