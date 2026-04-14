@@ -16,5 +16,11 @@ studentlife$calm <- floor(studentlife$calm)
 studentlife$conventional <- floor(studentlife$conventional)
 studentlife$critical <- floor(studentlife$critical)
 studentlife$dependable <- floor(studentlife$dependable)
+studentlife$stress_level <- floor(studentlife$stress_level)
+
+# binarise: 1 = not happy (original coding 1), 2 = happy (anything > 1)
+studentlife$happyornot <- ifelse(studentlife$happyornot > 1, 1L, 0L)
+
+studentlife$difficult_stay_awake <- ifelse(studentlife$difficult_stay_awake > 1, 1L, 0L)
 
 usethis::use_data(studentlife, overwrite = TRUE)

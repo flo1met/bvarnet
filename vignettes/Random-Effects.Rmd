@@ -14,6 +14,64 @@ knitr::opts_chunk$set(
 )
 ```
 
+First, we have to load the package:
+
 ```{r setup}
 library(bvarnet)
+
+# subject to be removed again...
+library(qgraph)
+```
+
+First, we have to load the data
+```{r}
+data(studentlife)
+```
+
+There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
+
+Currently, `bvarnet` allowes for the following outcome variables:
+
+- binary (`family = "bernoulli")`
+- ordinal (`family = "ordinal")` (adjacent category model)
+- continuous (`family = "gaussian")`
+
+For the following tutorial we will investigate the temporal network for the variables `anxious`, `calm`, `conventional`, `critical`, and `dependable`. All these variables are on a ordinal scale. Therefore we will use the adjacent category ordinal model to estimate this model.
+
+First we need to specify the prior distributions that we want to use on the parameters.
+For this we can use the `set_priors()` function. As we are running a ordinal model, without covariates, we have to specify priors on the temporal structure (denoted by the $\Phi$ matrix) and on the category threshold parameters ($\kappa$) which are specific to the adjacent category ordinal model.
+
+```{r}
+priors <- set_priors(phi = prior(family = "normal",
+                                 loc = 0,
+                                 scale = 0.5),
+                     kappa = prior(family = "normal",
+                                   loc = 0,
+                                   scale = 2),
+                     sigma = prior(family = "normal",
+                                   loc = 0,
+                                   scale = 3))
+
+priors
+```
+
+
+```{r, eval = has_cmdstan}
+fit <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  data = studentlife,
+  family = c("ordinal"),
+  priors = priors,
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
 ```

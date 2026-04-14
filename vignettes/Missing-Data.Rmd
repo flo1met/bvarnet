@@ -18,30 +18,25 @@ First, we have to load the package:
 
 ```{r setup}
 library(bvarnet)
-
-# subject to be removed again...
-library(openesm)
-library(qgraph)
 ```
 
-There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
 
+Again, lets start by reading in the data
 ```{r}
-data <- get_dataset("0004")
-
-df <- data$data
-
-df$anxious <- floor(df$anxious)
-df$calm <- floor(df$calm)
-df$conventional <- floor(df$conventional)
-df$critical <- floor(df$critical)
-df$dependable <- floor(df$dependable)
+data(studentlife)
 ```
+
 
 Inspecting the dataset, we can see that there are quite a lot of missing values:
 ```{r}
-
+head(studentlife)
 ```
+
+If we look at the subset of variables that we use in the `Vignette("bvarnet")` c("anxious", "calm", "conventional", "critical", "dependable"), we see there is approximately $90\%$ of missing data:
+```{r}
+sum(is.na(studentlife[c("anxious", "calm", "conventional", "critical", "dependable")])) / (5*nrow(studentlife))
+```
+
 
 Currently, `bvarnet` handles missing data through a listwise deletion and skipping lag-mechanism. 
 Listwise deletion is a computational simple solution to the missing data problem, but does rely on the assumption that data are *missing completely at random (MCAR)*. Violating this assumption may lead to biased parameter estimation.
@@ -59,7 +54,7 @@ fit_no_skip_lag <- bvar(
   re_temporal = FALSE,
   K = 1,
   skip_lag = FALSE,
-  data = df,
+  data = studentlife,
   family = c("ordinal"),
   priors = set_priors(),
   iter = 4000,
@@ -77,7 +72,7 @@ fit_skip_lag <- bvar(
   re_temporal = FALSE,
   K = 1,
   skip_lag = TRUE,
-  data = df,
+  data = studentlife,
   family = c("ordinal"),
   priors = set_priors(),
   iter = 4000,
@@ -99,7 +94,21 @@ Here we get information about the number of variables and lags, the number of ob
 To further inspect the model parameters we can use the `summary(fit)` function:
 
 ```{r, eval = has_cmdstan}
-summary(fit)
+summary(fit_no_skip_lag)
+summary(fit_skip_lag)
 ```
+
+### Why does `skip_lag = FALSE` produce fewer observations?
+
+When `skip_lag = FALSE`, any row whose previous observation is not exactly one time step away lacks a valid lag. Because the autoregressive component cannot be computed for that row, the row is dropped entirely from the likelihood. This is the conservative choice: every observation that remains has a genuine lagged value, so estimates of the temporal coefficients ($\phi$) are unbiased (given the model).
+
+When `skip_lag = TRUE` (the default), those same rows are kept. The contribution of the autoregressive effect is set to zero, while the outcome is still modeled through the intercept, fixed effects, and (if present) random effects. Oly the temporal component is "switched off" for that row.
+
+### Practical implications
+
+The two approaches trade off sample size against potential bias in the autoregressive estimates:
+
+* **`skip_lag = FALSE`** — Every row has a valid lag, so $\phi$ estimates reflect true short-term dynamics. However, in datasets with many irregular gaps (such as the present one), a large share of observations is discarded, reducing statistical power for all parameters.
+* **`skip_lag = TRUE`** — All observations contribute to the estimation of the intercept, fixed effects, and residual variance. Because zero-filled lags are treated as "no temporal information" rather than "the lag was zero", rows with gaps gently pull $\phi$ toward zero. In datasets with many gaps this can lead to a slight weakening of autoregressive estimates.
 
 Currently, more sophisticated missing data handling (e.g. imputation) has to be implemented by the users themselves.
