@@ -1,8 +1,6 @@
 #' Fit a Bayesian multilevel VAR network model
 #'
-#' Compiles and samples the appropriate Stan model for the chosen family,
-#' extracts all results into plain base-R objects, and returns a \code{bvarnet}
-#' object.
+#' The `bvar` function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 #'
 #' @param id_col Character. Name of the subject/group identifier column.
 #' @param time_col Character. Name of the time column.
