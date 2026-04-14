@@ -14,6 +14,66 @@ knitr::opts_chunk$set(
 )
 ```
 
+First, we have to load the package:
+
 ```{r setup}
 library(bvarnet)
+
+# subject to be removed again...
+library(openesm)
+library(qgraph)
+```
+
+There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
+
+```{r}
+data <- get_dataset("0004")
+
+df <- data$data
+
+df$anxious <- floor(df$anxious)
+df$calm <- floor(df$calm)
+df$conventional <- floor(df$conventional)
+df$critical <- floor(df$critical)
+df$dependable <- floor(df$dependable)
+```
+
+Inspecting the dataset, we can see that there are quite a lot of missing values:
+```{r}
+
+```
+
+
+
+```{r, eval = has_cmdstan}
+fit <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  data = df,
+  family = c("ordinal"),
+  priors = set_priors(),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+```
+
+We can print an overview of the model we just ran using the `print(fit)` functions:
+```{r, eval = has_cmdstan}
+print(fit)
+```
+
+Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
+
+To further inspect the model parameters we can use the `summary(fit)` function:
+
+```{r, eval = has_cmdstan}
+summary(fit)
 ```

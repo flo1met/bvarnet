@@ -4,14 +4,23 @@
 \alias{get_default_priors}
 \title{Get the default prior specification for a given model family}
 \usage{
-get_default_priors(family)
+get_default_priors(family = NULL, has_re = TRUE)
 }
 \arguments{
-\item{family}{One of \code{"bernoulli"}, \code{"ordinal"}, \code{"gaussian"}.}
+\item{family}{Character (optional). One of \code{"bernoulli"},
+\code{"ordinal"}, \code{"gaussian"}. When \code{NULL} (the default),
+all parameter priors are shown.}
+
+\item{has_re}{Logical. Does the model include random effects?
+Default \code{TRUE}. When \code{FALSE}, the \code{sd_u} prior is
+omitted.}
 }
 \value{
 A \code{bvarnet_priors} object.
 }
 \description{
-A convenience wrapper around \code{set_priors()} for inspecting defaults.
+Returns a \code{bvarnet_priors} object showing the default priors that
+apply to a particular model configuration. Parameters irrelevant to
+the chosen family or model structure are omitted, so the returned object
+reflects what the sampler will actually use.
 }

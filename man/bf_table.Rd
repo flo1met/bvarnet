@@ -35,9 +35,14 @@ argument; \code{"temporal"} always covers all lags via joint tests.}
 \item{null_value}{Numeric scalar; the null hypothesis value (default 0).}
 
 \item{variable}{Character vector or \code{NULL} (default).  One or more
-variable names (must match \code{colnames(standata$Y)}).  When set, only
-effects \strong{from} these variables as lagged predictors are included.
-Cannot be combined with \code{type = "fe"} or \code{type = "intercepts"}.}
+variable names — either network variables (from \code{colnames(standata$Y)})
+or covariates (from \code{x_cols}, excluding \code{"Intercept"} and
+interaction columns).  When set, only effects involving these variables are
+included: network variables filter phi rows (effects \strong{from} the variable
+as lagged predictor); covariate names filter fixed-effect rows and
+lag × covariate interaction rows (effects \strong{of} that covariate).
+Both types can be combined in a single call.
+Cannot be combined with \code{type = "intercepts"}.}
 }
 \value{
 A data frame with columns: \code{type}, \code{predictor},
@@ -55,14 +60,13 @@ two-level structure (per-cell + per-type joint) is unchanged.
 interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
 these parameters are already included when \code{type = "fe"} is requested.
 
-When \code{variable} is non-NULL, only effects \strong{from} the named
-variable(s) as lagged predictors are included.
-This filters phi rows and lag × covariate interaction rows so that only
-parameters where the lagged predictor matches the requested variable(s)
-are retained.  \code{variable} is combinable with \code{type} and
-\code{lag}; when \code{type = "all"} and \code{variable} is set, only
-temporal types (\code{"ar"}, \code{"cl"}, \code{"temporal"}) and
-\code{"lag_fe"} (if applicable) are auto-selected, since
-\code{"intercepts"} and \code{"fe"} are covariate effects unrelated to
-specific network variables.
+When \code{variable} is non-NULL, only effects involving the named
+variable(s) are included.  Network variables (from \code{Y}) filter phi rows
+and lag × covariate interaction rows by the lagged predictor.  Covariate
+names (from \code{X}) filter fixed-effect rows and interaction terms.  Both
+types can be combined.  \code{variable} is combinable with \code{type} and
+\code{lag}; when \code{type = "all"} and \code{variable} is set, the
+auto-selected types depend on what was requested (network variables →
+\code{"ar"}, \code{"cl"}, \code{"temporal"}; covariates → \code{"fe"},
+\code{"lag_fe"}, \code{"temporal"} interaction rows).
 }
