@@ -232,12 +232,13 @@ test_that("make_term_matrix with 'lag' expands across B columns", {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# §N — print.bvarnet() priors line
+# §N — print.bvarnet() priors display
 # ═══════════════════════════════════════════════════════════════════════════════
 
-test_that("print.bvarnet() includes 'Normal' from priors summary", {
+test_that("print.bvarnet() shows 'all defaults' when no priors are user-set", {
   obj <- make_mock_bvarnet()
-  expect_output(print(obj), "Normal")
+  out <- capture.output(print(obj))
+  expect_true(any(grepl("all defaults", out)))
 })
 
 test_that("print.bvarnet() includes 'phi' in priors summary", {
@@ -245,9 +246,16 @@ test_that("print.bvarnet() includes 'phi' in priors summary", {
   expect_output(print(obj), "phi")
 })
 
-test_that("print.bvarnet() includes 'Half-' for sd_u in priors summary", {
-  obj <- make_mock_bvarnet()
+test_that("print.bvarnet() includes 'Half-' for sd_u in priors when model has REs", {
+  obj <- make_mock_bvarnet(n_re = 1L)
   expect_output(print(obj), "Half-")
+})
+
+test_that("print.bvarnet() omits sd_u from priors when model has no REs", {
+  obj <- make_mock_bvarnet()
+  out <- capture.output(print(obj))
+  priors_line <- out[grepl("Priors", out)]
+  expect_false(any(grepl("sd_u", priors_line)))
 })
 
 test_that("print.bvarnet() shows 'sigma' in priors for gaussian family", {
@@ -263,6 +271,27 @@ test_that("print.bvarnet() shows 'kappa' in priors for ordinal family", {
 test_that("print.bvarnet() omits sigma for bernoulli family", {
   obj <- make_mock_bvarnet(family = "bernoulli")
   out <- capture.output(print(obj))
-  priors_line <- out[grep("Priors", out)]
-  expect_false(any(grepl("sigma", priors_line)))
+  expect_false(any(grepl("sigma", out)))
+})
+
+test_that("print.bvarnet() shows (default) tag for user-set priors", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+  obj$priors$beta <- prior("cauchy", 0, 2)
+  out <- capture.output(print(obj))
+  # beta should NOT have (default) tag
+  beta_line <- out[grepl("beta", out)]
+  expect_false(any(grepl("\\(default\\)", beta_line)))
+  # phi and sigma should have (default) tag
+  phi_line <- out[grepl("phi", out)]
+  expect_true(any(grepl("\\(default\\)", phi_line)))
+  sigma_line <- out[grepl("sigma", out)]
+  expect_true(any(grepl("\\(default\\)", sigma_line)))
+})
+
+test_that("print.bvarnet() backward compat: old objects without priors_needed still work", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+  obj$priors_needed <- NULL
+  out <- capture.output(print(obj))
+  expect_true(any(grepl("beta", out)))
+  expect_true(any(grepl("sigma", out)))
 })

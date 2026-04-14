@@ -156,28 +156,134 @@ set_priors <- function(beta  = NULL,
 
 #' Print a bvarnet_priors specification
 #'
+#' Shows only the priors explicitly set by the user.  When no priors have
+#' been overridden (all defaults), a compact note is printed instead.
+#'
 #' @param x A \code{bvarnet_priors} object.
 #' @param ... Ignored.
 #' @return \code{x} invisibly.
 #' @export
 print.bvarnet_priors <- function(x, ...) {
-  cat("bvarnet prior specification:\n")
   half_pars <- c("sd_u", "sigma")
-  for (nm in names(x)) {
-    half <- nm %in% half_pars
-    cat(sprintf("  %-6s ~ %s\n", nm, format(x[[nm]], half = half)))
+  nms <- names(x)
+  # Only consider actual bvarnet_prior entries (skip NULLs from filtered objects)
+  nms <- nms[vapply(x[nms], function(p) inherits(p, "bvarnet_prior"), logical(1))]
+
+  user_set <- nms[!vapply(x[nms], function(p) isTRUE(p$is_default), logical(1))]
+
+  cat("bvarnet prior specification:\n")
+
+  if (length(user_set) == 0L) {
+    cat("  (all defaults \u2014 see ?get_default_priors)\n")
+  } else {
+    for (nm in user_set) {
+      cat(sprintf("  %-6s ~ %s\n", nm, format(x[[nm]], half = nm %in% half_pars)))
+    }
   }
+
   invisible(x)
 }
 
 #' Get the default prior specification for a given model family
 #'
-#' A convenience wrapper around \code{set_priors()} for inspecting defaults.
+#' Returns a \code{bvarnet_priors} object showing the default priors that
+#' apply to a particular model configuration. Parameters irrelevant to
+#' the chosen family or model structure are omitted, so the returned object
+#' reflects what the sampler will actually use.
 #'
-#' @param family One of \code{"bernoulli"}, \code{"ordinal"}, \code{"gaussian"}.
+#' @param family Character (optional). One of \code{"bernoulli"},
+#'   \code{"ordinal"}, \code{"gaussian"}. When \code{NULL} (the default),
+#'   all parameter priors are shown.
+#' @param has_re Logical. Does the model include random effects?
+#'   Default \code{TRUE}. When \code{FALSE}, the \code{sd_u} prior is
+#'   omitted.
 #' @return A \code{bvarnet_priors} object.
 #' @export
-get_default_priors <- function(family) {
-  family <- match.arg(family, c("bernoulli", "ordinal", "gaussian"))
-  set_priors()
+get_default_priors <- function(family = NULL, has_re = TRUE) {
+  p <- set_priors()
+
+  if (!is.null(family)) {
+    family <- match.arg(family, c("bernoulli", "ordinal", "gaussian"))
+    if (family != "gaussian") p$sigma <- NULL
+    if (family != "ordinal")  p$kappa <- NULL
+  }
+
+  if (!isTRUE(has_re)) p$sd_u <- NULL
+
+  p
+}
+
+
+# ---- Internal helpers for prior resolution in bvar() ----
+
+#' Ensure all prior slots required by the model family exist
+#'
+#' If slots are missing (e.g. from a filtered \code{get_default_priors()}
+#' object), they are filled with package defaults and a warning is issued.
+#' Called by \code{bvar()} before passing priors to \code{to_stan_data()}.
+#'
+#' @param priors A \code{bvarnet_priors} object (possibly incomplete).
+#' @param family_vec Named character vector of families per node.
+#' @return A complete \code{bvarnet_priors} object.
+#' @keywords internal
+.ensure_prior_slots <- function(priors, family_vec) {
+  # sd_u is always passed to Stan (even when n_re == 0)
+  required <- c("beta", "phi", "sd_u")
+  if (any(family_vec == "gaussian")) required <- c(required, "sigma")
+  if (any(family_vec == "ordinal"))  required <- c(required, "kappa")
+
+  present <- names(Filter(Negate(is.null), priors))
+  missing <- setdiff(required, present)
+
+  if (length(missing) > 0L) {
+    defaults <- list(
+      beta  = .default_prior("normal", 0, 1),
+      phi   = .default_prior("normal", 0, 0.5),
+      sd_u  = .default_prior("normal", 0, 1),
+      kappa = .default_prior("normal", 0, 2),
+      sigma = .default_prior("normal", 0, 2.5)
+    )
+    for (nm in missing) priors[[nm]] <- defaults[[nm]]
+    warning("Prior(s) missing from input but required by this model: ",
+            paste(missing, collapse = ", "), ". Using package defaults.",
+            call. = FALSE)
+  }
+  priors
+}
+
+
+#' Emit user-facing warnings about prior usage and return needed-prior names
+#'
+#' Warns when user-set priors are not needed by the model, and messages when
+#' the model uses default priors that the user did not explicitly set (only
+#' if the user set at least one prior).
+#'
+#' @param priors A \code{bvarnet_priors} object.
+#' @param family_vec Named character vector of families per node.
+#' @param n_re Integer. Number of random-effect columns from the built design.
+#' @return Character vector of prior names the model actually uses.
+#' @keywords internal
+.prior_warnings <- function(priors, family_vec, n_re) {
+  needed <- c("beta", "phi")
+  if (n_re > 0L) needed <- c(needed, "sd_u")
+  if (any(family_vec == "gaussian")) needed <- c(needed, "sigma")
+  if (any(family_vec == "ordinal"))  needed <- c(needed, "kappa")
+
+  # Identify which slots the user explicitly set
+  nms <- names(Filter(function(p) inherits(p, "bvarnet_prior"), priors))
+  user_set <- nms[!vapply(priors[nms], function(p) isTRUE(p$is_default), logical(1))]
+
+  # User-set priors the model doesn't need
+  unused <- setdiff(user_set, needed)
+  if (length(unused) > 0L)
+    warning("Prior(s) set but not used by this model: ",
+            paste(unused, collapse = ", "), ". These will be ignored.",
+            call. = FALSE)
+
+  # Defaults auto-filled for model (only warn if user set at least one)
+  auto_filled <- setdiff(needed, user_set)
+  if (length(user_set) > 0L && length(auto_filled) > 0L)
+    message("Using default priors for: ", paste(auto_filled, collapse = ", "))
+
+  needed
 }

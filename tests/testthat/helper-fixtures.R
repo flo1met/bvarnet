@@ -317,21 +317,28 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     sd_list$C_per_node <- C_per_node
   }
 
+  # Compute priors_needed for this mock
+  priors_needed <- c("beta", "phi")
+  if (n_re > 0L) priors_needed <- c(priors_needed, "sd_u")
+  if (any(family_vec == "gaussian")) priors_needed <- c(priors_needed, "sigma")
+  if (any(family_vec == "ordinal"))  priors_needed <- c(priors_needed, "kappa")
+
   structure(
     list(
-      draws        = draws,
-      convergence  = smry,
-      diagnostics  = data.frame(
+      draws         = draws,
+      convergence   = smry,
+      diagnostics   = data.frame(
         num_divergent     = integer(n_chains),
         num_max_treedepth = integer(n_chains),
         ebfmi             = rep(1.0, n_chains)
       ),
-      timing       = list(total = 5.0),
-      metadata     = list(),
-      return_codes = rep(0L, n_chains),
-      family       = family_vec,
-      standata     = sd_list,
-      priors       = set_priors()
+      timing        = list(total = 5.0),
+      metadata      = list(),
+      return_codes  = rep(0L, n_chains),
+      family        = family_vec,
+      standata      = sd_list,
+      priors        = set_priors(),
+      priors_needed = priors_needed
     ),
     class = "bvarnet"
   )

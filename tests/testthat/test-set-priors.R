@@ -162,21 +162,55 @@ test_that("format(prior('cauchy', ...)) contains 'Cauchy'", {
   expect_match(format(prior("cauchy", 0, 1)), "Cauchy")
 })
 
-test_that("print(set_priors()) outputs 'beta', 'phi', 'sd_u' without error", {
+test_that("print(set_priors()) shows 'all defaults' message", {
   out <- capture.output(print(set_priors()))
+  expect_true(any(grepl("all defaults", out)))
+})
+
+test_that("print(set_priors()) does not show individual prior lines when all defaults", {
+  out <- capture.output(print(set_priors()))
+  # Should NOT have individual "beta ~" lines
+  expect_false(any(grepl("^\\s*beta\\s+~", out)))
+})
+
+test_that("print with one user prior shows only that prior", {
+  sp <- set_priors(beta = prior("cauchy", 0, 2))
+  out <- capture.output(print(sp))
+  # beta should appear on its own line
+  expect_true(any(grepl("^\\s*beta\\s+~", out)))
+  # defaults should NOT appear
+  expect_false(any(grepl("phi", out)))
+  expect_false(any(grepl("sd_u", out)))
+  expect_false(any(grepl("Defaults:", out)))
+})
+
+test_that("print with multiple user priors shows only those", {
+  sp <- set_priors(
+    beta = prior("cauchy", 0, 2),
+    phi  = prior("student_t", 0, 0.3, df = 5)
+  )
+  out <- capture.output(print(sp))
+  expect_true(any(grepl("beta", out)))
+  expect_true(any(grepl("phi", out)))
+  expect_false(any(grepl("sd_u", out)))
+  expect_false(any(grepl("sigma", out)))
+})
+
+test_that("print with all user-set priors shows all of them", {
+  sp <- set_priors(
+    beta  = prior("normal", 0, 2),
+    phi   = prior("normal", 0, 1),
+    sd_u  = prior("cauchy", 0, 1),
+    kappa = prior("normal", 0, 3),
+    sigma = prior("cauchy", 0, 2)
+  )
+  out <- capture.output(print(sp))
+  expect_false(any(grepl("all defaults", out)))
   expect_true(any(grepl("beta",  out)))
   expect_true(any(grepl("phi",   out)))
   expect_true(any(grepl("sd_u",  out)))
-})
-
-test_that("print(set_priors()) shows 'Normal' in output", {
-  out <- capture.output(print(set_priors()))
-  expect_true(any(grepl("Normal", out)))
-})
-
-test_that("print(set_priors()) shows 'Half-' for sd_u and sigma", {
-  out <- capture.output(print(set_priors()))
-  expect_true(any(grepl("Half-", out)))
+  expect_true(any(grepl("sigma", out)))
+  expect_true(any(grepl("kappa", out)))
 })
 
 
@@ -202,4 +236,144 @@ test_that("get_default_priors('gaussian') has a sigma slot", {
 
 test_that("get_default_priors() with invalid family stops", {
   expect_error(get_default_priors("poisson"), "arg")
+})
+
+test_that("get_default_priors('bernoulli') omits sigma and kappa", {
+  sp <- get_default_priors("bernoulli")
+  expect_null(sp$sigma)
+  expect_null(sp$kappa)
+  expect_true("beta" %in% names(sp))
+  expect_true("phi"  %in% names(sp))
+  expect_true("sd_u" %in% names(sp))
+})
+
+test_that("get_default_priors('gaussian') omits kappa but keeps sigma", {
+  sp <- get_default_priors("gaussian")
+  expect_null(sp$kappa)
+  expect_true("sigma" %in% names(sp))
+})
+
+test_that("get_default_priors('ordinal') omits sigma but keeps kappa", {
+  sp <- get_default_priors("ordinal")
+  expect_null(sp$sigma)
+  expect_true("kappa" %in% names(sp))
+})
+
+test_that("get_default_priors(has_re = FALSE) omits sd_u", {
+  sp <- get_default_priors("bernoulli", has_re = FALSE)
+  expect_null(sp$sd_u)
+  expect_true("beta" %in% names(sp))
+  expect_true("phi"  %in% names(sp))
+})
+
+test_that("get_default_priors() with no args returns all five", {
+  sp <- get_default_priors()
+  expect_named(sp, c("beta", "phi", "sd_u", "kappa", "sigma"))
+})
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# §5 — .ensure_prior_slots()
+# ═════════════════════════════════════════════════════════════════════════════
+
+test_that(".ensure_prior_slots fills missing sigma for gaussian family", {
+  p <- get_default_priors("bernoulli")  # no sigma
+  family_vec <- c(y_1 = "gaussian")
+  expect_warning(
+    filled <- bvarnet:::.ensure_prior_slots(p, family_vec),
+    "sigma"
+  )
+  expect_s3_class(filled$sigma, "bvarnet_prior")
+  expect_true(filled$sigma$is_default)
+})
+
+test_that(".ensure_prior_slots fills missing kappa for ordinal family", {
+  p <- get_default_priors("bernoulli")  # no kappa
+  family_vec <- c(y_1 = "ordinal")
+  expect_warning(
+    filled <- bvarnet:::.ensure_prior_slots(p, family_vec),
+    "kappa"
+  )
+  expect_s3_class(filled$kappa, "bvarnet_prior")
+})
+
+test_that(".ensure_prior_slots fills missing sd_u from filtered object", {
+  p <- get_default_priors("bernoulli", has_re = FALSE)  # no sd_u
+  family_vec <- c(y_1 = "bernoulli")
+  expect_warning(
+    filled <- bvarnet:::.ensure_prior_slots(p, family_vec),
+    "sd_u"
+  )
+  expect_s3_class(filled$sd_u, "bvarnet_prior")
+})
+
+test_that(".ensure_prior_slots does nothing for complete priors", {
+  p <- set_priors()
+  family_vec <- c(y_1 = "gaussian", y_2 = "ordinal")
+  # No warning expected
+  expect_silent(bvarnet:::.ensure_prior_slots(p, family_vec))
+})
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# §6 — .prior_warnings()
+# ═════════════════════════════════════════════════════════════════════════════
+
+test_that(".prior_warnings returns correct needed set for bernoulli without REs", {
+  p <- set_priors()
+  needed <- bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L)
+  expect_equal(needed, c("beta", "phi"))
+})
+
+test_that(".prior_warnings returns correct needed set for gaussian with REs", {
+  p <- set_priors()
+  needed <- bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 2L)
+  expect_equal(needed, c("beta", "phi", "sd_u", "sigma"))
+})
+
+test_that(".prior_warnings returns correct needed set for ordinal", {
+  p <- set_priors()
+  needed <- bvarnet:::.prior_warnings(p, c(y_1 = "ordinal"), n_re = 0L)
+  expect_equal(needed, c("beta", "phi", "kappa"))
+})
+
+test_that(".prior_warnings warns about unused user-set priors", {
+  p <- set_priors(sigma = prior("cauchy", 0, 2))
+  expect_warning(
+    bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L),
+    "not used.*sigma"
+  )
+})
+
+test_that(".prior_warnings warns about unused sd_u when no REs", {
+  p <- set_priors(sd_u = prior("cauchy", 0, 1))
+  expect_warning(
+    bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L),
+    "not used.*sd_u"
+  )
+})
+
+test_that(".prior_warnings messages about auto-filled defaults", {
+  p <- set_priors(beta = prior("cauchy", 0, 2))
+  expect_message(
+    bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 0L),
+    "Using default priors for: phi, sigma"
+  )
+})
+
+test_that(".prior_warnings does NOT message when all priors are defaults", {
+  p <- set_priors()
+  expect_silent(
+    bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 0L)
+  )
+})
+
+test_that(".prior_warnings does NOT message when all needed priors are user-set", {
+  p <- set_priors(
+    beta = prior("cauchy", 0, 2),
+    phi  = prior("normal", 0, 0.3)
+  )
+  expect_silent(
+    bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L)
+  )
 })

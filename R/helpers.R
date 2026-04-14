@@ -266,17 +266,44 @@ print.bvarnet <- function(x, ...) {
   # Priors
   if (!is.null(x$priors) && inherits(x$priors, "bvarnet_priors")) {
     half_pars <- c("sd_u", "sigma")
-    family_pars <- c("beta", "phi", "sd_u")
-    if (.family_has(x, "gaussian")) family_pars <- c(family_pars, "sigma")
-    if (.family_has(x, "ordinal"))  family_pars <- c(family_pars, "kappa")
-    prior_str <- paste(
-      vapply(family_pars, function(nm) {
+
+    # Determine which priors to show
+    priors_to_show <- x$priors_needed
+    if (is.null(priors_to_show)) {
+      # Backward compat: old objects without priors_needed
+      priors_to_show <- c("beta", "phi")
+      has_re <- !is.null(sd$n_re) && sd$n_re > 0
+      if (has_re) priors_to_show <- c(priors_to_show, "sd_u")
+      if (.family_has(x, "gaussian")) priors_to_show <- c(priors_to_show, "sigma")
+      if (.family_has(x, "ordinal"))  priors_to_show <- c(priors_to_show, "kappa")
+    }
+    # Filter to slots that actually exist (robustness for serialized objects)
+    priors_to_show <- Filter(function(nm) !is.null(x$priors[[nm]]), priors_to_show)
+
+    any_user <- any(!vapply(
+      x$priors[priors_to_show],
+      function(p) isTRUE(p$is_default), logical(1)
+    ))
+
+    if (any_user) {
+      # Show each prior on its own line with (default) tags
+      cat("Priors:\n")
+      for (nm in priors_to_show) {
         half <- nm %in% half_pars
-        paste0(nm, " ~ ", format(x$priors[[nm]], half = half))
-      }, character(1L)),
-      collapse = ", "
-    )
-    cat("Priors:      ", prior_str, "\n", sep = "")
+        tag <- if (isTRUE(x$priors[[nm]]$is_default)) "  (default)" else ""
+        cat(sprintf("  %-6s ~ %s%s\n", nm, format(x$priors[[nm]], half = half), tag))
+      }
+    } else {
+      # All defaults — compact single line
+      prior_str <- paste(
+        vapply(priors_to_show, function(nm) {
+          half <- nm %in% half_pars
+          paste0(nm, " ~ ", format(x$priors[[nm]], half = half))
+        }, character(1L)),
+        collapse = ", "
+      )
+      cat("Priors:       ", prior_str, " (all defaults)\n", sep = "")
+    }
   }
 
   # Timing

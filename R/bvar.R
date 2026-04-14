@@ -7,7 +7,7 @@
 #' @param id_col Character. Name of the subject/group identifier column.
 #' @param time_col Character. Name of the time column.
 #' @param y_cols Character vector. Names of the outcome columns.
-#' @param x_cols Character vector. Names of the covariate columns.
+#' @param x_cols Character vector or NULL. Names of the covariate columns.
 #' @param center_x Logical. Grand-mean centre covariates before fitting?
 #'   Default \code{FALSE}.
 #' @param fe_interactions List or NULL. Fixed-effect interaction terms to add
@@ -54,7 +54,7 @@
 bvar <- function(id_col,
                  time_col,
                  y_cols,
-                 x_cols,
+                 x_cols = NULL,
                  center_x = FALSE,
                  fe_interactions = NULL,
                  re_interactions = NULL,
@@ -78,6 +78,12 @@ bvar <- function(id_col,
 
   family_vec <- .parse_family(family, y_cols)
   is_mixed   <- length(unique(family_vec)) > 1L
+
+  # Validate and ensure all required prior slots exist
+  if (!inherits(priors, "bvarnet_priors"))
+    stop("'priors' must be a bvarnet_priors object from set_priors().",
+         call. = FALSE)
+  priors <- .ensure_prior_slots(priors, family_vec)
 
   if (is_mixed) {
     return(.bvar_nodewise(
@@ -120,6 +126,9 @@ bvar <- function(id_col,
                             priors = priors
                            )
 
+  # Prior warnings (uses actual n_re from built design)
+  priors_needed <- .prior_warnings(priors, family_vec, standata$n_re)
+
   stanfit <- stanmodel$sample(data = standata[!names(standata) %in%
                                       c("fe_interaction_terms",
                                         "fe_interaction_colnames",
@@ -153,15 +162,16 @@ bvar <- function(id_col,
 
   out <- structure(
     list(
-      draws        = draws,
-      convergence  = convergence,
-      diagnostics  = diagnostics,
-      timing       = timing,
-      metadata     = metadata,
-      return_codes = return_codes,
-      family       = family_vec,
-      standata     = standata,
-      priors       = priors
+      draws         = draws,
+      convergence   = convergence,
+      diagnostics   = diagnostics,
+      timing        = timing,
+      metadata      = metadata,
+      return_codes  = return_codes,
+      family        = family_vec,
+      standata      = standata,
+      priors        = priors,
+      priors_needed = priors_needed
     ),
     class = "bvarnet"
   )
@@ -230,6 +240,9 @@ bvar <- function(id_col,
     na_action = na_action, skip_lag = skip_lag
   )
 
+  # Prior warnings (uses actual n_re from built design)
+  priors_needed <- .prior_warnings(priors, family_vec, shared$n_re)
+
   # --- Fit each node ---
   fits <- vector("list", p)
   for (j in seq_len(p)) {
@@ -257,7 +270,8 @@ bvar <- function(id_col,
   }
 
   # --- Combine into bvarnet object ---
-  .combine_nodewise_fits(fits, family_vec, shared, priors, iter, chains)
+  .combine_nodewise_fits(fits, family_vec, shared, priors, priors_needed,
+                         iter, chains)
 }
 
 
@@ -265,7 +279,7 @@ bvar <- function(id_col,
 
 #' @keywords internal
 .combine_nodewise_fits <- function(fits, family_vec, shared, priors,
-                                   iter, chains) {
+                                   priors_needed, iter, chains) {
   p <- length(family_vec)
   y_cols <- names(family_vec)
   n_fe_full <- shared$n_fe   # includes Intercept
@@ -381,7 +395,8 @@ bvar <- function(id_col,
       return_codes     = return_codes,
       family           = family_vec,
       standata         = standata_full,
-      priors           = priors
+      priors           = priors,
+      priors_needed    = priors_needed
     ),
     class = "bvarnet"
   )
