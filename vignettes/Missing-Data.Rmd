@@ -43,17 +43,40 @@ Inspecting the dataset, we can see that there are quite a lot of missing values:
 
 ```
 
+Currently, `bvarnet` handles missing data through a listwise deletion and skipping lag-mechanism. 
+Listwise deletion is a computational simple solution to the missing data problem, but does rely on the assumption that data are *missing completely at random (MCAR)*. Violating this assumption may lead to biased parameter estimation.
+In longitudinal settings such as like the Vector Autoregressive models, listwise deletion can introduce irregular gaps in the observed time series. This violates the modeling assumption of no missing time points and equal length of time gaps.
+To address this issue, we introduce a skipping-lag mechanism. Specifically, lagged effects are only estimated when the time difference between two observations does not exceed a threshold determined by the autoregressive order K. That is, for a VAR(K) model, lagged relationships are only included if the effective time gap corresponds to at most K time steps.
+In other words, the model excludes the estimation of temporal parameters across large time gaps, thereby preserving the interpretation of lagged effects as local (short-term) dependencies.
 
-
+In the `bvar` function the skipping-lag mechanism can be turned on and off by using the `skip_lag` argument. To illustrate this, we can fit the model once using the lag skipping mechanism, and once without:
 ```{r, eval = has_cmdstan}
-fit <- bvar(
+fit_no_skip_lag <- bvar(
   id_col = "id",
   time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   x_cols = NULL,
-  re_cols = NULL,
   re_temporal = FALSE,
   K = 1,
+  skip_lag = FALSE,
+  data = df,
+  family = c("ordinal"),
+  priors = set_priors(),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+
+fit_skip_lag <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  skip_lag = TRUE,
   data = df,
   family = c("ordinal"),
   priors = set_priors(),
@@ -65,9 +88,10 @@ fit <- bvar(
 )
 ```
 
-We can print an overview of the model we just ran using the `print(fit)` functions:
+We can print an overview of the models we just ran using the `print(fit)` functions:
 ```{r, eval = has_cmdstan}
-print(fit)
+print(fit_no_skip_lag)
+print(fit_skip_lag)
 ```
 
 Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
@@ -77,3 +101,5 @@ To further inspect the model parameters we can use the `summary(fit)` function:
 ```{r, eval = has_cmdstan}
 summary(fit)
 ```
+
+Currently, more sophisticated missing data handling (e.g. imputation) has to be implemented by the users themselves.

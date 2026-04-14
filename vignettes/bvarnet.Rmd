@@ -23,9 +23,10 @@ In the following vignette we will introduce the basic functionality of the packa
 - `vignette("Hypothesis-Testing")`
 - `vignette("Mixed-Model")`
 - `vignette("Missing-Data")`
-- `vignette("Random-Effect")`
+- `vignette("MCMC-Diagnostics")`
+- `vignette("Random-Effects")`
 - `vignette("Prediction")`
-vignettye computation finding errors
+
 
 First, we have to load the package:
 
@@ -33,23 +34,10 @@ First, we have to load the package:
 library(bvarnet)
 
 # subject to be removed again...
-library(openesm)
 library(qgraph)
 ```
 
 There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
-
-```{r}
-data <- get_dataset("0004")
-
-df <- data$data
-
-df$anxious <- floor(df$anxious)
-df$calm <- floor(df$calm)
-df$conventional <- floor(df$conventional)
-df$critical <- floor(df$critical)
-df$dependable <- floor(df$dependable)
-```
 
 Currently, `bvarnet` allowes for the following outcome variables:
 
@@ -68,7 +56,10 @@ priors <- set_priors(phi = prior(family = "normal",
                                  scale = 0.5),
                      kappa = prior(family = "normal",
                                    loc = 0,
-                                   scale = 2))
+                                   scale = 2),
+                     sigma = prior(family = "normal",
+                                   loc = 0,
+                                   scale = 3))
 
 priors
 ```
@@ -90,8 +81,8 @@ fit <- bvar(
   K = 1,
   data = df,
   family = c("ordinal"),
-  priors = set_priors(),
-  iter = 4000,
+  priors = priors,
+  iter = 2000,
   warmup = 1000,
   chains = 4,
   cores = 4,

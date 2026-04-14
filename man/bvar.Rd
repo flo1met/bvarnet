@@ -8,7 +8,7 @@ bvar(
   id_col,
   time_col,
   y_cols,
-  x_cols,
+  x_cols = NULL,
   center_x = FALSE,
   fe_interactions = NULL,
   re_interactions = NULL,
@@ -36,7 +36,7 @@ bvar(
 
 \item{y_cols}{Character vector. Names of the outcome columns.}
 
-\item{x_cols}{Character vector. Names of the covariate columns.}
+\item{x_cols}{Character vector or NULL. Names of the covariate columns.}
 
 \item{center_x}{Logical. Grand-mean centre covariates before fitting?
 Default \code{FALSE}.}
