@@ -14,6 +14,58 @@ knitr::opts_chunk$set(
 )
 ```
 
+
 ```{r setup}
 library(bvarnet)
+
+# subject to be removed again...
+library(qgraph)
 ```
+
+## Load Data
+
+```{r}
+data(studentlife)
+```
+
+## Fit the model
+
+To show the full capabilities of the prediction module, we will use the multilevel VAR model as example:
+
+```{r, eval = has_cmdstan}
+fit <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_cols = c("Intercept"),
+  re_temporal = TRUE,
+  K = 1,
+  data = studentlife,
+  family = c("ordinal"),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+```
+
+```{r}
+summary(fit)
+```
+
+## 2 — In-Sample Fitted Values
+
+The simplest call returns one-step-ahead fitted values on the linear predictor scale for the training data:
+
+```{r}
+p <- predict(fit)
+p
+```
+
+
+
+
+This returns a **matrix** with dimensions `[nrow(original_data), p]`, where `p` is the number of outcome nodes. The first `K` rows per subject are `NA` because those time points lack sufficient lag history.
+

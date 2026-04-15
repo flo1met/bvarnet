@@ -13,7 +13,7 @@
 #'   to interact, or \code{c("lag", "x")} to interact all lag columns with
 #'   a covariate.
 #' @param re_interactions List or NULL. Random-effect interaction terms.
-#' @param re_cols Character vector. Columns from X to include as random slopes.
+#' @param re_cols Character vector. Columns from X and/or "Intercept" to include as random slopes.
 #' @param re_temporal Logical. Include random slopes on lag predictors?
 #'   Default \code{FALSE}.
 #' @param K Integer. AR order. Default 1.

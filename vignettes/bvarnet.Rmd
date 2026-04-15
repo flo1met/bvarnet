@@ -69,6 +69,9 @@ priors <- set_priors(phi = prior(family = "normal",
 priors
 ```
 
+##########
+## add description of possible priors
+##########
 
 ```{r, eval = has_cmdstan}
 fit <- bvar(
@@ -89,6 +92,8 @@ fit <- bvar(
   seed = 1337
 )
 ```
+
+If you want to learn how to extend this model to a multilevel model, check out the `Vignette(Random-Effects)`.
 
 Most models will give a warning when initiating sampling, that looks like this:
 
@@ -128,3 +133,5 @@ If we are interested in the temporal network structure, we can inspect this usin
 nw_mat <- extract_network_matrix(fit)
 qgraph(nw_mat)
 ```
+
+Lastly, if you want to perform hypothesis tests on your estimated parameters we refer you to the `Vignette(Hypothesis-Testing)`.

@@ -99,3 +99,5 @@ The temporal network can be extracted and inspected as usual:
 nw_mat <- extract_network_matrix(fit_mixed)
 qgraph(nw_mat)
 ```
+
+As every other model, the mixed model can be extended by random effects (`Vignette(Random-Effects)`), hypothesis tests can be performed (`Vignette(Hypothesis-Testing)`) and predictions can be made based on the model (`Vignette(Prediction)`).

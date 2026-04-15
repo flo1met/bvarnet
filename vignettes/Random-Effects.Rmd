@@ -30,31 +30,12 @@ data(studentlife)
 
 There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
 
-Currently, `bvarnet` allowes for the following outcome variables:
+For the following tutorial we will extend the network containing the the variables `anxious`, `calm`, `conventional`, `critical`, and `dependable` from the `Vignette(bvarnet)`. To introduce a multilevel structure to our model, we can use the two arguments: `re_cols` and `re_temporal`.
 
-- binary (`family = "bernoulli")`
-- ordinal (`family = "ordinal")` (adjacent category model)
-- continuous (`family = "gaussian")`
+The `re_cols` argument accepts all variables that we specify in `x_cols` and `"Intercept"`, to introduce random effects on the baseline model.
+The `re_temporal` argument is a binary TRUE/FALSE indicator to introduce random effects on the temporal structure.
 
-For the following tutorial we will investigate the temporal network for the variables `anxious`, `calm`, `conventional`, `critical`, and `dependable`. All these variables are on a ordinal scale. Therefore we will use the adjacent category ordinal model to estimate this model.
-
-First we need to specify the prior distributions that we want to use on the parameters.
-For this we can use the `set_priors()` function. As we are running a ordinal model, without covariates, we have to specify priors on the temporal structure (denoted by the $\Phi$ matrix) and on the category threshold parameters ($\kappa$) which are specific to the adjacent category ordinal model.
-
-```{r}
-priors <- set_priors(phi = prior(family = "normal",
-                                 loc = 0,
-                                 scale = 0.5),
-                     kappa = prior(family = "normal",
-                                   loc = 0,
-                                   scale = 2),
-                     sigma = prior(family = "normal",
-                                   loc = 0,
-                                   scale = 3))
-
-priors
-```
-
+We will set `re_cols = c("Intercept")` and `re_temporal = TRUE`:
 
 ```{r, eval = has_cmdstan}
 fit <- bvar(
@@ -62,12 +43,11 @@ fit <- bvar(
   time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   x_cols = NULL,
-  re_cols = NULL,
-  re_temporal = FALSE,
+  re_cols = c("Intercept"),
+  re_temporal = TRUE,
   K = 1,
   data = studentlife,
   family = c("ordinal"),
-  priors = priors,
   iter = 4000,
   warmup = 1000,
   chains = 4,
@@ -75,3 +55,15 @@ fit <- bvar(
   seed = 1337
 )
 ```
+
+```{r}
+print(fit)
+summary(fit)
+```
+
+Additionally to the `extract_*` that we already described in `Vignette(bvarnet)`, we can use the `extract_random_effects()` function to only extract the random effects:
+```{r}
+re <- extract_random_effects(fit)
+re
+```
+
