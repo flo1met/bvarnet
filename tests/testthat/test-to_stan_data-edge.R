@@ -76,11 +76,13 @@ test_that("K=2 lag columns are correctly ordered and filled", {
   expect_equal(colnames(sd$B),
                c("lag1_y_1", "lag1_y_2", "lag2_y_1", "lag2_y_2"))
 
-  # Row 1 of modeled data is t=3. lag1 = t=2 values, lag2 = t=1 values
-  expect_equal(unname(sd$B[1, "lag1_y_1"]), 20)
-  expect_equal(unname(sd$B[1, "lag1_y_2"]), 21)
-  expect_equal(unname(sd$B[1, "lag2_y_1"]), 10)
-  expect_equal(unname(sd$B[1, "lag2_y_2"]), 11)
+  # Row 1 of modeled data is t=3. lag1 = t=2 values, lag2 = t=1 values.
+  # B is internally centered by grand-mean, so compare against centered values.
+  b_cm <- unname(sd$b_center_means)
+  expect_equal(unname(sd$B[1, "lag1_y_1"]), 20 - b_cm[1])
+  expect_equal(unname(sd$B[1, "lag1_y_2"]), 21 - b_cm[2])
+  expect_equal(unname(sd$B[1, "lag2_y_1"]), 10 - b_cm[3])
+  expect_equal(unname(sd$B[1, "lag2_y_2"]), 11 - b_cm[4])
 })
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -205,17 +207,21 @@ test_that("multiple time gaps within one subject are handled correctly", {
   # Modeled rows: t=2,5,6,7,10,11 (6 rows, indices start at K+1=2)
   expect_equal(sd_skip$n_obs, 6L)
 
-  # B for t=5 (gap from t=2, diff=3) should be zero
-  # t=5 is the 2nd modeled row
-  expect_equal(unname(sd_skip$B[2, 1]), 0)
+  # B is internally centered. Gap rows had raw B = 0, now 0 - b_cm.
+  # Non-gap rows had raw B = y_lag, now y_lag - b_cm.
+  b_cm <- unname(sd_skip$b_center_means)
 
-  # B for t=10 (gap from t=7, diff=3) should be zero
+  # B for t=5 (gap from t=2, diff=3) should be zeroed (raw 0 → -b_cm)
+  # t=5 is the 2nd modeled row
+  expect_equal(unname(sd_skip$B[2, 1]), 0 - b_cm[1])
+
+  # B for t=10 (gap from t=7, diff=3) should be zeroed (raw 0 → -b_cm)
   # t=10 is the 5th modeled row
-  expect_equal(unname(sd_skip$B[5, 1]), 0)
+  expect_equal(unname(sd_skip$B[5, 1]), 0 - b_cm[1])
 
   # B for t=6 (lag from t=5, diff=1) should be non-zero
-  # t=6 is the 3rd modeled row
-  expect_equal(unname(sd_skip$B[3, 1]), 1)  # y_1 at t=5
+  # t=6 is the 3rd modeled row; raw B = y_1 at t=5 = 1
+  expect_equal(unname(sd_skip$B[3, 1]), 1 - b_cm[1])
 
   # skip_lag = FALSE: drop gap rows
   sd_drop <- suppressMessages(

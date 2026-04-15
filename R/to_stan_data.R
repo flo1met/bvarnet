@@ -135,6 +135,7 @@ to_stan_data <- function(data,
   out$id_levels <- shared$id_levels
   out$time_obs <- shared$time_obs
   out$x_center_means <- shared$x_center_means
+  out$b_center_means <- shared$b_center_means
   out$row_map <- shared$row_map
   out$n_rows_data <- shared$n_rows_data
   out$data_used <- shared$data_used
@@ -273,12 +274,14 @@ to_stan_data <- function(data,
                     n_dropped, na_action, skip_lag, n_obs))
   }
 
-  x_center_means <- NULL
-  if (isTRUE(center_x)) {
-    means_X <- colMeans(X)
-    X <- sweep(X, 2, means_X, "-")
-    x_center_means <- means_X
-  }
+  # Always grand-mean center X covariates and B lagged outcomes internally.
+  # This decorrelates intercept from slopes, improving HMC geometry.
+  # The user-facing `center_x` flag controls reporting only (back-transform).
+  x_center_means <- if (ncol(X) > 0) colMeans(X) else numeric(0)
+  if (length(x_center_means) > 0) X <- sweep(X, 2, x_center_means, "-")
+
+  b_center_means <- if (ncol(B) > 0) colMeans(B) else numeric(0)
+  if (length(b_center_means) > 0) B <- sweep(B, 2, b_center_means, "-")
 
   # Always add intercept (shared convention)
   X <- cbind(Intercept = 1, X)
@@ -287,6 +290,7 @@ to_stan_data <- function(data,
   colnames(Y) <- y_cols
   b_names <- unlist(lapply(1:K, function(lag) paste0("lag", lag, "_", y_cols)))
   colnames(B) <- b_names
+  names(b_center_means) <- b_names
 
   ## build FE interactions
   tmp <- add_terms_to_X(X, B, fe_interactions)
@@ -303,12 +307,14 @@ to_stan_data <- function(data,
     id = id_out, time_obs = time_obs, Y = Y, X = X, B = B, Z = Z,
     id_levels = as.character(ids_unique),
     x_center_means = x_center_means,
+    b_center_means = b_center_means,
     row_map = row_map, n_rows_data = n_rows_data,
     data_used = data_used,
     design_spec = list(
       id_col = id_col, time_col = time_col,
       y_cols = y_cols, x_cols = x_cols,
       center_x = center_x,
+      center_internal = TRUE,
       fe_interactions = fe_interactions,
       re_interactions = re_interactions,
       re_cols = re_cols, re_temporal = re_temporal,

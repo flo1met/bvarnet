@@ -37,6 +37,9 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
   # ---------- Intercepts & fixed effects (beta) ----------
   draws_beta <- extract_draws(object, "beta")
 
+  # Back-transform intercept from centered to raw scale (when applicable)
+  draws_beta <- .backtransform_intercept(object, draws_beta)
+
   # Remove ordinal-intercept NA sentinel columns (D4) BEFORE summary.
   # Sentinels only exist in mixed-family models where X retains the Intercept
   # row; pure ordinal strips the Intercept so beta[1,j] is a real covariate.

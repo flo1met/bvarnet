@@ -201,8 +201,12 @@
   }
 
   # --- centering ---------------------------------------------------------
-  if (isTRUE(spec$center_x) && !is.null(sd$x_center_means)) {
+  # Always center X and B to match training-time centering
+  if (!is.null(sd$x_center_means) && length(sd$x_center_means) > 0) {
     X <- sweep(X, 2, sd$x_center_means, "-")
+  }
+  if (!is.null(sd$b_center_means) && length(sd$b_center_means) > 0) {
+    B <- sweep(B, 2, sd$b_center_means, "-")
   }
 
   colnames(X) <- x_cols
@@ -655,6 +659,10 @@
   eta_mat <- matrix(NA_real_, n_obs, p)
   if (length(family_vec) == 1L) family_vec <- rep(family_vec, p)
 
+  # Centering means for B (needed to center raw lag updates)
+  b_cm <- object$standata$b_center_means
+  has_b_cm <- !is.null(b_cm) && length(b_cm) > 0
+
   # Pre-compute RE values for each node (full vectorised extraction)
   has_re <- !is.null(Z) && ncol(Z) > 0L
   u_list <- vector("list", p)
@@ -672,13 +680,19 @@
     cw      <- cw_by_subject[subj_id]
     n_cond  <- max(0L, as.integer(cw) - K)
 
-    # Initialise lag buffer from the first modeled row's observed lags
-    lag_buffer <- B[rows[1], ]
+    # Initialise lag buffer from the first modeled row's observed lags.
+    # B is already centered from .prepare_newdata(); un-center for raw storage.
+    lag_buffer_raw <- if (has_b_cm) B[rows[1], ] + b_cm else B[rows[1], ]
 
     for (ti in seq_len(T_mod)) {
       r <- rows[ti]  # global row index
 
-      B_row <- if (ti <= n_cond) B[r, ] else lag_buffer
+      # Use pre-centered B for conditioning window; center raw buffer otherwise
+      if (ti <= n_cond) {
+        B_row <- B[r, ]
+      } else {
+        B_row <- if (has_b_cm) lag_buffer_raw - b_cm else lag_buffer_raw
+      }
 
       for (node in seq_len(p)) {
         u_rows_node <- if (has_re) u_list[[node]][r, , drop = FALSE] else NULL
@@ -690,12 +704,14 @@
         eta_mat[r, node] <- eta_val
       }
 
-      # Update lag buffer
+      # Update lag buffer (raw scale)
       if (ti <= n_cond) {
-        lag_buffer <- .update_lag_buffer(lag_buffer, Y_obs[r, ], K, p)
+        lag_buffer_raw <- .update_lag_buffer(
+          lag_buffer_raw, Y_obs[r, ], K, p
+        )
       } else {
         y_pred <- .recursive_lag_value(eta_mat[r, ], family_vec, sigma, kappa)
-        lag_buffer <- .update_lag_buffer(lag_buffer, y_pred, K, p)
+        lag_buffer_raw <- .update_lag_buffer(lag_buffer_raw, y_pred, K, p)
       }
     }
   }

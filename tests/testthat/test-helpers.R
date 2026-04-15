@@ -295,3 +295,89 @@ test_that("print.bvarnet() backward compat: old objects without priors_needed st
   expect_true(any(grepl("beta", out)))
   expect_true(any(grepl("sigma", out)))
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §5 .backtransform_intercept()
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that(".backtransform_intercept shifts intercept by centering means", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+
+  # Set up known centering means
+  obj$standata$x_center_means <- c(x_1 = 3.0)
+  obj$standata$b_center_means <- c(lag1_y_1 = 5.0, lag1_y_2 = 2.0)
+  obj$standata$design_spec$center_internal <- TRUE
+  obj$standata$design_spec$center_x <- FALSE
+
+  draws_beta <- extract_draws(obj, "beta")
+  draws_phi  <- extract_draws(obj, "phi")
+  S <- nrow(draws_beta)
+
+  # Compute expected shift manually for node 1:
+  # β₀_raw[s] = β₀*[s] - β₁[s]*3.0 - φ₁[s]*5.0 - φ₂[s]*2.0
+  beta_centered_1 <- draws_beta[, "beta[1,1]"]
+  beta_x_1        <- draws_beta[, "beta[2,1]"]
+  phi_1_1         <- draws_phi[, "phi[1,1]"]
+  phi_2_1         <- draws_phi[, "phi[2,1]"]
+  expected_1 <- beta_centered_1 - beta_x_1 * 3.0 - phi_1_1 * 5.0 - phi_2_1 * 2.0
+
+  result <- .backtransform_intercept(obj, draws_beta)
+
+  expect_equal(result[, "beta[1,1]"], expected_1, tolerance = 1e-12)
+
+  # Non-intercept betas should be unchanged
+  expect_equal(result[, "beta[2,1]"], draws_beta[, "beta[2,1]"])
+  expect_equal(result[, "beta[2,2]"], draws_beta[, "beta[2,2]"])
+})
+
+
+test_that(".backtransform_intercept is a no-op when center_x = TRUE", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+  obj$standata$x_center_means <- c(x_1 = 3.0)
+  obj$standata$b_center_means <- c(lag1_y_1 = 5.0, lag1_y_2 = 2.0)
+  obj$standata$design_spec$center_internal <- TRUE
+  obj$standata$design_spec$center_x <- TRUE  # User wants centered reporting
+
+  draws_beta <- extract_draws(obj, "beta")
+  result <- .backtransform_intercept(obj, draws_beta)
+
+  expect_identical(result, draws_beta)
+})
+
+
+test_that(".backtransform_intercept is a no-op when interactions present", {
+  obj <- make_mock_bvarnet(family = "gaussian")
+  obj$standata$x_center_means <- c(x_1 = 3.0)
+  obj$standata$b_center_means <- c(lag1_y_1 = 5.0, lag1_y_2 = 2.0)
+  obj$standata$design_spec$center_internal <- TRUE
+  obj$standata$design_spec$center_x <- FALSE
+  obj$standata$fe_interaction_terms <- list(c("x_1", "lag"))
+
+  draws_beta <- extract_draws(obj, "beta")
+  result <- .backtransform_intercept(obj, draws_beta)
+
+  expect_identical(result, draws_beta)
+})
+
+
+test_that(".backtransform_intercept skips ordinal sentinel nodes in mixed family", {
+  obj <- make_mock_bvarnet(family = c("gaussian", "ordinal"))
+  obj$standata$x_center_means <- c(x_1 = 3.0)
+  obj$standata$b_center_means <- c(lag1_y_1 = 5.0, lag1_y_2 = 2.0)
+  obj$standata$design_spec$center_internal <- TRUE
+  obj$standata$design_spec$center_x <- FALSE
+
+  draws_beta <- extract_draws(obj, "beta")
+
+  # Node 2 is ordinal → beta[1,2] is NA sentinel
+  expect_true(all(is.na(draws_beta[, "beta[1,2]"])))
+
+  result <- .backtransform_intercept(obj, draws_beta)
+
+  # Node 2 intercept should still be NA
+  expect_true(all(is.na(result[, "beta[1,2]"])))
+
+  # Node 1 (gaussian) should be back-transformed
+  expect_false(identical(result[, "beta[1,1]"], draws_beta[, "beta[1,1]"]))
+})
