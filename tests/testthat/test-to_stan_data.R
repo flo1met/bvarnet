@@ -136,11 +136,12 @@ test_that("B values match actual lagged Y values (no gaps)", {
   sd <- to_stan_data(df, "gaussian", "id", "t",
                      paste0("y_", 1:p), character(0), K = K)
 
-  # For the first subject, the first modeled row (t=2) should have
-  # B = [y1[t=1], y2[t=1]]
+  # B is now internally centered. The first modeled row's B should be
+  # the raw lagged value minus the grand-mean centering offset.
   sub1 <- df[df$id == 1, ]
-  expect_equal(unname(sd$B[1, 1]), sub1$y_1[1])
-  expect_equal(unname(sd$B[1, 2]), sub1$y_2[1])
+  b_cm <- unname(sd$b_center_means)
+  expect_equal(unname(sd$B[1, 1]), sub1$y_1[1] - b_cm[1], tolerance = 1e-10)
+  expect_equal(unname(sd$B[1, 2]), sub1$y_2[1] - b_cm[2], tolerance = 1e-10)
 })
 
 
@@ -234,6 +235,38 @@ test_that("center_x = TRUE centers covariate columns but not intercept", {
   }
 })
 
+test_that("internal centering always centers X and B regardless of center_x", {
+  df <- make_test_df(N = 5, T_obs = 30, p = 2, q = 2, family = "gaussian")
+
+  # Even with center_x = FALSE, internal centering should happen
+
+  sd <- to_stan_data(df, "gaussian", "id", "t",
+                     paste0("y_", 1:2), paste0("x_", 1:2),
+                     center_x = FALSE, K = 1)
+
+  # Intercept should still be all 1s
+  expect_true(all(sd$X[, "Intercept"] == 1))
+
+  # X covariate columns should be approximately centered internally
+  for (j in 2:ncol(sd$X)) {
+    col_mean <- abs(mean(sd$X[, j]))
+    expect_lt(col_mean, 0.01)
+  }
+
+  # B (lag) columns should be approximately centered
+  for (j in seq_len(ncol(sd$B))) {
+    col_mean <- abs(mean(sd$B[, j]))
+    expect_lt(col_mean, 0.1)
+  }
+
+  # center_internal flag should be set
+  expect_true(sd$design_spec$center_internal)
+
+  # centering means should be stored
+  expect_true(length(sd$b_center_means) > 0)
+  expect_true(length(sd$x_center_means) > 0)
+})
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # §6 Time gap handling (skip_lag)
@@ -255,9 +288,11 @@ test_that("skip_lag = TRUE zeros out B rows with time gaps", {
   # t=6 comes after removing t=5: raw rows are t=1,2,3,4,6,7,8,9,10
   # modeled rows start from t=2: t=2(1),t=3(2),t=4(3),t=6(4),...
   # Row 4 in the modeled data is t=6 whose lag is t=4 (gap of 2)
+  # B is internally centered: zeroed raw → 0 - b_center_means
   gap_row <- 4  # t=6 in modeled data
-  expect_true(all(sd$B[gap_row, ] == 0),
-              info = "B row with time gap should be zeroed")
+  b_cm <- unname(sd$b_center_means)
+  expect_equal(unname(sd$B[gap_row, ]), -b_cm, tolerance = 1e-10,
+               info = "B row with time gap should be zeroed (centered scale)")
 })
 
 

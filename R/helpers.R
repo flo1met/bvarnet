@@ -102,6 +102,96 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 }
 
 
+# ---- Intercept back-transformation (centered → raw scale) ----
+
+#' Back-transform centered intercept draws to the raw (uncentered) scale
+#'
+#' When the model was fit with internal centering, the Stan intercept
+#' corresponds to the expected value at the mean of all predictors.
+#' This function shifts it to the classical intercept (expected value
+#' when all raw predictors are zero).
+#'
+#' Only applied when: (a) no FE interactions are present (interactions
+#' make the back-transform more complex than a simple intercept shift),
+#' (b) the model has an intercept column in X, and (c) centering means
+#' are available.
+#'
+#' @param object A \code{bvarnet} object.
+#' @param draws_beta Matrix of beta draws (S x n_beta_params).
+#' @return Matrix of the same dimension with intercept rows back-transformed.
+#' @keywords internal
+.backtransform_intercept <- function(object, draws_beta) {
+  sd <- object$standata
+
+  # Skip if no centering means stored
+  x_cm <- sd$x_center_means
+  b_cm <- sd$b_center_means
+  has_cm <- (!is.null(x_cm) && length(x_cm) > 0) ||
+            (!is.null(b_cm) && length(b_cm) > 0)
+  if (!has_cm) return(draws_beta)
+
+  # Skip if model has no intercept (homogeneous ordinal)
+  if (!"Intercept" %in% colnames(sd$X)) return(draws_beta)
+
+  # Skip if FE interactions are present (back-transform is more complex)
+  if (length(sd$fe_interaction_terms) > 0L) return(draws_beta)
+
+  # Skip if user wants centered reporting
+  if (isTRUE(sd$design_spec$center_x)) return(draws_beta)
+
+  p    <- sd$p
+  n_fe <- sd$n_fe
+
+  # Build the centering-means vector matching non-intercept FE + phi columns
+  # Beta layout: beta[fe_idx, node] — column-major in Stan
+  # For each node j, intercept is beta[1, j]
+  # Covariates are beta[2..n_fe, j]
+  # Phi is a separate block: phi[1..(p*K), j]
+
+  # We need phi draws too
+  draws_phi <- extract_draws(object, "phi")
+  S <- nrow(draws_beta)
+
+  # For ordinal nodes in mixed-family models, beta[1,j] is an NA sentinel
+  ord_indices <- if (.is_mixed(object)) .family_which(object, "ordinal") else integer(0)
+
+  for (node in seq_len(p)) {
+    # Skip ordinal sentinel nodes
+    if (node %in% ord_indices) next
+
+    intcpt_col <- sprintf("beta[1,%d]", node)
+    if (!intcpt_col %in% colnames(draws_beta)) next
+
+    # Accumulate shift: Σ β_k * c_x[k] + Σ φ_m * c_b[m]
+    shift <- rep(0, S)
+
+    # Covariate betas (fe indices 2..n_fe, excluding interactions)
+    if (length(x_cm) > 0) {
+      for (k in seq_along(x_cm)) {
+        beta_k_col <- sprintf("beta[%d,%d]", k + 1L, node)
+        if (beta_k_col %in% colnames(draws_beta)) {
+          shift <- shift + draws_beta[, beta_k_col] * x_cm[k]
+        }
+      }
+    }
+
+    # Phi (lag coefficients)
+    if (length(b_cm) > 0) {
+      for (m in seq_along(b_cm)) {
+        phi_m_col <- sprintf("phi[%d,%d]", m, node)
+        if (phi_m_col %in% colnames(draws_phi)) {
+          shift <- shift + draws_phi[, phi_m_col] * b_cm[m]
+        }
+      }
+    }
+
+    draws_beta[, intcpt_col] <- draws_beta[, intcpt_col] - shift
+  }
+
+  draws_beta
+}
+
+
 # ---- Random-effect draw extraction (u) ----
 
 #' Extract all posterior draws of subject-level random effects \code{u}
