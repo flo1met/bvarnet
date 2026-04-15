@@ -196,36 +196,39 @@ test_that("simulate: subject_re='sample' produces between-subject variation", {
 
 # --- shape tests ---
 
-test_that("predict: link type returns matrix [n_rows_data, p] (in-sample)", {
+test_that("predict: link type returns data.frame with id, time, predicted cols (in-sample)", {
   mock <- make_predictable_mock("gaussian")
   out  <- predict(mock, type = "link")
-  expect_true(is.matrix(out))
-  expect_equal(ncol(out), mock$standata$p)
-  expect_equal(nrow(out), mock$standata$n_rows_data)
-  # First K rows per subject should be NA, rest finite
-  expect_equal(sum(is.na(out[, 1])),
-               mock$standata$J * mock$standata$K)
-  expect_equal(sum(is.finite(out[, 1])),
-               mock$standata$n_obs)
+  expect_true(is.data.frame(out))
+  expect_true("id" %in% names(out))
+  expect_true("t" %in% names(out))
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  expect_true(all(pred_names %in% names(out)))
+  expect_equal(nrow(out), mock$standata$n_obs)
+  expect_true(all(is.finite(out[[pred_names[1]]])))
 })
 
-test_that("predict: response type returns matrix [n_rows_data, p] (in-sample)", {
+test_that("predict: response type returns data.frame with probabilities (in-sample)", {
   mock <- make_predictable_mock("bernoulli")
   out  <- predict(mock, type = "response")
-  expect_true(is.matrix(out))
-  expect_equal(ncol(out), mock$standata$p)
-  expect_equal(nrow(out), mock$standata$n_rows_data)
-  # Non-NA values should be probabilities
-  expect_true(all(out[!is.na(out)] >= 0 & out[!is.na(out)] <= 1))
+  expect_true(is.data.frame(out))
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  expect_true(all(pred_names %in% names(out)))
+  expect_equal(nrow(out), mock$standata$n_obs)
+  # Predicted values should be probabilities
+  expect_true(all(out[[pred_names[1]]] >= 0 & out[[pred_names[1]]] <= 1))
 })
 
-test_that("predict: probabilities type for bernoulli returns list of p matrices", {
+test_that("predict: probabilities type for bernoulli returns list of data.frames", {
   mock <- make_predictable_mock("bernoulli")
   out  <- predict(mock, type = "probabilities")
   expect_type(out, "list")
   expect_length(out, mock$standata$p)
-  expect_true(all(out[[1]][!is.na(out[[1]][, "p1"]), "p1"] >= 0 &
-                   out[[1]][!is.na(out[[1]][, "p1"]), "p1"] <= 1))
+  expect_true(is.data.frame(out[[1]]))
+  expect_true("p1" %in% names(out[[1]]))
+  expect_true(all(out[[1]][["p1"]] >= 0 & out[[1]][["p1"]] <= 1))
 })
 
 test_that("predict: probabilities type for gaussian returns list with mean+sd", {
@@ -233,9 +236,9 @@ test_that("predict: probabilities type for gaussian returns list with mean+sd", 
   out  <- predict(mock, type = "probabilities")
   expect_type(out, "list")
   expect_length(out, mock$standata$p)
-  expect_true(all(c("mean", "sd") %in% colnames(out[[1]])))
-  non_na <- !is.na(out[[1]][, "sd"])
-  expect_true(all(out[[1]][non_na, "sd"] > 0))
+  expect_true(is.data.frame(out[[1]]))
+  expect_true(all(c("mean", "sd") %in% names(out[[1]])))
+  expect_true(all(out[[1]][["sd"]] > 0))
 })
 
 test_that("predict: probabilities type for ordinal returns list with cat_ columns", {
@@ -243,39 +246,42 @@ test_that("predict: probabilities type for ordinal returns list with cat_ column
   out  <- predict(mock, type = "probabilities")
   expect_type(out, "list")
   expect_length(out, mock$standata$p)
+  expect_true(is.data.frame(out[[1]]))
   C <- mock$standata$C
-  expect_equal(ncol(out[[1]]), C)
-  expect_true(all(grepl("^cat_", colnames(out[[1]]))))
-  # non-NA rows should sum to ~1
-  non_na_rows <- !is.na(out[[1]][, 1])
-  row_sums <- rowSums(out[[1]][non_na_rows, , drop = FALSE])
+  cat_cols <- grep("^cat_", names(out[[1]]), value = TRUE)
+  expect_equal(length(cat_cols), C)
+  # Probability rows should sum to ~1
+  row_sums <- rowSums(out[[1]][, cat_cols, drop = FALSE])
   expect_true(all(abs(row_sums - 1) < 1e-10))
 })
 
 # --- posterior-sample returns attr("sd") ---
 
-test_that("predict: posterior-sample returns attr('sd') and attr('ndraws')", {
+test_that("predict: posterior-sample returns _sd columns and attr('ndraws')", {
   mock <- make_predictable_mock("gaussian")
   out  <- predict(mock, type = "response", method = "posterior-sample",
                   ndraws = 5L, seed = 1)
-  expect_true(!is.null(attr(out, "sd")))
+  expect_true(is.data.frame(out))
+  y_names <- colnames(mock$standata$Y)
+  sd_names <- paste0("predicted_", y_names, "_sd")
+  expect_true(all(sd_names %in% names(out)))
   expect_true(!is.null(attr(out, "ndraws")))
   expect_equal(attr(out, "ndraws"), 5L)
-  expect_equal(dim(attr(out, "sd")), dim(out))
 })
 
-test_that("predict: posterior-sample probabilities returns attr('sd')", {
+test_that("predict: posterior-sample probabilities returns _sd columns", {
   mock <- make_predictable_mock("bernoulli")
   out  <- predict(mock, type = "probabilities", method = "posterior-sample",
                   ndraws = 5L, seed = 1)
-  sd_attr <- attr(out, "sd")
-  expect_type(sd_attr, "list")
-  expect_length(sd_attr, mock$standata$p)
+  expect_type(out, "list")
+  expect_length(out, mock$standata$p)
+  expect_true(is.data.frame(out[[1]]))
+  expect_true("p1_sd" %in% names(out[[1]]))
 })
 
 # --- newdata with NA for first K rows ---
 
-test_that("predict: newdata returns NA for first K rows per subject", {
+test_that("predict: newdata returns compact data.frame (modeled rows only)", {
   mock <- make_predictable_mock("gaussian", T_obs = 10L)
   set.seed(99L)
   N <- mock$standata$J; TT <- 10L; p_n <- mock$standata$p; K <- mock$standata$K
@@ -285,31 +291,31 @@ test_that("predict: newdata returns NA for first K rows per subject", {
   for (j in 1:1) df[[paste0("x_", j)]] <- rnorm(nrow(df))
 
   out <- predict(mock, newdata = df, type = "link")
-  expect_equal(nrow(out), nrow(df))
-  # First K rows per subject should be NA
-  for (subj in seq_len(N)) {
-    subj_rows <- which(df$id == subj)
-    first_k <- head(subj_rows, K)
-    expect_true(all(is.na(out[first_k, ])))
-  }
+  expect_true(is.data.frame(out))
+  # Only modeled rows (T_obs - K per subject)
+  expected_rows <- N * (TT - K)
+  expect_equal(nrow(out), expected_rows)
+  # All predicted values should be finite (no NAs)
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[[pn]])))
 })
 
-test_that("predict: in-sample nrow matches original data, not n_obs", {
+test_that("predict: in-sample nrow matches n_obs (modeled rows only)", {
   for (fam in c("gaussian", "bernoulli", "ordinal")) {
     mock <- make_predictable_mock(fam, J = 4L, T_obs = 12L, K = 1L)
     out  <- predict(mock, type = "link")
-    # Output rows should match original data (J * T_obs), not n_obs
-    expect_equal(nrow(out), mock$standata$n_rows_data,
+    expect_true(is.data.frame(out), info = paste("family:", fam))
+    # Output rows should match n_obs (modeled rows), not n_rows_data
+    expect_equal(nrow(out), mock$standata$n_obs,
                  info = paste("family:", fam))
-    expect_equal(nrow(out), mock$standata$J * 12L,
-                 info = paste("family:", fam))
-    # First K per subject NA, rest finite
-    expect_equal(sum(is.na(out[, 1])),
-                 mock$standata$J * mock$standata$K,
-                 info = paste("family:", fam))
-    expect_equal(sum(is.finite(out[, 1])),
-                 mock$standata$n_obs,
-                 info = paste("family:", fam))
+    # All predicted values should be finite (no NAs)
+    y_names <- colnames(mock$standata$Y)
+    pred_names <- paste0("predicted_", y_names)
+    for (pn in pred_names) {
+      expect_true(all(is.finite(out[[pn]])),
+                  info = paste("family:", fam, "col:", pn))
+    }
   }
 })
 
@@ -325,7 +331,8 @@ test_that("predict: in-sample and newdata give same nrow for same data", {
   out_in    <- predict(mock, type = "link")
   out_new   <- predict(mock, newdata = df, type = "link")
   expect_equal(nrow(out_in), nrow(out_new))
-  expect_equal(nrow(out_in), nrow(df))
+  # Both should have n_obs rows (modeled only)
+  expect_equal(nrow(out_in), mock$standata$n_obs)
 })
 
 # --- subject_re tests ---
@@ -334,9 +341,10 @@ test_that("predict: subject_re='zero' vs 'posterior-mean' differ for seen subjec
   mock <- make_predictable_mock("gaussian", n_re = 1L)
   out_zero <- predict(mock, type = "link", subject_re = "zero")
   out_re   <- predict(mock, type = "link", subject_re = "posterior-mean")
-  # Should differ because posterior mean u != 0 (compare non-NA rows only)
-  finite <- !is.na(out_zero[, 1])
-  expect_false(all(out_zero[finite, ] == out_re[finite, ]))
+  # Should differ because posterior mean u != 0
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  expect_false(all(out_zero[pred_names] == out_re[pred_names]))
 })
 
 test_that("predict: n_re=0 makes all subject_re options identical", {
@@ -361,11 +369,11 @@ test_that("predict: unseen IDs with new_subject='zero' are population-level", {
   out <- predict(mock, newdata = df_new, type = "link",
                  subject_re = "posterior-mean", new_subject = "zero")
 
-  # Predictions for subject 999 should use u=0
-  # Predictions for subject 1 should use posterior mean u
-  rows_999 <- which(df_new$id == 999)
-  predictable_999 <- rows_999[-(1:mock$standata$K)]
-  expect_true(all(is.finite(out[predictable_999, ])))
+  # Predictions for subject 999 should use u=0 and be finite
+  rows_999 <- out$id == "999"
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[rows_999, pn])))
 })
 
 # --- error tests ---
@@ -392,19 +400,13 @@ test_that("recursive: returns finite predictions after conditioning window", {
 
   out <- predict(mock, newdata = df, type = "link",
                  forecast = "recursive", conditioning_window = K + 3L)
-  expect_equal(nrow(out), nrow(df))
-  # First K rows per subject should be NA
-  for (subj in seq_len(N)) {
-    subj_rows <- which(df$id == subj)
-    first_k <- head(subj_rows, K)
-    expect_true(all(is.na(out[first_k, ])))
-  }
-  # Rows after first K should be finite (both conditioning + recursive)
-  for (subj in seq_len(N)) {
-    subj_rows <- which(df$id == subj)
-    modeled <- subj_rows[-(1:K)]
-    expect_true(all(is.finite(out[modeled, ])))
-  }
+  expect_true(is.data.frame(out))
+  expected_rows <- N * (TT - K)
+  expect_equal(nrow(out), expected_rows)
+  # All rows should be finite (no NAs)
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[[pn]])))
 })
 
 test_that("recursive: differs from one-step on long horizons", {
@@ -420,14 +422,10 @@ test_that("recursive: differs from one-step on long horizons", {
                       forecast = "one-step")
   out_rec  <- predict(mock, newdata = df, type = "link",
                       forecast = "recursive", conditioning_window = K + 2L)
-  # The early conditioning rows should match one-step (same observed lags)
-  for (subj in seq_len(N)) {
-    subj_rows <- which(df$id == subj)
-    cond_rows <- subj_rows[(K + 1L):(K + 2L)]  # n_cond = cw - K = 2
-    expect_equal(out_one[cond_rows, ], out_rec[cond_rows, ])
-  }
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
   # Later forecast rows should diverge
-  expect_false(identical(out_one, out_rec))
+  expect_false(identical(out_one[pred_names], out_rec[pred_names]))
 })
 
 test_that("recursive: works with conditioning_window = K (all rows forecasted)", {
@@ -441,12 +439,10 @@ test_that("recursive: works with conditioning_window = K (all rows forecasted)",
 
   out <- predict(mock, newdata = df, type = "response",
                  forecast = "recursive", conditioning_window = K)
-  expect_true(is.matrix(out))
-  for (subj in seq_len(N)) {
-    subj_rows <- which(df$id == subj)
-    modeled <- subj_rows[-(1:K)]
-    expect_true(all(is.finite(out[modeled, ])))
-  }
+  expect_true(is.data.frame(out))
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[[pn]])))
 })
 
 test_that("recursive: conditioning_window < K errors", {
@@ -477,14 +473,13 @@ test_that("recursive: named conditioning_window per subject works", {
   cw <- c("1" = K + 2L, "2" = K + 5L, "3" = K + 3L)
   out <- predict(mock, newdata = df, type = "link",
                  forecast = "recursive", conditioning_window = cw)
-  expect_true(is.matrix(out))
-  expect_equal(nrow(out), nrow(df))
-  # All modeled rows should be finite
-  for (subj in 1:3) {
-    subj_rows <- which(df$id == subj)
-    modeled <- subj_rows[-(1:K)]
-    expect_true(all(is.finite(out[modeled, ])))
-  }
+  expect_true(is.data.frame(out))
+  expected_rows <- 3L * (20L - K)
+  expect_equal(nrow(out), expected_rows)
+  # All predicted values should be finite
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[[pn]])))
 })
 
 test_that("recursive: missing subject in named cw errors", {
@@ -515,8 +510,11 @@ test_that("recursive: bernoulli returns probabilities in [0,1]", {
 
   out <- predict(mock, newdata = df, type = "response",
                  forecast = "recursive", conditioning_window = K + 3L)
-  non_na <- which(!is.na(out[, 1]))
-  expect_true(all(out[non_na, ] >= 0 & out[non_na, ] <= 1))
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) {
+    expect_true(all(out[[pn]] >= 0 & out[[pn]] <= 1))
+  }
 })
 
 test_that("recursive: ordinal probability rows sum to 1", {
@@ -533,12 +531,13 @@ test_that("recursive: ordinal probability rows sum to 1", {
                  forecast = "recursive", conditioning_window = K + 3L)
   expect_type(out, "list")
   expect_length(out, p_n)
-  non_na <- which(!is.na(out[[1]][, 1]))
-  row_sums <- rowSums(out[[1]][non_na, ])
+  expect_true(is.data.frame(out[[1]]))
+  cat_cols <- grep("^cat_", names(out[[1]]), value = TRUE)
+  row_sums <- rowSums(out[[1]][, cat_cols, drop = FALSE])
   expect_true(all(abs(row_sums - 1) < 1e-10))
 })
 
-test_that("recursive: posterior-sample works with attr('sd')", {
+test_that("recursive: posterior-sample works with _sd columns", {
   mock <- make_predictable_mock("gaussian", T_obs = 20L)
   set.seed(99L)
   N <- mock$standata$J; TT <- 20L; p_n <- mock$standata$p; K <- mock$standata$K
@@ -550,7 +549,10 @@ test_that("recursive: posterior-sample works with attr('sd')", {
   out <- predict(mock, newdata = df, type = "response",
                  method = "posterior-sample", ndraws = 5L, seed = 1,
                  forecast = "recursive", conditioning_window = K + 2L)
-  expect_true(!is.null(attr(out, "sd")))
+  expect_true(is.data.frame(out))
+  y_names <- colnames(mock$standata$Y)
+  sd_names <- paste0("predicted_", y_names, "_sd")
+  expect_true(all(sd_names %in% names(out)))
   expect_true(!is.null(attr(out, "ndraws")))
   expect_equal(attr(out, "ndraws"), 5L)
 })
@@ -560,11 +562,11 @@ test_that("recursive: in-sample (newdata=NULL) works", {
   # In-sample recursive forecast
   out <- predict(mock, type = "link", forecast = "recursive",
                  conditioning_window = mock$standata$K + 3L)
-  expect_true(is.matrix(out))
-  expect_equal(nrow(out), mock$standata$n_rows_data)
-  finite_rows <- !is.na(out[, 1])
-  expect_equal(sum(finite_rows), mock$standata$n_obs)
-  expect_true(all(is.finite(out[finite_rows, ])))
+  expect_true(is.data.frame(out))
+  expect_equal(nrow(out), mock$standata$n_obs)
+  y_names <- colnames(mock$standata$Y)
+  pred_names <- paste0("predicted_", y_names)
+  for (pn in pred_names) expect_true(all(is.finite(out[[pn]])))
 })
 
 test_that("recursive: subject_re works with recursive mode", {
@@ -605,7 +607,6 @@ test_that("predict: posterior-sample with same seed gives same results", {
   out2 <- predict(mock, type = "response", method = "posterior-sample",
                   ndraws = 5L, seed = 42)
   expect_equal(out1, out2)
-  expect_equal(attr(out1, "sd"), attr(out2, "sd"))
 })
 
 
@@ -617,7 +618,8 @@ test_that("fixed vs individual predictions have comparable shapes", {
   mock <- make_predictable_mock("gaussian", n_re = 1L)
   out_fixed <- predict(mock, type = "response", subject_re = "zero")
   out_indiv <- predict(mock, type = "response", subject_re = "posterior-mean")
-  expect_identical(dim(out_fixed), dim(out_indiv))
+  expect_equal(nrow(out_fixed), nrow(out_indiv))
+  expect_equal(names(out_fixed), names(out_indiv))
 })
 
 test_that("for n_re > 0, individual predictions differ from fixed for seen subjects", {
@@ -659,12 +661,11 @@ test_that("integration: simulate + predict roundtrip for gaussian", {
 
   # Predict on simulated data
   preds <- predict(fit, newdata = sim_out, type = "response")
-  expect_true(is.matrix(preds))
-  expect_equal(ncol(preds), 2L)
-  # Non-NA rows should be finite
-  non_na <- which(!is.na(preds[, 1]))
-  expect_true(length(non_na) > 0)
-  expect_true(all(is.finite(preds[non_na, ])))
+  expect_true(is.data.frame(preds))
+  pred_names <- paste0("predicted_", c("y_1", "y_2"))
+  expect_true(all(pred_names %in% names(preds)))
+  expect_true(nrow(preds) > 0)
+  for (pn in pred_names) expect_true(all(is.finite(preds[[pn]])))
 })
 
 test_that("integration: simulate + predict roundtrip for bernoulli", {
@@ -682,8 +683,10 @@ test_that("integration: simulate + predict roundtrip for bernoulli", {
   expect_true(all(y_vals %in% c(0L, 1L)))
 
   preds <- predict(fit, newdata = sim_out, type = "response")
-  non_na <- which(!is.na(preds[, 1]))
-  expect_true(all(preds[non_na, ] >= 0 & preds[non_na, ] <= 1))
+  pred_names <- paste0("predicted_", c("y_1", "y_2"))
+  for (pn in pred_names) {
+    expect_true(all(preds[[pn]] >= 0 & preds[[pn]] <= 1))
+  }
 })
 
 test_that("integration: predict positive association gaussian", {
@@ -698,7 +701,7 @@ test_that("integration: predict positive association gaussian", {
 
   preds <- predict(fit, type = "response")
   obs_y <- fit$standata$Y[, 1]
-  pred_y <- preds[fit$standata$row_map, 1]
+  pred_y <- preds[["predicted_y_1"]]
   # Should have positive correlation between observed and predicted
   expect_true(cor(obs_y, pred_y) > 0)
 })
@@ -730,9 +733,10 @@ test_that("integration: simulate + predict roundtrip for ordinal", {
   preds <- predict(fit, newdata = sim_out, type = "probabilities")
   expect_type(preds, "list")
   expect_length(preds, 2L)
-  non_na <- which(!is.na(preds[[1]][, 1]))
-  expect_true(length(non_na) > 0)
-  row_sums <- rowSums(preds[[1]][non_na, ])
+  expect_true(is.data.frame(preds[[1]]))
+  cat_cols <- grep("^cat_", names(preds[[1]]), value = TRUE)
+  expect_true(length(cat_cols) > 0)
+  row_sums <- rowSums(preds[[1]][, cat_cols, drop = FALSE])
   expect_true(all(abs(row_sums - 1) < 1e-6))
 })
 
@@ -751,11 +755,11 @@ test_that("integration: recursive forecast gaussian smoke test", {
   # Recursive forecast on training data with a conditioning window
   preds <- predict(fit, type = "response", forecast = "recursive",
                    conditioning_window = K + 5L)
-  expect_true(is.matrix(preds))
-  finite_rows <- !is.na(preds[, 1])
-  expect_true(all(is.finite(preds[finite_rows, ])))
+  expect_true(is.data.frame(preds))
+  pred_names <- paste0("predicted_", c("y_1", "y_2"))
+  for (pn in pred_names) expect_true(all(is.finite(preds[[pn]])))
 
   # Compare to one-step: should differ for later rows
   preds_one <- predict(fit, type = "response", forecast = "one-step")
-  expect_false(identical(preds, preds_one))
+  expect_false(identical(preds[pred_names], preds_one[pred_names]))
 })

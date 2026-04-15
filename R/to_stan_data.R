@@ -45,7 +45,8 @@ to_stan_data <- function(data,
                          K,
                          na_action = c("listwise"), # add automatic LW deletion
                          skip_lag = TRUE,           # skipping lag mechanism on/off
-                         priors = set_priors()) {
+                         priors = set_priors(),
+                         save_data = FALSE) {
 
   ## Use shared helper for all family-agnostic data wrangling
   family <- match.arg(family, choices = c("bernoulli", "ordinal", "gaussian"))
@@ -55,7 +56,7 @@ to_stan_data <- function(data,
     y_cols = y_cols, x_cols = x_cols, center_x = center_x,
     fe_interactions = fe_interactions, re_interactions = re_interactions,
     re_cols = re_cols, re_temporal = re_temporal, K = K,
-    na_action = na_action, skip_lag = skip_lag
+    na_action = na_action, skip_lag = skip_lag, save_data = save_data
   )
 
   ## Family-specific Y casting
@@ -132,9 +133,11 @@ to_stan_data <- function(data,
 
   ## prediction metadata (not passed to Stan)
   out$id_levels <- shared$id_levels
+  out$time_obs <- shared$time_obs
   out$x_center_means <- shared$x_center_means
   out$row_map <- shared$row_map
   out$n_rows_data <- shared$n_rows_data
+  out$data_used <- shared$data_used
   out$design_spec <- shared$design_spec
 
   if (family == "ordinal") {
@@ -172,7 +175,7 @@ to_stan_data <- function(data,
                                   center_x = FALSE, fe_interactions = NULL,
                                   re_interactions = NULL, re_cols = character(0),
                                   re_temporal = FALSE, K, na_action = "listwise",
-                                  skip_lag = TRUE) {
+                                  skip_lag = TRUE, save_data = FALSE) {
 
   K <- as.integer(K)
   stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
@@ -192,6 +195,9 @@ to_stan_data <- function(data,
   q <- length(x_cols)
   PK <- p * K
 
+  # Snapshot the cleaned data (post-sort, post-NA-deletion) if requested
+  data_used <- if (isTRUE(save_data)) data else NULL
+
   n_rows_data <- nrow(data)
   data$.orig_row <- seq_len(n_rows_data)
   df_split <- split(data, data[[id_col]])
@@ -203,6 +209,7 @@ to_stan_data <- function(data,
   X <- matrix(NA_real_, n_obs, q)
   B <- matrix(0, n_obs, PK)
   id_out <- integer(n_obs)
+  time_obs <- rep(NA_real_, n_obs)
   row_map <- integer(n_obs)
 
   row <- 0L
@@ -221,6 +228,7 @@ to_stan_data <- function(data,
     for (t in (K + 1L):Ti) {
       row <- row + 1L
       id_out[row] <- jj
+      time_obs[row] <- times[t]
       row_map[row] <- df_sub$.orig_row[t]
       Y[row, ] <- Ymat[t, ]
       X[row, ] <- Xmat[t, ]
@@ -249,6 +257,7 @@ to_stan_data <- function(data,
     X <- X[seq_len(row), , drop = FALSE]
     B <- B[seq_len(row), , drop = FALSE]
     id_out <- id_out[seq_len(row)]
+    time_obs <- time_obs[seq_len(row)]
     row_map <- row_map[seq_len(row)]
     n_obs <- row
   }
@@ -291,10 +300,11 @@ to_stan_data <- function(data,
   list(
     p = p, J = J, K = K, n_obs = n_obs,
     n_fe = ncol(X), n_re = ncol(Z),
-    id = id_out, Y = Y, X = X, B = B, Z = Z,
+    id = id_out, time_obs = time_obs, Y = Y, X = X, B = B, Z = Z,
     id_levels = as.character(ids_unique),
     x_center_means = x_center_means,
     row_map = row_map, n_rows_data = n_rows_data,
+    data_used = data_used,
     design_spec = list(
       id_col = id_col, time_col = time_col,
       y_cols = y_cols, x_cols = x_cols,

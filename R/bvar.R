@@ -42,11 +42,16 @@
 #'   iteration, which can help with difficult posteriors (e.g., funnels in
 #'   hierarchical logistic models) but increases computation. Default
 #'   \code{NULL} (CmdStan default of 10).
+#' @param save_data Logical. If \code{TRUE}, store the preprocessed (sorted,
+#'   listwise-deleted) estimation data in the \code{data_used} slot of the
+#'   returned object for reproducibility and downstream analyses.
+#'   Default \code{FALSE}.
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-#'   \code{priors}.
+#'   \code{priors}. If \code{save_data = TRUE}, also includes
+#'   \code{data_used} (the cleaned estimation data frame).
 #'
 #' @export
 bvar <- function(id_col,
@@ -70,7 +75,8 @@ bvar <- function(id_col,
                  cores = 1,
                  seed = NULL,
                  adapt_delta = NULL,
-                 max_treedepth = NULL
+                 max_treedepth = NULL,
+                 save_data = FALSE
 
   ) {
 
@@ -93,7 +99,8 @@ bvar <- function(id_col,
       K = K, na_action = na_action, skip_lag = skip_lag,
       data = data, family_vec = family_vec, priors = priors,
       iter = iter, warmup = warmup, chains = chains, cores = cores,
-      seed = seed, adapt_delta = adapt_delta, max_treedepth = max_treedepth
+      seed = seed, adapt_delta = adapt_delta, max_treedepth = max_treedepth,
+      save_data = save_data
     ))
   }
 
@@ -121,7 +128,8 @@ bvar <- function(id_col,
                             K = K,
                             na_action = na_action,
                             skip_lag = skip_lag,
-                            priors = priors
+                            priors = priors,
+                            save_data = save_data
                            )
 
   # Prior warnings (uses actual n_re from built design)
@@ -132,6 +140,8 @@ bvar <- function(id_col,
                                         "fe_interaction_colnames",
                                         "id_levels",
                                         "x_center_means",
+                                        "time_obs",
+                                        "data_used",
                                         "design_spec")],
                               seed = seed,
                               iter_warmup = warmup,
@@ -169,7 +179,8 @@ bvar <- function(id_col,
       family        = family_vec,
       standata      = standata,
       priors        = priors,
-      priors_needed = priors_needed
+      priors_needed = priors_needed,
+      data_used     = standata$data_used
     ),
     class = "bvarnet"
   )
@@ -226,7 +237,8 @@ bvar <- function(id_col,
                            re_cols, re_temporal, K, na_action, skip_lag,
                            data, family_vec, priors,
                            iter, warmup, chains, cores,
-                           seed, adapt_delta, max_treedepth) {
+                           seed, adapt_delta, max_treedepth,
+                           save_data = FALSE) {
   p <- length(y_cols)
 
   # --- Shared matrices (D3) ---
@@ -235,7 +247,7 @@ bvar <- function(id_col,
     y_cols = y_cols, x_cols = x_cols, center_x = center_x,
     fe_interactions = fe_interactions, re_interactions = re_interactions,
     re_cols = re_cols, re_temporal = re_temporal, K = K,
-    na_action = na_action, skip_lag = skip_lag
+    na_action = na_action, skip_lag = skip_lag, save_data = save_data
   )
 
   # Prior warnings (uses actual n_re from built design)
@@ -394,7 +406,8 @@ bvar <- function(id_col,
       family           = family_vec,
       standata         = standata_full,
       priors           = priors,
-      priors_needed    = priors_needed
+      priors_needed    = priors_needed,
+      data_used        = shared$data_used
     ),
     class = "bvarnet"
   )

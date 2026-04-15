@@ -148,6 +148,7 @@
   B  <- matrix(0, n_obs, PK)
   Y_obs <- matrix(NA_real_, n_obs, p)
   id_char  <- character(n_obs)
+  time_obs <- rep(NA_real_, n_obs)
   row_map  <- integer(n_obs)
 
   row <- 0L
@@ -165,6 +166,7 @@
     for (t in (K + 1L):Ti) {
       row <- row + 1L
       id_char[row] <- as.character(this_id)
+      time_obs[row] <- times[t]
       row_map[row] <- df_sub$.orig_row[t]
       X[row, ] <- Xmat[t, ]
       Y_obs[row, ] <- Ymat[t, ]
@@ -193,6 +195,7 @@
     B       <- B[seq_len(row), , drop = FALSE]
     Y_obs   <- Y_obs[seq_len(row), , drop = FALSE]
     id_char <- id_char[seq_len(row)]
+    time_obs <- time_obs[seq_len(row)]
     row_map <- row_map[seq_len(row)]
     n_obs   <- row
   }
@@ -230,6 +233,7 @@
     Z        = Z,
     Y_obs    = Y_obs,
     id_char  = id_char,
+    time_obs = time_obs,
     row_map  = row_map,
     n_rows   = nrow(newdata)
   )
@@ -746,11 +750,14 @@
 #'   \code{"sample"} (draw from RE distribution).
 #' @param ... Ignored.
 #'
-#' @return For \code{type = "link"} or \code{"response"}: a numeric matrix with
-#'   rows matching the original data (or \code{nrow(newdata)}), with \code{NA}
-#'   for the first K rows per subject. For \code{type = "probabilities"}: a list
-#'   of \code{p} matrices. When \code{method = "posterior-sample"}, the output
-#'   carries \code{attr(,"sd")} and \code{attr(,"ndraws")}.
+#' @return For \code{type = "link"} or \code{"response"}: a data.frame with
+#'   columns named after \code{id_col} and \code{time_col}, plus
+#'   \code{predicted_<y>} for each outcome variable. Only the modeled
+#'   observations are included (no NA padding).
+#'   For \code{type = "probabilities"}: a named list of data.frames
+#'   (one per outcome), each with id, time, and probability columns.
+#'   When \code{method = "posterior-sample"}, additional \code{_sd} columns
+#'   are included and \code{attr(,"ndraws")} records the number of draws used.
 #'
 #' @examples
 #' if (instantiate::stan_cmdstan_exists()) {
@@ -793,22 +800,23 @@ predict.bvarnet <- function(object,
   # --- build design matrices / use stored ---
   if (is.null(newdata)) {
     # In-sample: use stored matrices
-    X       <- sd$X
-    B       <- sd$B
-    Z       <- sd$Z
-    Y_obs   <- sd$Y
-    id_char <- as.character(sd$id_levels[sd$id])
-    row_map <- sd$row_map
-    n_rows  <- sd$n_rows_data
+    X        <- sd$X
+    B        <- sd$B
+    Z        <- sd$Z
+    Y_obs    <- sd$Y
+    id_char  <- as.character(sd$id_levels[sd$id])
+    time_vec <- sd$time_obs
+    orig_order <- NULL
   } else {
-    pred_sd <- .build_pred_standata(newdata, object)
-    X       <- pred_sd$X
-    B       <- pred_sd$B
-    Z       <- pred_sd$Z
-    Y_obs   <- pred_sd$Y_obs
-    id_char <- pred_sd$id_char
-    row_map <- pred_sd$row_map
-    n_rows  <- pred_sd$n_rows
+    pred_sd  <- .build_pred_standata(newdata, object)
+    X        <- pred_sd$X
+    B        <- pred_sd$B
+    Z        <- pred_sd$Z
+    Y_obs    <- pred_sd$Y_obs
+    id_char  <- pred_sd$id_char
+    time_vec <- pred_sd$time_obs
+    # row_map holds original newdata row indices; use to restore input order
+    orig_order <- order(pred_sd$row_map)
   }
 
   n_obs <- nrow(X)
@@ -941,23 +949,54 @@ predict.bvarnet <- function(object,
     }
   }
 
-  # --- expand to full newdata rows if needed ---
-  if (!is.null(row_map)) {
-    if (is.matrix(result)) {
-      sd_attr <- attr(result, "sd")
-      nd_attr <- attr(result, "ndraws")
-      result <- .expand_to_full_rows(result, row_map, n_rows)
-      if (!is.null(sd_attr))
-        attr(result, "sd") <- .expand_to_full_rows(sd_attr, row_map, n_rows)
-      if (!is.null(nd_attr)) attr(result, "ndraws") <- nd_attr
-    } else {
-      sd_attr <- attr(result, "sd")
-      nd_attr <- attr(result, "ndraws")
-      result <- .expand_to_full_rows(result, row_map, n_rows)
-      if (!is.null(sd_attr))
-        attr(result, "sd") <- .expand_to_full_rows(sd_attr, row_map, n_rows)
-      if (!is.null(nd_attr)) attr(result, "ndraws") <- nd_attr
+  # --- wrap into data.frame output ---
+  id_col_name   <- sd$design_spec$id_col
+  time_col_name <- sd$design_spec$time_col
+  y_names       <- colnames(sd$Y)
+
+  if (type %in% c("link", "response")) {
+    df <- data.frame(id_char, time_vec, stringsAsFactors = FALSE)
+    names(df) <- c(id_col_name, time_col_name)
+
+    pred_cols <- as.data.frame(result)
+    names(pred_cols) <- paste0("predicted_", y_names)
+    df <- cbind(df, pred_cols)
+
+    if (method == "posterior-sample") {
+      sd_mat <- attr(result, "sd")
+      sd_cols <- as.data.frame(sd_mat)
+      names(sd_cols) <- paste0("predicted_", y_names, "_sd")
+      df <- cbind(df, sd_cols)
+      attr(df, "ndraws") <- attr(result, "ndraws")
     }
+
+    # Restore original newdata row order when applicable
+    if (!is.null(orig_order)) df <- df[orig_order, , drop = FALSE]
+    rownames(df) <- NULL
+    result <- df
+  } else {
+    # type == "probabilities": list of data.frames, one per node
+    sd_attr <- attr(result, "sd")
+    nd_attr <- attr(result, "ndraws")
+    result_list <- vector("list", p)
+    for (j in seq_len(p)) {
+      dj <- data.frame(id_char, time_vec, stringsAsFactors = FALSE)
+      names(dj) <- c(id_col_name, time_col_name)
+      prob_df <- as.data.frame(result[[j]])
+      dj <- cbind(dj, prob_df)
+      if (method == "posterior-sample" && !is.null(sd_attr)) {
+        sd_j <- as.data.frame(sd_attr[[j]])
+        names(sd_j) <- paste0(names(prob_df), "_sd")
+        dj <- cbind(dj, sd_j)
+      }
+      if (!is.null(orig_order)) dj <- dj[orig_order, , drop = FALSE]
+      rownames(dj) <- NULL
+      result_list[[j]] <- dj
+    }
+    names(result_list) <- y_names
+    if (method == "posterior-sample" && !is.null(nd_attr))
+      attr(result_list, "ndraws") <- nd_attr
+    result <- result_list
   }
 
   result
