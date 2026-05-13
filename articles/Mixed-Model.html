@@ -35,9 +35,9 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
     <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
@@ -71,8 +71,106 @@
     
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
-  </main>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></code></pre></div>
+<div class="section level2">
+<h2 id="mixed-family-var">Mixed-family VAR<a class="anchor" aria-label="anchor" href="#mixed-family-var"></a>
+</h2>
+<p><code>bvarnet</code> allows combining different outcome families in a
+single VAR model by passing a named vector to the <code>family</code>
+argument. This is useful when the variables in the network are measured
+on different scales.</p>
+<p>In this example we fit a mixed-family VAR(1) with three types of
+outcome:</p>
+<ul>
+<li>
+<strong>ordinal</strong>: <code>anxious</code> and <code>calm</code>
+(5-point Likert items)</li>
+<li>
+<strong>binary</strong>: <code>happyornot</code> (binarised daily
+average)</li>
+<li>
+<strong>gaussian</strong>: <code>sleep_duration</code> (hours)</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="load-data">Load Data<a class="anchor" aria-label="anchor" href="#load-data"></a>
+</h2>
+<p>Again, we start with loading the data</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
+</h3>
+<p>For a mixed-family model we specify priors for all parameter types
+that can appear. Here that means <code>phi</code> (temporal),
+<code>beta</code> (intercept / fixed effects), <code>kappa</code>
+(ordinal thresholds), and <code>sigma</code> (gaussian residual SD).</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span></span>
+<span>  phi   <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span>,</span>
+<span>  beta  <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  kappa <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  sigma <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="estimation">Estimation<a class="anchor" aria-label="anchor" href="#estimation"></a>
+</h3>
+<p>We pass a named character vector to <code>family</code> so that each
+outcome gets the appropriate likelihood.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">#potential bug: we were able to run with binary that were saved as numeric (and have decimals)</span></span>
+<span><span class="va">fit_mixed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<span>  id_col   <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
+<span>  y_cols   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"stress_level"</span>, <span class="st">"happyornot"</span>, <span class="st">"sleep_duration"</span><span class="op">)</span>,</span>
+<span>  x_cols   <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_cols  <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_temporal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  K        <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  data     <span class="op">=</span> <span class="va">studentlife</span>,</span>
+<span>  family   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>stress_level <span class="op">=</span> <span class="st">"ordinal"</span>,</span>
+<span>               happyornot <span class="op">=</span> <span class="st">"bernoulli"</span>,</span>
+<span>               sleep_duration <span class="op">=</span> <span class="st">"gaussian"</span><span class="op">)</span>,</span>
+<span>  priors   <span class="op">=</span> <span class="va">priors</span>,</span>
+<span>  iter     <span class="op">=</span> <span class="fl">4000</span>,</span>
+<span>  warmup   <span class="op">=</span> <span class="fl">2000</span>,</span>
+<span>  chains   <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  cores    <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  seed     <span class="op">=</span> <span class="fl">1337</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error in `.to_stan_data_node()`:</span></span>
+<span><span class="co">#&gt; ! Ordinal Y must contain integer values. Found non-integer entries.</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="results">Results<a class="anchor" aria-label="anchor" href="#results"></a>
+</h3>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span></code></pre></div>
+<p>The temporal network can be extracted and inspected as usual:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error:</span></span>
+<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span>
+<span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
+<div class="float">
+<img src="figure/unnamed-chunk-7-1.png" alt="plot of chunk unnamed-chunk-7"><div class="figcaption">plot of chunk unnamed-chunk-7</div>
+</div>
+<p>As every other model, the mixed model can be extended by random
+effects (<code>Vignette(Random-Effects)</code>), hypothesis tests can be
+performed (<code>Vignette(Hypothesis-Testing)</code>) and predictions
+can be made based on the model (<code>Vignette(Prediction)</code>).</p>
+</div>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

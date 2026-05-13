@@ -26,9 +26,9 @@ two-level structure (per-cell + per-type joint) is unchanged.'></head><body>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
     <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -100,9 +100,14 @@ argument; <code>"temporal"</code> always covers all lags via joint tests.</p></d
 
 <dt id="arg-variable">variable<a class="anchor" aria-label="anchor" href="#arg-variable"></a></dt>
 <dd><p>Character vector or <code>NULL</code> (default).  One or more
-variable names (must match <code>colnames(standata$Y)</code>).  When set, only
-effects <strong>from</strong> these variables as lagged predictors are included.
-Cannot be combined with <code>type = "fe"</code> or <code>type = "intercepts"</code>.</p></dd>
+variable names — either network variables (from <code>colnames(standata$Y)</code>)
+or covariates (from <code>x_cols</code>, excluding <code>"Intercept"</code> and
+interaction columns).  When set, only effects involving these variables are
+included: network variables filter phi rows (effects <strong>from</strong> the variable
+as lagged predictor); covariate names filter fixed-effect rows and
+lag × covariate interaction rows (effects <strong>of</strong> that covariate).
+Both types can be combined in a single call.
+Cannot be combined with <code>type = "intercepts"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -116,16 +121,15 @@ Cannot be combined with <code>type = "fe"</code> or <code>type = "intercepts"</c
     <p><code>type = "lag_fe"</code> emits only grouped joint rows for lag × predictor
 interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
 these parameters are already included when <code>type = "fe"</code> is requested.</p>
-<p>When <code>variable</code> is non-NULL, only effects <strong>from</strong> the named
-variable(s) as lagged predictors are included.
-This filters phi rows and lag × covariate interaction rows so that only
-parameters where the lagged predictor matches the requested variable(s)
-are retained.  <code>variable</code> is combinable with <code>type</code> and
-<code>lag</code>; when <code>type = "all"</code> and <code>variable</code> is set, only
-temporal types (<code>"ar"</code>, <code>"cl"</code>, <code>"temporal"</code>) and
-<code>"lag_fe"</code> (if applicable) are auto-selected, since
-<code>"intercepts"</code> and <code>"fe"</code> are covariate effects unrelated to
-specific network variables.</p>
+<p>When <code>variable</code> is non-NULL, only effects involving the named
+variable(s) are included.  Network variables (from <code>Y</code>) filter phi rows
+and lag × covariate interaction rows by the lagged predictor.  Covariate
+names (from <code>X</code>) filter fixed-effect rows and interaction terms.  Both
+types can be combined.  <code>variable</code> is combinable with <code>type</code> and
+<code>lag</code>; when <code>type = "all"</code> and <code>variable</code> is set, the
+auto-selected types depend on what was requested (network variables →
+<code>"ar"</code>, <code>"cl"</code>, <code>"temporal"</code>; covariates → <code>"fe"</code>,
+<code>"lag_fe"</code>, <code>"temporal"</code> interaction rows).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

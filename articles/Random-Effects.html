@@ -35,9 +35,9 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
     <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
@@ -70,9 +70,191 @@
 
     
     
+<div class="section level2">
+<h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
+</h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
-  </main>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># subject to be removed again...</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a>
+</h2>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
+<p>There is some missing data in the dataset. The models default options
+handle this by themselves. For a further elaboration on this, you can
+read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
+</div>
+<div class="section level2">
+<h2 id="random-effects-arguments">Random-Effects Arguments<a class="anchor" aria-label="anchor" href="#random-effects-arguments"></a>
+</h2>
+<p>For the following tutorial we will extend the network containing the
+the variables <code>anxious</code>, <code>calm</code>,
+<code>conventional</code>, <code>critical</code>, and
+<code>dependable</code> from the <code>Vignette(bvarnet)</code>. To
+introduce a multilevel structure to our model, we can use the two
+arguments: <code>re_cols</code> and <code>re_temporal</code>.</p>
+<p>The <code>re_cols</code> argument accepts all variables that we
+specify in <code>x_cols</code> and <code>"Intercept"</code>, to
+introduce random effects on the baseline model. The
+<code>re_temporal</code> argument is a binary TRUE/FALSE indicator to
+introduce random effects on the temporal structure.</p>
+</div>
+<div class="section level2">
+<h2 id="model-estimation">Model Estimation<a class="anchor" aria-label="anchor" href="#model-estimation"></a>
+</h2>
+<p>To estimate a model with random effects, we can use the following
+code, where we specify the <code>re_cols = c("Intercept")</code> to
+introduce random effects on the baseline model, and
+<code>re_temporal = TRUE</code> to introduce random effects on the
+temporal structure:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
+<span>  y_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"anxious"</span>, <span class="st">"calm"</span>, <span class="st">"conventional"</span>, <span class="st">"critical"</span>, <span class="st">"dependable"</span><span class="op">)</span>,</span>
+<span>  x_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Intercept"</span><span class="op">)</span>,</span>
+<span>  re_temporal <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">studentlife</span>,</span>
+<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ordinal"</span><span class="op">)</span>,</span>
+<span>  iter <span class="op">=</span> <span class="fl">4000</span>,</span>
+<span>  warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  cores <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">1337</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
+</h2>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network fit</span></span>
+<span><span class="co">#&gt; ======================================== </span></span>
+<span><span class="co">#&gt; Family:      ordinal</span></span>
+<span><span class="co">#&gt; Outcomes (p): 5 </span></span>
+<span><span class="co">#&gt; Lags (K):     1 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   0 </span></span>
+<span><span class="co">#&gt; Random eff.:  6 </span></span>
+<span><span class="co">#&gt; Observations: 147 </span></span>
+<span><span class="co">#&gt; Rhat max:    1.002</span></span>
+<span><span class="co">#&gt; Divergences: 0</span></span>
+<span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2) (all defaults)</span></span>
+<span><span class="co">#&gt; Total time:  55.4 sec</span></span>
+<span><span class="co">#&gt; ========================================</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network Summary</span></span>
+<span><span class="co">#&gt; ================================================== </span></span>
+<span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=147</span></span>
+<span><span class="co">#&gt; Rhat max: 1.002 | Divergences: 0</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Autoregressive ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95   rhat  ess_bulk  ess_tail </span></span>
+<span><span class="co">#&gt;  lag1_anxious      anxious      -0.147 -0.145 -0.552 0.246 1.001 14144.797 10285.229</span></span>
+<span><span class="co">#&gt;  lag1_calm         calm         -0.164 -0.163 -0.510 0.179 1.000 11041.313 11301.026</span></span>
+<span><span class="co">#&gt;  lag1_conventional conventional  0.100  0.100 -0.328 0.523 1.000 14948.680 11292.342</span></span>
+<span><span class="co">#&gt;  lag1_critical     critical      0.021  0.043 -0.478 0.450 1.000  7627.365  9737.259</span></span>
+<span><span class="co">#&gt;  lag1_dependable   dependable    0.433  0.432  0.077 0.798 1.001 12392.768 11687.742</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95   rhat ess_bulk  ess_tail </span></span>
+<span><span class="co">#&gt;  lag1_calm         anxious      -0.055 -0.054 -0.416 0.300 1    11921.220 11122.966</span></span>
+<span><span class="co">#&gt;  lag1_conventional anxious      -0.151 -0.150 -0.570 0.265 1    12262.803 11589.538</span></span>
+<span><span class="co">#&gt;  lag1_critical     anxious       0.423  0.429 -0.001 0.833 1     9948.882  9928.583</span></span>
+<span><span class="co">#&gt;  lag1_dependable   anxious      -0.030 -0.029 -0.377 0.316 1    11970.579 10997.386</span></span>
+<span><span class="co">#&gt;  lag1_anxious      calm          0.009  0.006 -0.367 0.390 1    14091.704 11395.360</span></span>
+<span><span class="co">#&gt;  lag1_conventional calm          0.109  0.108 -0.277 0.498 1    13148.537 11706.244</span></span>
+<span><span class="co">#&gt;  lag1_critical     calm         -0.126 -0.125 -0.462 0.209 1    14628.540 11751.291</span></span>
+<span><span class="co">#&gt;  lag1_dependable   calm          0.173  0.172 -0.146 0.497 1    13038.248 12165.331</span></span>
+<span><span class="co">#&gt;  lag1_anxious      conventional -0.176 -0.174 -0.599 0.244 1    14940.034 12389.111</span></span>
+<span><span class="co">#&gt;  lag1_calm         conventional  0.002  0.004 -0.377 0.379 1    12654.900 10321.554</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Random Effect SD ---</span></span>
+<span><span class="co">#&gt;  predictor    outcome      mean  median q5    q95   rhat  ess_bulk ess_tail </span></span>
+<span><span class="co">#&gt;  anxious      Intercept    1.466 1.441  0.975 2.049 1.001 5771.638  8999.489</span></span>
+<span><span class="co">#&gt;  calm         Intercept    1.177 1.159  0.779 1.648 1.001 6702.738  9353.987</span></span>
+<span><span class="co">#&gt;  conventional Intercept    1.126 1.105  0.730 1.595 1.000 7457.640 10383.186</span></span>
+<span><span class="co">#&gt;  critical     Intercept    1.357 1.326  0.863 1.952 1.001 6335.629  9610.739</span></span>
+<span><span class="co">#&gt;  dependable   Intercept    0.959 0.937  0.577 1.415 1.000 5733.278  9413.112</span></span>
+<span><span class="co">#&gt;  anxious      lag1_anxious 0.201 0.167  0.015 0.506 1.000 7103.922  7853.716</span></span>
+<span><span class="co">#&gt;  calm         lag1_anxious 0.160 0.129  0.012 0.416 1.000 7432.433  7148.949</span></span>
+<span><span class="co">#&gt;  conventional lag1_anxious 0.251 0.210  0.019 0.616 1.000 6548.701  7779.383</span></span>
+<span><span class="co">#&gt;  critical     lag1_anxious 0.299 0.258  0.026 0.711 1.001 6084.399  7761.607</span></span>
+<span><span class="co">#&gt;  dependable   lag1_anxious 0.297 0.242  0.021 0.766 1.000 5121.613  6943.454</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 20 more rows. Use extract_random_effects(fit) for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Threshold ---</span></span>
+<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat ess_bulk  ess_tail </span></span>
+<span><span class="co">#&gt;  kappa(anxious, c1)      —       -2.101 -2.088 -2.896 -1.368 1     6916.424  9765.659</span></span>
+<span><span class="co">#&gt;  kappa(calm, c1)         —       -2.218 -2.181 -3.134 -1.428 1     7725.885 10490.939</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c1) —       -2.032 -1.994 -2.893 -1.289 1     9459.150 10938.668</span></span>
+<span><span class="co">#&gt;  kappa(critical, c1)     —       -0.265 -0.262 -0.894  0.354 1     6852.727  8909.718</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c1)   —       -2.502 -2.467 -3.532 -1.586 1     8625.055  8684.235</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.443  0.444 -0.191  1.071 1     7571.908 11243.181</span></span>
+<span><span class="co">#&gt;  kappa(calm, c2)         —       -1.501 -1.494 -2.162 -0.872 1    10199.428 10299.144</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c2) —       -1.255 -1.247 -1.859 -0.676 1    11832.378 12090.803</span></span>
+<span><span class="co">#&gt;  kappa(critical, c2)     —        1.164  1.154  0.548  1.816 1     7963.996 10452.848</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c2)   —       -1.242 -1.232 -1.848 -0.666 1    10986.504 11362.741</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ==================================================</span></span>
+<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="extracting-random-effects">Extracting Random Effects<a class="anchor" aria-label="anchor" href="#extracting-random-effects"></a>
+</h2>
+<p>Additionally to the <code>extract_*</code> that we already described
+in <code>Vignette(bvarnet)</code>, we can use the
+<code><a href="../reference/extract_random_effects.html">extract_random_effects()</a></code> function to only extract the
+random effects:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">re</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_random_effects.html">extract_random_effects</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">re</span></span>
+<span><span class="co">#&gt;                type    predictor           outcome      mean    median          q5       q95     rhat ess_bulk  ess_tail</span></span>
+<span><span class="co">#&gt; 1  Random Effect SD      anxious         Intercept 1.4658813 1.4405375 0.974907417 2.0494664 1.000511 5771.638  8999.489</span></span>
+<span><span class="co">#&gt; 2  Random Effect SD         calm         Intercept 1.1768493 1.1586542 0.779077144 1.6483890 1.000520 6702.738  9353.987</span></span>
+<span><span class="co">#&gt; 3  Random Effect SD conventional         Intercept 1.1263609 1.1046796 0.729782739 1.5952215 1.000058 7457.640 10383.186</span></span>
+<span><span class="co">#&gt; 4  Random Effect SD     critical         Intercept 1.3569946 1.3259133 0.863404840 1.9516987 1.000630 6335.629  9610.739</span></span>
+<span><span class="co">#&gt; 5  Random Effect SD   dependable         Intercept 0.9587509 0.9369383 0.577423646 1.4146214 1.000467 5733.278  9413.112</span></span>
+<span><span class="co">#&gt; 6  Random Effect SD      anxious      lag1_anxious 0.2014235 0.1670989 0.015447781 0.5063193 1.000359 7103.922  7853.716</span></span>
+<span><span class="co">#&gt; 7  Random Effect SD         calm      lag1_anxious 0.1599548 0.1290305 0.012097991 0.4159594 1.000280 7432.433  7148.949</span></span>
+<span><span class="co">#&gt; 8  Random Effect SD conventional      lag1_anxious 0.2510272 0.2100882 0.019368192 0.6161868 1.000499 6548.701  7779.383</span></span>
+<span><span class="co">#&gt; 9  Random Effect SD     critical      lag1_anxious 0.2985005 0.2584240 0.026466864 0.7112709 1.000631 6084.399  7761.607</span></span>
+<span><span class="co">#&gt; 10 Random Effect SD   dependable      lag1_anxious 0.2966100 0.2420921 0.020789221 0.7656729 1.000356 5121.613  6943.454</span></span>
+<span><span class="co">#&gt; 11 Random Effect SD      anxious         lag1_calm 0.1400964 0.1116320 0.010623852 0.3702453 1.000092 8388.615  8389.123</span></span>
+<span><span class="co">#&gt; 12 Random Effect SD         calm         lag1_calm 0.1717285 0.1456824 0.014364122 0.4220376 1.000588 5932.985  7207.692</span></span>
+<span><span class="co">#&gt; 13 Random Effect SD conventional         lag1_calm 0.1616909 0.1303977 0.012481142 0.4176642 1.000347 6438.309  7672.721</span></span>
+<span><span class="co">#&gt; 14 Random Effect SD     critical         lag1_calm 0.1378683 0.1082645 0.009859052 0.3682334 1.000254 8913.645  8443.741</span></span>
+<span><span class="co">#&gt; 15 Random Effect SD   dependable         lag1_calm 0.1977470 0.1628938 0.015441451 0.5053782 1.001017 5239.681  7090.355</span></span>
+<span><span class="co">#&gt; 16 Random Effect SD      anxious lag1_conventional 0.1962377 0.1649739 0.015909338 0.4803717 1.000489 6342.986  7313.237</span></span>
+<span><span class="co">#&gt; 17 Random Effect SD         calm lag1_conventional 0.1351080 0.1074978 0.008974315 0.3566013 1.000528 7260.226  7255.846</span></span>
+<span><span class="co">#&gt; 18 Random Effect SD conventional lag1_conventional 0.1897339 0.1571840 0.014196576 0.4806879 1.000518 6041.512  7858.500</span></span>
+<span><span class="co">#&gt; 19 Random Effect SD     critical lag1_conventional 0.2396792 0.2018236 0.017498089 0.5958192 1.000120 6233.629  8242.834</span></span>
+<span><span class="co">#&gt; 20 Random Effect SD   dependable lag1_conventional 0.2494178 0.2068788 0.018816474 0.6267372 1.000221 4653.808  6644.290</span></span>
+<span><span class="co">#&gt; 21 Random Effect SD      anxious     lag1_critical 0.3101418 0.2717926 0.025833968 0.7256860 1.000891 5482.684  7204.193</span></span>
+<span><span class="co">#&gt; 22 Random Effect SD         calm     lag1_critical 0.1664858 0.1323557 0.011989979 0.4384806 1.000182 8193.372  8237.181</span></span>
+<span><span class="co">#&gt; 23 Random Effect SD conventional     lag1_critical 0.2696374 0.2321138 0.023865145 0.6409327 1.000172 6659.391  7381.395</span></span>
+<span><span class="co">#&gt; 24 Random Effect SD     critical     lag1_critical 0.4338374 0.4035013 0.050755481 0.9331531 1.000605 4276.709  5323.753</span></span>
+<span><span class="co">#&gt; 25 Random Effect SD   dependable     lag1_critical 0.2796911 0.2270858 0.021128453 0.7212001 1.000758 6098.635  8119.354</span></span>
+<span><span class="co">#&gt; 26 Random Effect SD      anxious   lag1_dependable 0.1942395 0.1655554 0.016816816 0.4720359 1.000271 6012.751  7057.398</span></span>
+<span><span class="co">#&gt; 27 Random Effect SD         calm   lag1_dependable 0.1319020 0.1083331 0.009981044 0.3357622 1.000104 6782.349  6758.308</span></span>
+<span><span class="co">#&gt; 28 Random Effect SD conventional   lag1_dependable 0.1473785 0.1175822 0.010304257 0.3863459 1.000707 7119.038  6843.407</span></span>
+<span><span class="co">#&gt; 29 Random Effect SD     critical   lag1_dependable 0.1564366 0.1250607 0.011192005 0.4120482 1.000184 7757.491  8173.588</span></span>
+<span><span class="co">#&gt; 30 Random Effect SD   dependable   lag1_dependable 0.2361776 0.1949235 0.018555265 0.5932606 1.000534 4333.254  6605.437</span></span></code></pre></div>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

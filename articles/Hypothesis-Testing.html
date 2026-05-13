@@ -35,9 +35,9 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
     <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
@@ -70,9 +70,203 @@
 
     
     
+<div class="section level2">
+<h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
+</h2>
+<p>First, lets load the package:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
-  </main>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># subject to be removed again...</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; Attaching package: 'dplyr'</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     filter, lag</span></span>
+<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt;     intersect, setdiff, setequal, union</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a>
+</h2>
+<p>Now, we can load the example data:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
+<p>There is some missing data in the dataset. The models default options
+handle this by themselves. For a further elaboration on this, you can
+read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">df_mis</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">na.omit</a></span><span class="op">(</span><span class="va">df</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">day</span>, <span class="va">anxious</span>, <span class="va">calm</span>, <span class="va">conventional</span>, <span class="va">critical</span>, <span class="va">dependable</span>, <span class="va">sleep_hour</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error in `UseMethod()`:</span></span>
+<span><span class="co">#&gt; ! no applicable method for 'select' applied to an object of class "function"</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="model-estimation">Model Estimation<a class="anchor" aria-label="anchor" href="#model-estimation"></a>
+</h2>
+<p>This time, well simply use the default priors, for the ordinal model
+they are</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
+<span>  y_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"anxious"</span>, <span class="st">"calm"</span>, <span class="st">"conventional"</span>, <span class="st">"critical"</span>, <span class="st">"dependable"</span><span class="op">)</span>,</span>
+<span>  x_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sleep_hour"</span><span class="op">)</span>,</span>
+<span>  re_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  re_temporal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">studentlife</span>,</span>
+<span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ordinal"</span><span class="op">)</span>,</span>
+<span>  priors <span class="op">=</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  iter <span class="op">=</span> <span class="fl">4000</span>,</span>
+<span>  warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  cores <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  seed <span class="op">=</span> <span class="fl">1337</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
+</h2>
+<p>Again, lets get the model overview and summary:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network fit</span></span>
+<span><span class="co">#&gt; ======================================== </span></span>
+<span><span class="co">#&gt; Family:      ordinal</span></span>
+<span><span class="co">#&gt; Outcomes (p): 5 </span></span>
+<span><span class="co">#&gt; Lags (K):     1 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   1 </span></span>
+<span><span class="co">#&gt; Observations: 111 </span></span>
+<span><span class="co">#&gt; Rhat max:    1.001</span></span>
+<span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
+<span><span class="co">#&gt; Total time:  11.6 sec</span></span>
+<span><span class="co">#&gt; ========================================</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network Summary</span></span>
+<span><span class="co">#&gt; ================================================== </span></span>
+<span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=111</span></span>
+<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 2</span></span>
+<span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Fixed Effect ---</span></span>
+<span><span class="co">#&gt;  predictor  outcome      mean   median q5     q95   rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  sleep_hour anxious      -0.005 -0.005 -0.060 0.049 1    15771.43 12695.05</span></span>
+<span><span class="co">#&gt;  sleep_hour calm         -0.032 -0.032 -0.088 0.022 1    17766.75 12604.63</span></span>
+<span><span class="co">#&gt;  sleep_hour conventional -0.016 -0.015 -0.076 0.042 1    17485.60 12642.45</span></span>
+<span><span class="co">#&gt;  sleep_hour critical     -0.008 -0.008 -0.056 0.038 1    14049.46 12084.18</span></span>
+<span><span class="co">#&gt;  sleep_hour dependable   -0.003 -0.003 -0.060 0.053 1    18991.13 12742.34</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Autoregressive ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat  ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_anxious      anxious      0.069 0.070  -0.260 0.395 1.000 16772.27 12193.66</span></span>
+<span><span class="co">#&gt;  lag1_calm         calm         0.165 0.166  -0.145 0.478 1.000 12365.66 11825.79</span></span>
+<span><span class="co">#&gt;  lag1_conventional conventional 0.391 0.390   0.036 0.750 1.001 15129.26 12680.89</span></span>
+<span><span class="co">#&gt;  lag1_critical     critical     0.238 0.235  -0.020 0.503 1.000 18369.60 11582.80</span></span>
+<span><span class="co">#&gt;  lag1_dependable   dependable   0.427 0.425   0.129 0.733 1.000 16335.00 11476.86</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95   rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_calm         anxious      -0.249 -0.247 -0.574 0.070 1    12852.77 11468.22</span></span>
+<span><span class="co">#&gt;  lag1_conventional anxious      -0.028 -0.027 -0.370 0.314 1    13704.43 12188.62</span></span>
+<span><span class="co">#&gt;  lag1_critical     anxious       0.296  0.295  0.017 0.582 1    19347.83 13118.49</span></span>
+<span><span class="co">#&gt;  lag1_dependable   anxious       0.085  0.084 -0.194 0.365 1    16984.34 12402.25</span></span>
+<span><span class="co">#&gt;  lag1_anxious      calm         -0.028 -0.030 -0.343 0.290 1    16803.47 12540.98</span></span>
+<span><span class="co">#&gt;  lag1_conventional calm         -0.199 -0.200 -0.542 0.146 1    13545.69 11926.93</span></span>
+<span><span class="co">#&gt;  lag1_critical     calm         -0.173 -0.172 -0.453 0.099 1    19113.18 11669.83</span></span>
+<span><span class="co">#&gt;  lag1_dependable   calm          0.167  0.164 -0.098 0.438 1    16138.68 11770.26</span></span>
+<span><span class="co">#&gt;  lag1_anxious      conventional -0.313 -0.313 -0.663 0.032 1    16432.09 12229.12</span></span>
+<span><span class="co">#&gt;  lag1_calm         conventional -0.063 -0.062 -0.396 0.266 1    13903.03 12044.49</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Threshold ---</span></span>
+<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c1)      —       -1.392 -1.384 -2.106 -0.710 1.000 10840.42 10882.22</span></span>
+<span><span class="co">#&gt;  kappa(calm, c1)         —       -1.787 -1.745 -2.665 -1.035 1.000 13231.26 11291.59</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c1) —       -1.553 -1.527 -2.347 -0.847 1.000 14172.12 10875.45</span></span>
+<span><span class="co">#&gt;  kappa(critical, c1)     —        0.026  0.035 -0.497  0.524 1.001 12451.60 11045.22</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c1)   —       -2.043 -1.991 -3.108 -1.139 1.001 11713.93 10367.08</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.405  0.406 -0.163  0.966 1.000 16633.22 13007.72</span></span>
+<span><span class="co">#&gt;  kappa(calm, c2)         —       -1.215 -1.204 -1.855 -0.619 1.000 17831.13 12444.68</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c2) —       -1.079 -1.075 -1.709 -0.463 1.000 16960.92 12615.81</span></span>
+<span><span class="co">#&gt;  kappa(critical, c2)     —        0.423  0.423 -0.034  0.889 1.000 16313.25 13806.83</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c2)   —       -1.082 -1.076 -1.759 -0.435 1.000 16347.72 12825.94</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ==================================================</span></span>
+<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="hypothesis-testing-with-bayes-factors">Hypothesis Testing with Bayes Factors<a class="anchor" aria-label="anchor" href="#hypothesis-testing-with-bayes-factors"></a>
+</h2>
+<p>To estimate Bayes factors for a single parameter, or a set of
+parameters, we can use the <code><a href="../reference/bf_table.html">bf_table()</a></code> function. Bayes
+factors are computed via the <strong>Savage–Dickey density
+ratio</strong> (SDDR; Wagenmakers et al., 2010), which, for a point null
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo>:</mo><mi>θ</mi><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">H_0 : \theta = \theta_0</annotation></semantics></math>
+nested in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>1</mn></msub><mo>:</mo><mi>θ</mi><mo>≠</mo><msub><mi>θ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">H_1 : \theta \neq \theta_0</annotation></semantics></math>
+with shared nuisance parameters, gives</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">B</mi><mi mathvariant="normal">F</mi></mrow><mn>01</mn></msub><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mfrac><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo>∣</mo><mi>y</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mi>p</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>θ</mi><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
+\mathrm{BF}_{01} \;=\; \frac{p(\theta = \theta_0 \mid y)}{p(\theta = \theta_0)},
+</annotation></semantics></math></p>
+<p>i.e. the ratio of the posterior to the prior density evaluated at the
+null value. <code><a href="../reference/bf_table.html">bf_table()</a></code> reports
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mi mathvariant="normal">B</mi><mi mathvariant="normal">F</mi></mrow><mn>10</mn></msub><mo>=</mo><mn>1</mn><mi>/</mi><msub><mrow><mi mathvariant="normal">B</mi><mi mathvariant="normal">F</mi></mrow><mn>01</mn></msub></mrow><annotation encoding="application/x-tex">\mathrm{BF}_{10} = 1 / \mathrm{BF}_{01}</annotation></semantics></math>
+by approximating the posterior density at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>θ</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\theta_0 = 0</annotation></semantics></math>
+from the MCMC draws.</p>
+<p>To perform a hypothesis test on effects involving a specific
+variable, we can call the <code><a href="../reference/bf_table.html">bf_table()</a></code> function, specifying
+which variable we want to look at using the <code>variable</code>
+argument. Lets investigate if the hours of sleep the individual got in
+the previous night (<code>sleep_hour</code>) has an influence on the
+network structure:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bf_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span>, variable <span class="op">=</span> <span class="st">"sleep_hour"</span><span class="op">)</span></span>
+<span><span class="va">bf_tab</span></span>
+<span><span class="co">#&gt;                   type  predictor      outcome         BF01         BF10  log_BF01 post_density prior_density    method</span></span>
+<span><span class="co">#&gt; 1         Fixed Effect sleep_hour      anxious 2.953163e+01 3.386200e-02  3.385462 1.178141e+01    0.39894228 logspline</span></span>
+<span><span class="co">#&gt; 2         Fixed Effect sleep_hour         calm 1.927787e+01 5.187295e-02  2.958958 7.690758e+00    0.39894228 logspline</span></span>
+<span><span class="co">#&gt; 3         Fixed Effect sleep_hour conventional 2.659601e+01 3.759962e-02  3.280761 1.061027e+01    0.39894228 logspline</span></span>
+<span><span class="co">#&gt; 4         Fixed Effect sleep_hour     critical 3.388268e+01 2.951361e-02  3.522904 1.351723e+01    0.39894228 logspline</span></span>
+<span><span class="co">#&gt; 5         Fixed Effect sleep_hour   dependable 2.938576e+01 3.403009e-02  3.380510 1.172322e+01    0.39894228 logspline</span></span>
+<span><span class="co">#&gt; 6 Fixed Effect (joint) sleep_hour            — 1.367269e+07 7.313847e-08 16.430911 1.381670e+05    0.01010533       mvn</span></span></code></pre></div>
+<p>The output now shows 6 rows. The five “Fixed Effect” rows show if the
+the covariate <code>sleep_hour</code> has an influence on each node
+separately. The “Fixed Effect (join)” row displays a single Bayes factor
+that in this case tests the hypothesis</p>
+<p>H: Is there a difference in the baseline of the network structure
+that is explained by the variable <code>sleep_hour</code></p>
+<p>As we can see, the <code>BF_{10} = bf_tab[]</code>. Therefore we can
+conlude that the variable <code>sleep_hour</code> does not influence the
+baseline level of the network.</p>
+</div>
+<div class="section level2">
+<h2 id="joint-bayes-factors">Joint Bayes Factors<a class="anchor" aria-label="anchor" href="#joint-bayes-factors"></a>
+</h2>
+<p>For more elaborate analyses, or to report more results at once, we
+can get a table with all single and joint Bayes factors. For this we can
+call the <code>bf_table(fit)</code> function</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bf_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<p>The table can be used to easily get a set of Bayes factors. If we
+have hypotheses concerning the temporal structure, we can call the
+<code>bf_table(fit)</code> function using the argument
+<code>type = "temporal"</code>. The following arguments are available
+for the <code>type</code> argument: “”</p>
+<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow><mo>=</mo></msubsup><msup><mi>𝐌</mi><mi>T</mi></msup><msub><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mathbf{x}_{it}^ = \mathbf{M}^T \mathbf{x}_{it}</annotation></semantics></math></p>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

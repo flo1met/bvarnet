@@ -2,18 +2,19 @@
 
 ## Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN
 
-The ‘bvarnet’ package allowes user to estimate bayesian multilevel
-Vector Auto Regressive (VAR) models for binary, ordinal and continuous
-outcome variables. Missing data is handled through listwise deletion and
-a skip-lag mechanism, which skips the estimation of the temporal
-structure when there is a gap between two timepoints. Further, we
-provide functionality to perform hypothesis test and perform
-predictions.
+The [bvarnet](https://flo1met.github.io/bvarnet/) package allows user to
+estimate Bayesian multilevel Vector Auto Regressive (VAR) models for
+binary, ordinal and continuous outcome variables. Missing data is
+handled through listwise deletion and a skip-lag mechanism, which skips
+the estimation of the temporal structure when there is a gap between two
+timepoints. Further, we provide functionality to conduct hypothesis test
+and perform predictions.
 
 ## Installation
 
-You can install the development version of bvarnet from
-[GitHub](https://github.com/) with:
+You can install the development version of
+[bvarnet](https://flo1met.github.io/bvarnet/) from
+[GitHub](https://github.com/flo1met/bvarnet) with:
 
 ``` r
 if(!requireNamespace("remotes")) {
@@ -22,11 +23,25 @@ if(!requireNamespace("remotes")) {
 remotes::install_github("flo1met/bvarnet")
 ```
 
-## Example
+## Getting Started
 
-This is a basic example which shows you how to solve a common problem:
+The best place to start learning how to use this package to estimate
+Bayesian (multilevel) Vector Autoregression is the \[Getting Started
+Vignette\]{<https://flo1met.github.io/bvarnet/articles/bvarnet.html>}.
+This vignette covers the basic model syntax, how to specify priors and
+how to extract the relevant parameters.
 
-``` r
-library(bvarnet)
-## basic example code
-```
+## Feature Requests and Contributions
+
+- Cross-sectional Networks
+- Correlated Random Effects
+- Hierarchical Prior Distributions
+- Performance Optimisation
+
+## Roadmap
+
+[bvarnet](https://flo1met.github.io/bvarnet/) is actively being
+developed. While the core functionality is stable, we have several
+exciting features planned for future releases. For a granular look at
+our progress, known bugs, and feature requests, please visit our [Issue
+Tracker](https://github.com/username/packagename/issues).

@@ -2,18 +2,19 @@
 
 ## Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN
 
-The ‘bvarnet’ package allowes user to estimate bayesian multilevel
-Vector Auto Regressive (VAR) models for binary, ordinal and continuous
-outcome variables. Missing data is handled through listwise deletion and
-a skip-lag mechanism, which skips the estimation of the temporal
-structure when there is a gap between two timepoints. Further, we
-provide functionality to perform hypothesis test and perform
-predictions.
+The [bvarnet](https://flo1met.github.io/bvarnet/) package allows user to
+estimate Bayesian multilevel Vector Auto Regressive (VAR) models for
+binary, ordinal and continuous outcome variables. Missing data is
+handled through listwise deletion and a skip-lag mechanism, which skips
+the estimation of the temporal structure when there is a gap between two
+timepoints. Further, we provide functionality to conduct hypothesis test
+and perform predictions.
 
 ## Installation
 
-You can install the development version of bvarnet from
-[GitHub](https://github.com/) with:
+You can install the development version of
+[bvarnet](https://flo1met.github.io/bvarnet/) from
+[GitHub](https://github.com/flo1met/bvarnet) with:
 
 ``` r
 if(!requireNamespace("remotes")) {
@@ -22,14 +23,28 @@ if(!requireNamespace("remotes")) {
 remotes::install_github("flo1met/bvarnet")
 ```
 
-## Example
+## Getting Started
 
-This is a basic example which shows you how to solve a common problem:
+The best place to start learning how to use this package to estimate
+Bayesian (multilevel) Vector Autoregression is the \[Getting Started
+Vignette\]{<https://flo1met.github.io/bvarnet/articles/bvarnet.html>}.
+This vignette covers the basic model syntax, how to specify priors and
+how to extract the relevant parameters.
 
-``` r
-library(bvarnet)
-## basic example code
-```
+## Feature Requests and Contributions
+
+- Cross-sectional Networks
+- Correlated Random Effects
+- Hierarchical Prior Distributions
+- Performance Optimisation
+
+## Roadmap
+
+[bvarnet](https://flo1met.github.io/bvarnet/) is actively being
+developed. While the core functionality is stable, we have several
+exciting features planned for future releases. For a granular look at
+our progress, known bugs, and feature requests, please visit our [Issue
+Tracker](https://github.com/username/packagename/issues).
 
 # Package index
 
@@ -39,12 +54,18 @@ Estimate Bayesian multilevel VAR models
 
 - [`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md) : Fit
   a Bayesian multilevel VAR network model
+
 - [`get_default_priors()`](https://flo1met.github.io/bvarnet/reference/get_default_priors.md)
   : Get the default prior specification for a given model family
+
 - [`prior()`](https://flo1met.github.io/bvarnet/reference/prior.md) :
   Construct a single prior distribution
+
 - [`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
-  : Build a complete prior specification for bvarnet
+  :
+
+  Build a prior specification object for
+  [`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md)
 
 ## Parameter Extraction
 
@@ -75,10 +96,6 @@ Simulate data and generate predictions
 
 - [`sim_var()`](https://flo1met.github.io/bvarnet/reference/sim_var.md)
   : Simulate data from a multilevel VAR model
-- [`predict(`*`<bvarnet>`*`)`](https://flo1met.github.io/bvarnet/reference/predict.bvarnet.md)
-  : Predict from a fitted bvarnet model
-- [`simulate(`*`<bvarnet>`*`)`](https://flo1met.github.io/bvarnet/reference/simulate.bvarnet.md)
-  : Simulate new trajectories from a fitted bvarnet model
 
 ## Summaries
 
@@ -99,13 +116,20 @@ Print and summarise model objects
 - [`compare_to_truth()`](https://flo1met.github.io/bvarnet/reference/compare_to_truth.md)
   : Compare fitted model parameters to simulation truth
 
+## Data
+
+Example datasets
+
+- [`studentlife`](https://flo1met.github.io/bvarnet/reference/studentlife.md)
+  : StudentLife Data
+
 # Articles
 
 ### All vignettes
 
 - [bvarnet](https://flo1met.github.io/bvarnet/articles/bvarnet.md):
 - [Hypothesis-Testing](https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.md):
+- [MCMC-Diagnostics](https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.md):
 - [Missing-Data](https://flo1met.github.io/bvarnet/articles/Missing-Data.md):
 - [Mixed-Model](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md):
-- [Prediction](https://flo1met.github.io/bvarnet/articles/Prediction.md):
 - [Random-Effects](https://flo1met.github.io/bvarnet/articles/Random-Effects.md):

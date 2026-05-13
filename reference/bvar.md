@@ -1,8 +1,7 @@
 # Fit a Bayesian multilevel VAR network model
 
-Compiles and samples the appropriate Stan model for the chosen family,
-extracts all results into plain base-R objects, and returns a `bvarnet`
-object.
+The `bvar` function estimates the posterior distribution of the
+specified Bayesian (Multilevel) Vector Autoregression.
 
 ## Usage
 
@@ -11,7 +10,7 @@ bvar(
   id_col,
   time_col,
   y_cols,
-  x_cols,
+  x_cols = NULL,
   center_x = FALSE,
   fe_interactions = NULL,
   re_interactions = NULL,
@@ -29,7 +28,8 @@ bvar(
   cores = 1,
   seed = NULL,
   adapt_delta = NULL,
-  max_treedepth = NULL
+  max_treedepth = NULL,
+  save_data = FALSE
 )
 ```
 
@@ -49,7 +49,7 @@ bvar(
 
 - x_cols:
 
-  Character vector. Names of the covariate columns.
+  Character vector or NULL. Names of the covariate columns.
 
 - center_x:
 
@@ -68,7 +68,8 @@ bvar(
 
 - re_cols:
 
-  Character vector. Columns from X to include as random slopes.
+  Character vector. Columns from X and/or "Intercept" to include as
+  random slopes.
 
 - re_temporal:
 
@@ -141,8 +142,15 @@ bvar(
   models) but increases computation. Default `NULL` (CmdStan default of
   10).
 
+- save_data:
+
+  Logical. If `TRUE`, store the preprocessed (sorted, listwise-deleted)
+  estimation data in the `data_used` slot of the returned object for
+  reproducibility and downstream analyses. Default `FALSE`.
+
 ## Value
 
 A `bvarnet` object (a named list) with slots: `draws`, `convergence`,
 `diagnostics`, `timing`, `metadata`, `return_codes`, `family`,
-`standata`, `priors`.
+`standata`, `priors`. If `save_data = TRUE`, also includes `data_used`
+(the cleaned estimation data frame).

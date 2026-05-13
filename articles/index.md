@@ -4,7 +4,7 @@
 
 - [bvarnet](https://flo1met.github.io/bvarnet/articles/bvarnet.md):
 - [Hypothesis-Testing](https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.md):
+- [MCMC-Diagnostics](https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.md):
 - [Missing-Data](https://flo1met.github.io/bvarnet/articles/Missing-Data.md):
 - [Mixed-Model](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md):
-- [Prediction](https://flo1met.github.io/bvarnet/articles/Prediction.md):
 - [Random-Effects](https://flo1met.github.io/bvarnet/articles/Random-Effects.md):

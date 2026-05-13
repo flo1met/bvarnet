@@ -1,5 +1,7 @@
 # bvarnet
 
+## Introduction
+
 This package implements methods to analyse (multilevel) Vector
 Autoregression commonly used for the analysis of intensive longitudinal
 datasets like EMA data.
@@ -11,30 +13,24 @@ vignettes
 - [`vignette("Hypothesis-Testing")`](https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.md)
 - [`vignette("Mixed-Model")`](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md)
 - [`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md)
-- `vignette("Random-Effect")`
-- [`vignette("Prediction")`](https://flo1met.github.io/bvarnet/articles/Prediction.md)
+- [`vignette("Random-Effects")`](https://flo1met.github.io/bvarnet/articles/Random-Effects.md)
+- [`vignette("MCMC-Diagnostics")`](https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.md)
 
-First, we have to load the package:
+## Setup
+
+First, lets load the package:
 
 ``` r
 library(bvarnet)
-
-# subject to be removed again...
-library(openesm)
-#> Welcome to openesm!
-#> 
-#> Find documentation and usage examples at https://openesmdata.org
-#> 
-#> Get started:
-#>   * list_datasets() to browse available datasets
-#>   * get_dataset('dataset_id') to download a specific dataset
-#>   * ?get_dataset or visit the website for detailed guides
-#> 
-#> Attaching package: 'openesm'
-#> The following object is masked from 'package:utils':
-#> 
-#>     cite
 library(qgraph)
+```
+
+## Data
+
+Now, we can load the example data:
+
+``` r
+data(studentlife)
 ```
 
 There is some missing data in the dataset. The models default options
@@ -42,30 +38,52 @@ handle this by themselves. For a further elaboration on this, you can
 read
 [`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md).
 
+Currently, `bvarnet` allowes for the following outcome variables:
+
+- binary (`family = "bernoulli")`
+- ordinal (`family = "ordinal")` (adjacent category model)
+- continuous (`family = "gaussian")`
+
+For the following tutorial we will investigate the temporal network for
+the variables `anxious`, `calm`, `conventional`, `critical`, and
+`dependable`. All these variables are on a ordinal scale. Therefore we
+will use the adjacent category ordinal model to estimate this model.
+
+## Prior Specification
+
+First we need to specify the prior distributions that we want to use on
+the parameters. For this we can use the
+[`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
+function. As we are running a ordinal model, without covariates, we have
+to specify priors on the temporal structure (denoted by the $\Phi$
+matrix) and on the category threshold parameters ($\kappa$) which are
+specific to the adjacent category ordinal model.
+
 ``` r
-data <- openesm::get_dataset("0004")
-#> ℹ Using cached dataset index (less than 24 hours old).
-#> ✔ Loading dataset "0004" version "1.0.0"
-#> 
-#> ── openESM Dataset: "0004" ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-#> • Dataset version: "1.0.0"
-#> • Metadata version: "1.0.1"
-#> • Authors: Wang et al. (2014)
-#> • Paper DOI: https://doi.org/10.1371/journal.pone.0266516
-#> • License: CC BY-NC 4.0
-#> • Data: A tibble with 49 participants and 64 maximum time points per participant
-#> ℹ Use `cite(dataset)` for citation information.
-#> ℹ Use `notes(dataset)` for additional information about the dataset.
-#> ℹ Please ensure you follow the license terms for this dataset.
+priors <- set_priors(phi = prior(family = "normal",
+                                 loc = 0,
+                                 scale = 0.5),
+                     kappa = prior(family = "normal",
+                                   loc = 0,
+                                   scale = 2),
+                     sigma = prior(family = "normal",
+                                   loc = 0,
+                                   scale = 3))
 
-df <- data$data
-
-df$anxious <- floor(df$anxious)
-df$calm <- floor(df$calm)
-df$conventional <- floor(df$conventional)
-df$critical <- floor(df$critical)
-df$dependable <- floor(df$dependable)
+priors
+#> bvarnet prior specification:
+#>   phi    ~ Normal(0, 0.5)
+#>   kappa  ~ Normal(0, 2)
+#>   sigma  ~ Half-Normal(0, 3)
 ```
+
+Currently, three prior families are implemented: normal, student-t and
+chauchy. For standart deviations and random effects all of these priors
+are automatically scaled to half-priors. For each distribution, the
+location and scale parameters can be specified. For the student-t
+distribution, the degrees of freedom can also be specified.
+
+## Model Estimation
 
 ``` r
 fit <- bvar(
@@ -76,18 +94,22 @@ fit <- bvar(
   re_cols = NULL,
   re_temporal = FALSE,
   K = 1,
-  data = df,
+  data = studentlife,
   family = c("ordinal"),
-  priors = set_priors(),
+  priors = priors,
   iter = 4000,
   warmup = 1000,
   chains = 4,
   cores = 4,
   seed = 1337
 )
-#> Error:
-#> ! Stan model file "" not found.
+#> Warning: Prior(s) set but not used by this model: sigma. These will be ignored.
 ```
+
+If you want to learn how to extend this model to a multilevel model,
+check out the `Vignette(Random-Effects)`.
+
+## Stan Warnings
 
 Most models will give a warning when initiating sampling, that looks
 like this:
@@ -97,8 +119,16 @@ Chain 1 Informational Message: The current Metropolis proposal is about to be re
 Chain 1 Exception: categorical_logit_glm_lpmf: Intercept[3] is -inf, but must be finite! (in '/var/folders/n5/38kfmkv55hq8bnd03344d2b40000gn/T/RtmpkjgDq1/model-a60f79e9a37c.stan', line 153, column 8 to column 94)
 Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
 Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
-Chain 1 
+Chain 1
 ```
+
+This warning is printed by Stan when a proposed draw briefly violates
+internal constraints (here, producing a non-finite intercept), so that
+proposal is rejected. As long as it occurs only occasionally and the
+chains run, converge, and pass standard diagnostics, this warning is
+expected and can be safely ignored.
+
+## Model Output
 
 We can print an overview of the model we just ran using the `print(fit)`
 functions:
@@ -114,14 +144,19 @@ print(fit)
 #> Observations: 147 
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
-#> Priors:      beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2)
-#> Total time:  17.8 sec
+#> Priors:
+#>   beta   ~ Normal(0, 1)  (default)
+#>   phi    ~ Normal(0, 0.5)
+#>   kappa  ~ Normal(0, 2)
+#> Total time:  13.4 sec
 #> ========================================
 ```
 
 Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
 converge.
+
+### Summary
 
 To further inspect the model parameters we can use the `summary(fit)`
 function:
@@ -178,6 +213,8 @@ summary(fit)
 #> Use extract_network_matrix() for the temporal network matrix.
 ```
 
+### Extracting Parameters
+
 Here we can see, that we can not see all category threshold parameters
 ($\kappa$). To inspect them completely we have to extract them using
 [`extract_param()`](https://flo1met.github.io/bvarnet/reference/extract_param.md):
@@ -208,6 +245,8 @@ params[params$type == "Threshold",] # add seperate extractor function for kappa,
 #> 45 Threshold   kappa(dependable, c4)       —  1.15106984  1.14520455  0.6797434  1.6414832 1.0000701 14456.67 10624.680
 ```
 
+## Network Visualization
+
 If we are interested in the temporal network structure, we can inspect
 this using either the `extract_temporal(fit)`, or the
 `extract_network_matrix(fit)` functions. Here we will use the
@@ -215,9 +254,12 @@ this using either the `extract_temporal(fit)`, or the
 
 ``` r
 nw_mat <- extract_network_matrix(fit)
-qgraph::qgraph(nw_mat)
+qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-31](figure/unnamed-chunk-31-1.png)
+![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
 
-plot of chunk unnamed-chunk-31
+plot of chunk unnamed-chunk-8
+
+Lastly, if you want to perform hypothesis tests on your estimated
+parameters we refer you to the `Vignette(Hypothesis-Testing)`.

@@ -46,10 +46,15 @@ bf_table(object, type = "all", lag = 1L, null_value = 0, variable = NULL)
 
 - variable:
 
-  Character vector or `NULL` (default). One or more variable names (must
-  match `colnames(standata$Y)`). When set, only effects **from** these
-  variables as lagged predictors are included. Cannot be combined with
-  `type = "fe"` or `type = "intercepts"`.
+  Character vector or `NULL` (default). One or more variable names —
+  either network variables (from `colnames(standata$Y)`) or covariates
+  (from `x_cols`, excluding `"Intercept"` and interaction columns). When
+  set, only effects involving these variables are included: network
+  variables filter phi rows (effects **from** the variable as lagged
+  predictor); covariate names filter fixed-effect rows and lag ×
+  covariate interaction rows (effects **of** that covariate). Both types
+  can be combined in a single call. Cannot be combined with
+  `type = "intercepts"`.
 
 ## Value
 
@@ -63,11 +68,12 @@ interaction terms: per-lag-block and full-term omnibus. Per-cell rows
 for these parameters are already included when `type = "fe"` is
 requested.
 
-When `variable` is non-NULL, only effects **from** the named variable(s)
-as lagged predictors are included. This filters phi rows and lag ×
-covariate interaction rows so that only parameters where the lagged
-predictor matches the requested variable(s) are retained. `variable` is
-combinable with `type` and `lag`; when `type = "all"` and `variable` is
-set, only temporal types (`"ar"`, `"cl"`, `"temporal"`) and `"lag_fe"`
-(if applicable) are auto-selected, since `"intercepts"` and `"fe"` are
-covariate effects unrelated to specific network variables.
+When `variable` is non-NULL, only effects involving the named
+variable(s) are included. Network variables (from `Y`) filter phi rows
+and lag × covariate interaction rows by the lagged predictor. Covariate
+names (from `X`) filter fixed-effect rows and interaction terms. Both
+types can be combined. `variable` is combinable with `type` and `lag`;
+when `type = "all"` and `variable` is set, the auto-selected types
+depend on what was requested (network variables → `"ar"`, `"cl"`,
+`"temporal"`; covariates → `"fe"`, `"lag_fe"`, `"temporal"` interaction
+rows).

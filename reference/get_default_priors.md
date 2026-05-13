@@ -1,20 +1,27 @@
 # Get the default prior specification for a given model family
 
-A convenience wrapper around
-[`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
-for inspecting defaults.
+Returns a `bvarnet_priors` object showing the default priors that apply
+to a particular model configuration. Parameters irrelevant to the chosen
+family or model structure are omitted, so the returned object reflects
+what the sampler will actually use.
 
 ## Usage
 
 ``` r
-get_default_priors(family)
+get_default_priors(family = NULL, has_re = TRUE)
 ```
 
 ## Arguments
 
 - family:
 
-  One of `"bernoulli"`, `"ordinal"`, `"gaussian"`.
+  Character (optional). One of `"bernoulli"`, `"ordinal"`, `"gaussian"`.
+  When `NULL` (the default), all parameter priors are shown.
+
+- has_re:
+
+  Logical. Does the model include random effects? Default `TRUE`. When
+  `FALSE`, the `sd_u` prior is omitted.
 
 ## Value
 

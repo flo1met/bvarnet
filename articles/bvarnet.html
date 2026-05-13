@@ -35,9 +35,9 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
+    <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
     <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
     <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Prediction.html">Prediction</a></li>
     <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
@@ -70,6 +70,9 @@
 
     
     
+<div class="section level2">
+<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+</h2>
 <p>This package implements methods to analyse (multilevel) Vector
 Autoregression commonly used for the analysis of intensive longitudinal
 datasets like EMA data.</p>
@@ -80,56 +83,81 @@ vignettes</p>
 <li><code><a href="../articles/Hypothesis-Testing.html">vignette("Hypothesis-Testing")</a></code></li>
 <li><code><a href="../articles/Mixed-Model.html">vignette("Mixed-Model")</a></code></li>
 <li><code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code></li>
-<li><code>vignette("Random-Effect")</code></li>
-<li><code><a href="../articles/Prediction.html">vignette("Prediction")</a></code></li>
+<li><code><a href="../articles/Random-Effects.html">vignette("Random-Effects")</a></code></li>
+<li><code><a href="../articles/MCMC-Diagnostics.html">vignette("MCMC-Diagnostics")</a></code></li>
 </ul>
-<p>First, we have to load the package:</p>
+</div>
+<div class="section level2">
+<h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
+</h2>
+<p>First, lets load the package:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># subject to be removed again...</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/openesm-project/openesm-r" class="external-link">openesm</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; Welcome to openesm!</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Find documentation and usage examples at https://openesmdata.org</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Get started:</span></span>
-<span><span class="co">#&gt;   * list_datasets() to browse available datasets</span></span>
-<span><span class="co">#&gt;   * get_dataset('dataset_id') to download a specific dataset</span></span>
-<span><span class="co">#&gt;   * ?get_dataset or visit the website for detailed guides</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'openesm'</span></span>
-<span><span class="co">#&gt; The following object is masked from 'package:utils':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     cite</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a>
+</h2>
+<p>Now, we can load the example data:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
 <p>There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
 read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">openesm</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/openesm/man/get_dataset.html" class="external-link">get_dataset</a></span><span class="op">(</span><span class="st">"0004"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; ℹ Using cached dataset index (less than 24 hours old).</span></span>
-<span><span class="co">#&gt; ✔ Loading dataset "0004" version "1.0.0"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── openESM Dataset: "0004" ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span></span>
-<span><span class="co">#&gt; • Dataset version: "1.0.0"</span></span>
-<span><span class="co">#&gt; • Metadata version: "1.0.1"</span></span>
-<span><span class="co">#&gt; • Authors: Wang et al. (2014)</span></span>
-<span><span class="co">#&gt; • Paper DOI: https://doi.org/10.1371/journal.pone.0266516</span></span>
-<span><span class="co">#&gt; • License: CC BY-NC 4.0</span></span>
-<span><span class="co">#&gt; • Data: A tibble with 49 participants and 64 maximum time points per participant</span></span>
-<span><span class="co">#&gt; ℹ Use `cite(dataset)` for citation information.</span></span>
-<span><span class="co">#&gt; ℹ Use `notes(dataset)` for additional information about the dataset.</span></span>
-<span><span class="co">#&gt; ℹ Please ensure you follow the license terms for this dataset.</span></span>
-<span></span>
-<span><span class="va">df</span> <span class="op">&lt;-</span> <span class="va">data</span><span class="op">$</span><span class="va">data</span></span>
-<span></span>
-<span><span class="va">df</span><span class="op">$</span><span class="va">anxious</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">anxious</span><span class="op">)</span></span>
-<span><span class="va">df</span><span class="op">$</span><span class="va">calm</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">calm</span><span class="op">)</span></span>
-<span><span class="va">df</span><span class="op">$</span><span class="va">conventional</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">conventional</span><span class="op">)</span></span>
-<span><span class="va">df</span><span class="op">$</span><span class="va">critical</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">critical</span><span class="op">)</span></span>
-<span><span class="va">df</span><span class="op">$</span><span class="va">dependable</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">floor</a></span><span class="op">(</span><span class="va">df</span><span class="op">$</span><span class="va">dependable</span><span class="op">)</span></span></code></pre></div>
+<p>Currently, <code>bvarnet</code> allowes for the following outcome
+variables:</p>
+<ul>
+<li>binary (<code>family = "bernoulli")</code>
+</li>
+<li>ordinal (<code>family = "ordinal")</code> (adjacent category
+model)</li>
+<li>continuous (<code>family = "gaussian")</code>
+</li>
+</ul>
+<p>For the following tutorial we will investigate the temporal network
+for the variables <code>anxious</code>, <code>calm</code>,
+<code>conventional</code>, <code>critical</code>, and
+<code>dependable</code>. All these variables are on a ordinal scale.
+Therefore we will use the adjacent category ordinal model to estimate
+this model.</p>
+</div>
+<div class="section level2">
+<h2 id="prior-specification">Prior Specification<a class="anchor" aria-label="anchor" href="#prior-specification"></a>
+</h2>
+<p>First we need to specify the prior distributions that we want to use
+on the parameters. For this we can use the <code><a href="../reference/set_priors.html">set_priors()</a></code>
+function. As we are running a ordinal model, without covariates, we have
+to specify priors on the temporal structure (denoted by the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Φ</mi><annotation encoding="application/x-tex">\Phi</annotation></semantics></math>
+matrix) and on the category threshold parameters
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>)
+which are specific to the adjacent category ordinal model.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span>phi <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
+<span>                                 loc <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>                                 scale <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>,</span>
+<span>                     kappa <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
+<span>                                   loc <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>                                   scale <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
+<span>                     sigma <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
+<span>                                   loc <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>                                   scale <span class="op">=</span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">priors</span></span>
+<span><span class="co">#&gt; bvarnet prior specification:</span></span>
+<span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 2)</span></span>
+<span><span class="co">#&gt;   sigma  ~ Half-Normal(0, 3)</span></span></code></pre></div>
+<p>Currently, three prior families are implemented: normal, student-t
+and chauchy. For standart deviations and random effects all of these
+priors are automatically scaled to half-priors. For each distribution,
+the location and scale parameters can be specified. For the student-t
+distribution, the degrees of freedom can also be specified.</p>
+</div>
+<div class="section level2">
+<h2 id="model-estimation">Model Estimation<a class="anchor" aria-label="anchor" href="#model-estimation"></a>
+</h2>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
 <span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
@@ -138,27 +166,41 @@ read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a><
 <span>  re_cols <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  re_temporal <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  K <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  data <span class="op">=</span> <span class="va">df</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">studentlife</span>,</span>
 <span>  family <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ordinal"</span><span class="op">)</span>,</span>
-<span>  priors <span class="op">=</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  priors <span class="op">=</span> <span class="va">priors</span>,</span>
 <span>  iter <span class="op">=</span> <span class="fl">4000</span>,</span>
 <span>  warmup <span class="op">=</span> <span class="fl">1000</span>,</span>
 <span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  cores <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">1337</span></span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error:</span></span>
-<span><span class="co">#&gt; ! Stan model file "" not found.</span></span></code></pre></div>
+<span><span class="co">#&gt; Warning: Prior(s) set but not used by this model: sigma. These will be ignored.</span></span></code></pre></div>
+<p>If you want to learn how to extend this model to a multilevel model,
+check out the <code>Vignette(Random-Effects)</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="stan-warnings">Stan Warnings<a class="anchor" aria-label="anchor" href="#stan-warnings"></a>
+</h2>
 <p>Most models will give a warning when initiating sampling, that looks
 like this:</p>
 <pre class="text"><code>Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:
 Chain 1 Exception: categorical_logit_glm_lpmf: Intercept[3] is -inf, but must be finite! (in '/var/folders/n5/38kfmkv55hq8bnd03344d2b40000gn/T/RtmpkjgDq1/model-a60f79e9a37c.stan', line 153, column 8 to column 94)
 Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,
 Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.
-Chain 1 </code></pre>
+Chain 1</code></pre>
+<p>This warning is printed by Stan when a proposed draw briefly violates
+internal constraints (here, producing a non-finite intercept), so that
+proposal is rejected. As long as it occurs only occasionally and the
+chains run, converge, and pass standard diagnostics, this warning is
+expected and can be safely ignored.</p>
+</div>
+<div class="section level2">
+<h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
+</h2>
 <p>We can print an overview of the model we just ran using the
 <code>print(fit)</code> functions:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network fit</span></span>
 <span><span class="co">#&gt; ======================================== </span></span>
@@ -169,15 +211,21 @@ Chain 1 </code></pre>
 <span><span class="co">#&gt; Observations: 147 </span></span>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
-<span><span class="co">#&gt; Priors:      beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2)</span></span>
-<span><span class="co">#&gt; Total time:  17.8 sec</span></span>
+<span><span class="co">#&gt; Priors:</span></span>
+<span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
+<span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 2)</span></span>
+<span><span class="co">#&gt; Total time:  13.4 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <p>Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
 converge.</p>
+<div class="section level3">
+<h3 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
+</h3>
 <p>To further inspect the model parameters we can use the
 <code>summary(fit)</code> function:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>
 <span><span class="co">#&gt; ================================================== </span></span>
@@ -227,12 +275,16 @@ converge.</p>
 <span><span class="co">#&gt; ==================================================</span></span>
 <span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
 <span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="extracting-parameters">Extracting Parameters<a class="anchor" aria-label="anchor" href="#extracting-parameters"></a>
+</h3>
 <p>Here we can see, that we can not see all category threshold
 parameters
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>).
 To inspect them completely we have to extract them using
 <code><a href="../reference/extract_param.html">extract_param()</a></code>:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">params</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_param.html">extract_param</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="va">params</span><span class="op">[</span><span class="va">params</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"Threshold"</span>,<span class="op">]</span> <span class="co"># add seperate extractor function for kappa, sigma..</span></span>
 <span><span class="co">#&gt;         type               predictor outcome        mean      median         q5        q95      rhat ess_bulk  ess_tail</span></span>
@@ -256,17 +308,27 @@ To inspect them completely we have to extract them using
 <span><span class="co">#&gt; 43 Threshold kappa(conventional, c4)       —  2.57589420  2.55145715  1.8081027  3.4241004 1.0004303 19188.28 10144.966</span></span>
 <span><span class="co">#&gt; 44 Threshold     kappa(critical, c4)       —  1.15580404  1.10903125  0.7258669  1.7561748 1.0001773 20899.16 12835.077</span></span>
 <span><span class="co">#&gt; 45 Threshold   kappa(dependable, c4)       —  1.15106984  1.14520455  0.6797434  1.6414832 1.0000701 14456.67 10624.680</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="network-visualization">Network Visualization<a class="anchor" aria-label="anchor" href="#network-visualization"></a>
+</h2>
 <p>If we are interested in the temporal network structure, we can
 inspect this using either the <code>extract_temporal(fit)</code>, or the
 <code>extract_network_matrix(fit)</code> functions. Here we will use the
 <code>extract_network_matrix(fit)</code> to plot the network:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="fu">qgraph</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-31-1.png" alt="plot of chunk unnamed-chunk-31"><div class="figcaption">plot of chunk unnamed-chunk-31</div>
+<img src="figure/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8"><div class="figcaption">plot of chunk unnamed-chunk-8</div>
 </div>
-  </main>
+<p>Lastly, if you want to perform hypothesis tests on your estimated
+parameters we refer you to the
+<code>Vignette(Hypothesis-Testing)</code>.</p>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

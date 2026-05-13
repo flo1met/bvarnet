@@ -6,12 +6,18 @@ Estimate Bayesian multilevel VAR models
 
 - [`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md) : Fit
   a Bayesian multilevel VAR network model
+
 - [`get_default_priors()`](https://flo1met.github.io/bvarnet/reference/get_default_priors.md)
   : Get the default prior specification for a given model family
+
 - [`prior()`](https://flo1met.github.io/bvarnet/reference/prior.md) :
   Construct a single prior distribution
+
 - [`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
-  : Build a complete prior specification for bvarnet
+  :
+
+  Build a prior specification object for
+  [`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md)
 
 ## Parameter Extraction
 
@@ -42,10 +48,6 @@ Simulate data and generate predictions
 
 - [`sim_var()`](https://flo1met.github.io/bvarnet/reference/sim_var.md)
   : Simulate data from a multilevel VAR model
-- [`predict(`*`<bvarnet>`*`)`](https://flo1met.github.io/bvarnet/reference/predict.bvarnet.md)
-  : Predict from a fitted bvarnet model
-- [`simulate(`*`<bvarnet>`*`)`](https://flo1met.github.io/bvarnet/reference/simulate.bvarnet.md)
-  : Simulate new trajectories from a fitted bvarnet model
 
 ## Summaries
 
@@ -65,3 +67,10 @@ Print and summarise model objects
   : Format a bvarnet_prior for printing
 - [`compare_to_truth()`](https://flo1met.github.io/bvarnet/reference/compare_to_truth.md)
   : Compare fitted model parameters to simulation truth
+
+## Data
+
+Example datasets
+
+- [`studentlife`](https://flo1met.github.io/bvarnet/reference/studentlife.md)
+  : StudentLife Data
