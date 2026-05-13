@@ -1,0 +1,560 @@
+---
+title: "Prediction and Model Calibration"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Prediction and Model Calibration}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+has_cmdstan <- instantiate::stan_cmdstan_exists()
+```
+
+## Overview
+
+The `predict()` method for **bvarnet** objects generates fitted values for all
+three response families. The `type` argument controls the scale:
+
+| Family | `type = "link"` | `type = "response"` | `type = "probabilities"` |
+|--------|----------------|---------------------|--------------------------|
+| `"ordinal"` | latent linear predictor | modal category | category probabilities (list of data frames) |
+| `"gaussian"` | fitted mean (= response scale) | fitted mean | — |
+| `"bernoulli"` | log-odds | predicted probability (0–1) | — |
+
+Throughout this vignette we use two freely available ESM datasets from the
+**openESM** database (Siepe 2025) accessed via the `openesm` package.
+The `openesm::get_dataset()` calls will serve data from a local cache when the
+dataset has been downloaded before, and download it from Zenodo on first use.
+
+**Dataset selection criterion.** A multilevel VAR prediction plot is only
+informative if the outcomes carry genuine *within-person* temporal signal —
+that is, if knowing yesterday's value (after removing each person's mean) helps
+predict today's. We selected variables with within-person lag-1 autocorrelation
+$r \geq 0.25$ on the ordinal/binary scale, and $r \geq 0.55$ on the Gaussian
+scale.
+
+---
+
+## 1 — Ordinal VAR: COVID Lockdown Affect (Fried 2021)
+
+We use the **Fried (2021)** dataset: 79 university students assessed 4 times/day
+over 14 days during the first COVID lockdown. Emotional states were rated on a
+5-point scale (1 = *Not at all*, 5 = *Extremely*).
+
+We model four items with the highest within-person lag-1 autocorrelation
+(range: 0.27 – 0.32): `alone`, `covid_worry`, `nothing_look_forward`, and
+`anhedonia`. These tap distinct but interrelated facets of the COVID pandemic
+experience — social isolation, pandemic-related worry, anticipatory anhedonia,
+and inability to enjoy activities.
+
+```{r load-ordinal, eval = has_cmdstan, message = FALSE, warning = FALSE}
+library(bvarnet)
+library(openesm)
+
+# Download / load from cache
+fried_raw <- get_dataset("0001_fried")$data
+
+y_vars <- c("alone", "covid_worry", "nothing_look_forward", "anhedonia")
+
+fried <- fried_raw[complete.cases(fried_raw[, y_vars]), ]
+fried$id  <- as.character(fried$id)
+fried$day <- as.integer(fried$day)
+
+cat("Dimensions:", nrow(fried), "rows ×", ncol(fried), "cols\n")
+cat("Subjects:", length(unique(fried$id)), "| Obs. per item range:",
+    min(colSums(!is.na(fried[, y_vars]))), "–",
+    max(colSums(!is.na(fried[, y_vars]))), "\n")
+cat("Response scale: 1 – 5 (Not at all … Extremely)\n")
+cat("Within-person lag-1 r (approx.):",
+    "alone ≈ 0.32, covid_worry ≈ 0.29,",
+    "nothing_look_forward ≈ 0.27, anhedonia ≈ 0.27\n")
+```
+
+### Fit the model
+
+```{r fit-ordinal, eval = has_cmdstan, message = FALSE, warning = FALSE}
+fit_ord <- bvar(
+  id_col      = "id",
+  time_col    = "day",
+  y_cols      = y_vars,
+  x_cols      = NULL,
+  re_cols     = c("Intercept"),
+  re_temporal = FALSE,
+  K           = 1,
+  data        = fried,
+  family      = "ordinal",
+  iter        = 4000,
+  warmup      = 1000,
+  chains      = 4,
+  cores       = 4,
+  seed        = 42,
+  save_data   = TRUE
+)
+```
+
+```{r summary-ordinal, eval = has_cmdstan}
+summary(fit_ord)
+```
+
+### 1a — What does `predict()` return for ordinal models?
+
+The default call returns one-step-ahead fitted values on the **latent linear
+predictor** scale. For ordinal models these are not directly interpretable, so
+we move straight to category probabilities.
+
+```{r predict-probs-ordinal, eval = has_cmdstan}
+probs_ord <- predict(fit_ord, type = "probabilities")
+# probs_ord is a named list: one data.frame per outcome
+# Each data.frame has columns id, day, cat_1 … cat_5
+head(probs_ord[["alone"]])
+
+# Shared constants used in all ordinal plots
+n_cats   <- 5L
+cat_cols <- paste0("cat_", seq_len(n_cats))
+ord_pal  <- hcl.colors(n_cats, "Blues 3")
+```
+
+### 1b — Calibration: Are the right categories predicted?
+
+A well-calibrated model assigns the **highest probability to the observed
+category**. The barplot shows, for each observed rating (x-axis), the mean
+predicted probability per category (stacked bars). A diagonal pattern — low
+bars dominated by dark blue at the left, shifting to light blue at the right —
+indicates the model tracks ordinal responses.
+
+```{r calibration-barplot, eval = has_cmdstan, fig.height = 7}
+obs_ord <- fit_ord$data_used
+
+par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1))
+for (y in y_vars) {
+  cmp <- merge(
+    obs_ord[, c("id", "day", y)],
+    probs_ord[[y]],
+    by = c("id", "day")
+  )
+  cal <- matrix(NA_real_, n_cats, n_cats,
+                dimnames = list(observed  = seq_len(n_cats),
+                                predicted = cat_cols))
+  for (k in seq_len(n_cats)) {
+    rows_k <- cmp[[y]] == k
+    if (any(rows_k)) cal[k, ] <- colMeans(cmp[rows_k, cat_cols, drop = FALSE])
+  }
+  barplot(
+    t(cal), beside = FALSE, col = ord_pal,
+    xlab = "Observed category", ylab = "Mean predicted probability",
+    main = y, ylim = c(0, 1)
+  )
+  legend("topright",
+         legend = rev(seq_len(n_cats)), title = "Predicted cat.",
+         fill = rev(ord_pal), cex = 0.7, bty = "n")
+}
+```
+
+### 1c — Individual probability trajectory
+
+The stacked area chart shows how predicted category probabilities evolve across
+days for the participant with the highest day-to-day variability in `alone`.
+Black dots show the rescaled observed rating (1 → 0, 5 → 1); a dot inside its
+corresponding coloured band indicates a correct modal prediction.
+
+```{r trajectory, eval = has_cmdstan, fig.height = 5}
+sd_per_subj <- tapply(obs_ord$alone, obs_ord$id, sd, na.rm = TRUE)
+subj_pick   <- names(which.max(sd_per_subj))
+
+y <- "alone"
+cmp <- merge(
+  obs_ord[obs_ord$id == subj_pick, c("id", "day", y)],
+  probs_ord[[y]][probs_ord[[y]]$id == subj_pick, ],
+  by = c("id", "day")
+)
+cmp <- cmp[order(cmp$day), ]
+
+plot(NULL, xlim = range(cmp$day), ylim = c(0, 1),
+     xlab = "Day", ylab = "Predicted probability",
+     main = paste0(y, " — participant ", subj_pick))
+
+cum <- numeric(nrow(cmp))
+for (k in seq_len(n_cats)) {
+  new_cum <- cum + cmp[[paste0("cat_", k)]]
+  polygon(c(cmp$day, rev(cmp$day)), c(new_cum, rev(cum)),
+          col = ord_pal[k], border = NA)
+  cum <- new_cum
+}
+points(cmp$day, (cmp[[y]] - 1) / (n_cats - 1), pch = 16, cex = 1.2)
+legend("topright", legend = rev(seq_len(n_cats)), title = "Category",
+       fill = rev(ord_pal), cex = 0.7, bty = "n")
+```
+
+### 1d — Observed vs predicted category frequencies over time
+
+We compare observed category proportions (solid lines) with mean predicted
+probabilities (dashed) aggregated across all subjects at each time point.
+Close tracking indicates the model captures population-level temporal dynamics.
+
+```{r freq-over-time, eval = has_cmdstan, fig.height = 7}
+par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1))
+for (y in y_vars) {
+  cmp  <- merge(obs_ord[, c("id", "day", y)], probs_ord[[y]], by = c("id", "day"))
+  days <- sort(unique(cmp$day))
+  obs_m  <- matrix(NA_real_, length(days), n_cats)
+  pred_m <- matrix(NA_real_, length(days), n_cats)
+  for (i in seq_along(days)) {
+    rows_d   <- cmp$day == days[i]
+    obs_cats <- cmp[[y]][rows_d]
+    for (k in seq_len(n_cats)) {
+      obs_m[i, k]  <- mean(obs_cats == k, na.rm = TRUE)
+      pred_m[i, k] <- mean(cmp[[paste0("cat_", k)]][rows_d], na.rm = TRUE)
+    }
+  }
+  ymax <- max(obs_m, pred_m, na.rm = TRUE)
+  plot(NULL, xlim = range(days), ylim = c(0, ymax),
+       xlab = "Day", ylab = "Proportion", main = y)
+  for (k in seq_len(n_cats)) {
+    lines(days, obs_m[, k],  col = ord_pal[k], lwd = 2, lty = 1)
+    lines(days, pred_m[, k], col = ord_pal[k], lwd = 2, lty = 2)
+  }
+  legend("topright",
+         legend = c(paste0("Cat. ", seq_len(n_cats)), "Observed", "Predicted"),
+         col    = c(ord_pal, "black", "black"),
+         lty    = c(rep(NA, n_cats), 1, 2),
+         pch    = c(rep(15, n_cats), NA, NA),
+         lwd = 2, cex = 0.55, bty = "n", ncol = 2)
+}
+```
+
+### 1e — Modal category accuracy
+
+The proportion of observations for which the predicted modal category matches
+the observed response. The majority-class baseline reflects always predicting
+the most common category — a stronger reference than uniform chance when the
+distribution is skewed.
+
+```{r modal-accuracy, eval = has_cmdstan}
+acc_tbl <- data.frame(
+  variable     = y_vars,
+  pct_correct  = NA_real_,
+  pct_majority = NA_real_
+)
+for (i in seq_along(y_vars)) {
+  y   <- y_vars[i]
+  cmp <- merge(obs_ord[, c("id", "day", y)], probs_ord[[y]], by = c("id", "day"))
+  modal_pred              <- max.col(cmp[, cat_cols])
+  acc_tbl$pct_correct[i]  <- round(100 * mean(modal_pred == cmp[[y]], na.rm = TRUE), 1)
+  majority_cat            <- as.integer(names(which.max(table(cmp[[y]]))))
+  acc_tbl$pct_majority[i] <- round(100 * mean(majority_cat == cmp[[y]], na.rm = TRUE), 1)
+}
+names(acc_tbl) <- c("Variable", "% correct (model)", "% correct (majority baseline)")
+knitr::kable(acc_tbl, align = "lrr")
+```
+
+---
+
+## 2 — Gaussian VAR: Daily Behavioral Rhythms from Phone Sensing (Wang 2020)
+
+We use the **Wang (2020)** dataset: 49 university students passively monitored
+over approximately six weeks via their smartphones. Each day yields two
+continuous behavioral measures derived from passive phone sensing:
+
+| Variable | Description | Lag-1 *r* |
+|---|---|---|
+| `loc_visit_num_ep_0` | Number of distinct locations visited (full day, from GPS) | 0.68 |
+| `audio_convo_num_ep_1` | Number of conversational audio episodes (morning period) | 0.58 |
+
+Both variables have strong within-person autocorrelation because behavioral
+routines (commuting, socialising) are stable across consecutive days. The data
+are one row per subject–day (no within-day beeps to deduplicate).
+
+```{r load-gaussian, eval = has_cmdstan, message = FALSE, warning = FALSE}
+wang_raw <- get_dataset("0004_wang")$data
+
+y_gauss <- c("loc_visit_num_ep_0", "audio_convo_num_ep_1")
+
+wang <- wang_raw[complete.cases(wang_raw[, y_gauss]), ]
+wang$id  <- as.character(wang$id)
+wang$day <- as.integer(wang$day)
+
+cat("Dimensions:", nrow(wang), "rows ×", ncol(wang), "cols\n")
+cat("Subjects:", length(unique(wang$id)), "| Days (median per subject):",
+    median(as.integer(table(wang$id))), "\n")
+cat("loc_visit_num_ep_0:   M =", round(mean(wang$loc_visit_num_ep_0), 2),
+    " SD =", round(sd(wang$loc_visit_num_ep_0), 2), "\n")
+cat("audio_convo_num_ep_1: M =", round(mean(wang$audio_convo_num_ep_1), 2),
+    " SD =", round(sd(wang$audio_convo_num_ep_1), 2), "\n")
+```
+
+### Fit the model
+
+```{r fit-gaussian, eval = has_cmdstan, message = FALSE, warning = FALSE}
+fit_gauss <- bvar(
+  id_col      = "id",
+  time_col    = "day",
+  y_cols      = y_gauss,
+  x_cols      = NULL,
+  re_cols     = c("Intercept"),
+  re_temporal = FALSE,
+  K           = 1,
+  data        = wang,
+  family      = "gaussian",
+  iter        = 4000,
+  warmup      = 1000,
+  chains      = 4,
+  cores       = 4,
+  seed        = 42,
+  save_data   = TRUE
+)
+```
+
+```{r summary-gaussian, eval = has_cmdstan}
+summary(fit_gauss)
+```
+
+### Observed vs predicted
+
+For Gaussian outcomes the fitted values are on the response scale. Points close
+to the identity line (red) indicate the model captures individual variation
+beyond each person's mean level.
+
+```{r gaussian-scatter, eval = has_cmdstan, fig.height = 5}
+pred_gauss <- predict(fit_gauss, type = "response")
+obs_gauss  <- fit_gauss$data_used
+cmp_g      <- merge(obs_gauss, pred_gauss, by = c("id", "day"))
+
+par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+for (y in y_gauss) {
+  observed  <- cmp_g[[y]]
+  predicted <- cmp_g[[paste0("predicted_", y)]]
+  r2        <- cor(observed, predicted, use = "complete.obs")^2
+  lab       <- sub("_ep_[0-9]", "", y)   # short label for axis
+  plot(observed, predicted,
+       xlab = paste("Observed", lab), ylab = paste("Predicted", lab),
+       main = paste0(lab, "  (R\u00b2 = ", round(r2, 2), ")"),
+       pch = 16, cex = 0.5, col = rgb(0.2, 0.4, 0.8, 0.35))
+  abline(0, 1, col = "firebrick", lwd = 2)
+}
+```
+
+The in-sample R² is an optimistic upper bound; out-of-sample evaluation would
+give a more conservative estimate.
+
+### Residual distribution
+
+Histograms of residuals check whether the normality assumption is reasonable.
+
+```{r gaussian-residuals, eval = has_cmdstan, fig.height = 4}
+par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+for (y in y_gauss) {
+  resid <- cmp_g[[y]] - cmp_g[[paste0("predicted_", y)]]
+  lab   <- sub("_ep_[0-9]", "", y)
+  hist(resid, breaks = 30, freq = FALSE,
+       xlab = "Residual (observed \u2212 predicted)",
+       main = paste0(lab, " residuals"),
+       col = "steelblue3", border = "white")
+  curve(dnorm(x, mean = 0, sd = sd(resid, na.rm = TRUE)),
+        col = "firebrick", lwd = 2, add = TRUE)
+}
+```
+
+---
+
+## 3 — Binary VAR: Elevated Loneliness and Worry Days (Fried 2021)
+
+We return to the **Fried (2021)** data and create binary indicators by
+thresholding three of the ordinal items at the midpoint of the scale ("at or
+above moderately"):
+
+| Variable | Threshold | Meaning |
+|---|---|---|
+| `alone_elev` | `alone ≥ 3` | At or above "moderately" alone |
+| `worry_elev` | `covid_worry ≥ 3` | At or above "moderately" worried |
+| `anhedonia_elev` | `anhedonia ≥ 3` | At or above "moderately" unable to enjoy |
+
+Thresholding at the scale midpoint identifies *clinically elevated* days. The
+underlying ordinal items have within-person lag-1 r ≈ 0.27–0.32, so the binary
+indicators retain meaningful temporal autocorrelation.
+
+```{r prepare-binary, eval = has_cmdstan}
+fried_bin              <- fried
+fried_bin$alone_elev    <- as.integer(fried_bin$alone        >= 3)
+fried_bin$worry_elev    <- as.integer(fried_bin$covid_worry  >= 3)
+fried_bin$anhedonia_elev <- as.integer(fried_bin$anhedonia   >= 3)
+
+y_bin <- c("alone_elev", "worry_elev", "anhedonia_elev")
+
+cat("Base rates:\n")
+for (y in y_bin) {
+  cat(" ", y, ":", round(100 * mean(fried_bin[[y]], na.rm = TRUE), 1), "%\n")
+}
+```
+
+### Fit the model
+
+```{r fit-binary, eval = has_cmdstan, message = FALSE, warning = FALSE}
+fit_bin <- bvar(
+  id_col      = "id",
+  time_col    = "day",
+  y_cols      = y_bin,
+  x_cols      = NULL,
+  re_cols     = c("Intercept"),
+  re_temporal = FALSE,
+  K           = 1,
+  data        = fried_bin,
+  family      = "bernoulli",
+  iter        = 4000,
+  warmup      = 1000,
+  chains      = 4,
+  cores       = 4,
+  seed        = 42,
+  save_data   = TRUE
+)
+```
+
+```{r summary-binary, eval = has_cmdstan}
+summary(fit_bin)
+```
+
+### 3a — Reliability diagram (calibration)
+
+A **reliability diagram** checks whether predicted probabilities are on the
+right scale: observations in the 30–40% predicted bin should occur at a 30–40%
+rate. All points on the 45° diagonal = perfect calibration.
+
+```{r reliability-diagram, eval = has_cmdstan, fig.height = 5}
+pred_bin <- predict(fit_bin, type = "response")
+obs_bin  <- fit_bin$data_used
+cmp_b    <- merge(obs_bin, pred_bin, by = c("id", "day"))
+
+n_bins <- 10
+par(mfrow = c(1, length(y_bin)), mar = c(4, 4, 3, 1))
+for (y in y_bin) {
+  observed  <- cmp_b[[y]]
+  predicted <- cmp_b[[paste0("predicted_", y)]]
+
+  breaks  <- seq(0, 1, length.out = n_bins + 1)
+  bin_idx <- cut(predicted, breaks = breaks, include.lowest = TRUE, labels = FALSE)
+  bin_mid <- tapply(predicted, bin_idx, mean, na.rm = TRUE)
+  bin_obs <- tapply(observed,  bin_idx, mean, na.rm = TRUE)
+  bin_n   <- tapply(observed,  bin_idx, length)
+  cex_pts <- sqrt(bin_n / max(bin_n, na.rm = TRUE)) * 3 + 0.5
+
+  plot(NULL, xlim = c(0, 1), ylim = c(0, 1),
+       xlab = "Mean predicted probability",
+       ylab = "Observed frequency",
+       main = sub("_elev", "", y))
+  abline(0, 1, col = "grey60", lty = 2)
+  abline(h = mean(observed, na.rm = TRUE), col = "grey80", lty = 3)
+  points(bin_mid, bin_obs, pch = 16, cex = cex_pts,
+         col = rgb(0.2, 0.4, 0.8, 0.7))
+  text(0.02, 0.97,
+       paste0("Base rate: ", round(100 * mean(observed, na.rm = TRUE), 1), "%"),
+       adj = c(0, 1), cex = 0.8, col = "grey30")
+}
+```
+
+Point size is proportional to the number of observations in each bin. The
+dashed diagonal is the calibration ideal; the dotted horizontal line shows the
+marginal base rate.
+
+### 3b — Discrimination: ROC curve
+
+The ROC curve shows whether the model **ranks** positive days above negative
+ones. AUC = 0.5 is chance; AUC = 1.0 is perfect discrimination.
+
+```{r roc-curve, eval = has_cmdstan, fig.height = 5}
+roc_points <- function(obs, pred) {
+  thresholds <- sort(unique(pred), decreasing = TRUE)
+  fpr <- tpr <- numeric(length(thresholds) + 2)
+  fpr[1] <- tpr[1] <- 0
+  for (i in seq_along(thresholds)) {
+    pp  <- pred >= thresholds[i]
+    tp  <- sum(pp  & obs == 1, na.rm = TRUE)
+    fp  <- sum(pp  & obs == 0, na.rm = TRUE)
+    fn  <- sum(!pp & obs == 1, na.rm = TRUE)
+    tn  <- sum(!pp & obs == 0, na.rm = TRUE)
+    tpr[i + 1] <- tp / (tp + fn)
+    fpr[i + 1] <- fp / (fp + tn)
+  }
+  fpr[length(fpr)] <- 1; tpr[length(tpr)] <- 1
+  list(fpr = fpr, tpr = tpr,
+       auc = sum(diff(fpr) * (tpr[-1] + tpr[-length(tpr)]) / 2))
+}
+
+cols_roc <- c("steelblue3", "darkorange", "firebrick")
+
+roc_list <- lapply(y_bin, function(y) {
+  roc_points(cmp_b[[y]], cmp_b[[paste0("predicted_", y)]])
+})
+auc_vals <- sapply(roc_list, `[[`, "auc")
+
+par(mfrow = c(1, 1), mar = c(4, 4, 3, 1))
+plot(NULL, xlim = c(0, 1), ylim = c(0, 1),
+     xlab = "False positive rate", ylab = "True positive rate",
+     main = "ROC curves — binary VAR")
+abline(0, 1, col = "grey70", lty = 2)
+for (i in seq_along(y_bin)) {
+  lines(roc_list[[i]]$fpr, roc_list[[i]]$tpr, col = cols_roc[i], lwd = 2)
+}
+legend("bottomright",
+       legend = paste0(sub("_elev", "", y_bin),
+                       " (AUC = ", round(auc_vals, 2), ")"),
+       col = cols_roc, lwd = 2, bty = "n")
+```
+
+### 3c — Predicted probability trajectory
+
+For a single participant we plot the day-by-day predicted probability of an
+elevated day alongside the observed binary outcome.
+
+```{r binary-trajectory, eval = has_cmdstan, fig.height = 4}
+sd_b   <- tapply(fried_bin$alone_elev, fried_bin$id, sd, na.rm = TRUE)
+subj_b <- names(which.max(sd_b))
+
+par(mfrow = c(1, length(y_bin)), mar = c(4, 4, 3, 1))
+for (i in seq_along(y_bin)) {
+  y       <- y_bin[i]
+  cmp_sub <- merge(
+    fried_bin[fried_bin$id == subj_b, c("id", "day", y)],
+    pred_bin[pred_bin$id == subj_b, c("id", "day", paste0("predicted_", y))],
+    by = c("id", "day")
+  )
+  cmp_sub <- cmp_sub[order(cmp_sub$day), ]
+
+  plot(cmp_sub$day, cmp_sub[[paste0("predicted_", y)]],
+       type = "l", col = cols_roc[i], lwd = 2,
+       ylim = c(0, 1), xlab = "Day", ylab = "P(elevated = 1)",
+       main = sub("_elev", "", y))
+  points(cmp_sub$day, jitter(cmp_sub[[y]], amount = 0.03),
+         pch = 16, cex = 1.3, col = "black")
+  abline(h = 0.5, col = "grey70", lty = 2)
+}
+```
+
+The coloured line shows the predicted probability of an elevated day. Black
+dots are the observed binary outcome (jittered for visibility). A dot near 1
+on a day when the probability line is high indicates a correct prediction.
+
+---
+
+## References
+
+Fried, E. I., Papanikolaou, F., & Epskamp, S. (2022). Mental health and social
+contact during the COVID-19 pandemic: An ecological momentary assessment study.
+*Clinical Psychological Science*, 10(2), 340–354.
+<https://doi.org/10.1177/21677026211017839>
+
+Wang, R., et al. (2020). StudentLife: Weakly supervised learning of mental
+health using passively sensed campus behavioral data. In *Proceedings of the
+ACM on Interactive, Mobile, Wearable and Ubiquitous Technologies*, 4(2), 1–26.
+<https://doi.org/10.1145/3397321>
+
+Siepe, B. S. (2025). openESM: Access the Open Experience Sampling Method
+Database. R package. <https://openesmdata.org>
+
+Blanken, T. F., et al. (2019). Introducing network intervention analysis to
+investigate sequential, symptom-specific treatment effects. *JAMA Psychiatry*.

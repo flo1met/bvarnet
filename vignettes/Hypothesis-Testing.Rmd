@@ -22,24 +22,18 @@ First, we have to load the package:
 library(bvarnet)
 
 # subject to be removed again...
-library(openesm)
 library(qgraph)
+library(dplyr)
+```
+
+First, we have to load the data
+```{r}
+data(studentlife)
 ```
 
 There is some missing data in the dataset. The models default options handle this by themselves. For a further elaboration on this, you can read `vignette("Missing-Data")`.
 
 ```{r}
-data <- get_dataset("0004")
-
-df <- data$data
-
-df$anxious <- floor(df$anxious)
-df$calm <- floor(df$calm)
-df$conventional <- floor(df$conventional)
-df$critical <- floor(df$critical)
-df$dependable <- floor(df$dependable)
-
-library(dplyr)
 df_mis <- na.omit(df %>% select(id, day, anxious, calm, conventional, critical, dependable, sleep_hour))
 ```
 
@@ -54,7 +48,7 @@ fit <- bvar(
   re_cols = NULL,
   re_temporal = FALSE,
   K = 1,
-  data = df,
+  data = studentlife,
   family = c("ordinal"),
   priors = set_priors(),
   iter = 4000,
@@ -72,7 +66,13 @@ print(fit)
 summary(fit)
 ```
 
-To estimate Bayes factors for a single parameter, or a set of parameters, we can use the `bf_table()` function.
+To estimate Bayes factors for a single parameter, or a set of parameters, we can use the `bf_table()` function. Bayes factors are computed via the **Savage–Dickey density ratio** (SDDR; Wagenmakers et al., 2010), which, for a point null $H_0 : \theta = \theta_0$ nested in $H_1 : \theta \neq \theta_0$ with shared nuisance parameters, gives
+
+$$
+\mathrm{BF}_{01} \;=\; \frac{p(\theta = \theta_0 \mid y)}{p(\theta = \theta_0)},
+$$
+
+i.e. the ratio of the posterior to the prior density evaluated at the null value. `bf_table()` reports $\mathrm{BF}_{10} = 1 / \mathrm{BF}_{01}$ by approximating the posterior density at $\theta_0 = 0$ from the MCMC draws.
 
 To perform a hypothesis test on effects involving a specific variable, we can call the `bf_table()` function, specifying which variable we want to look at using the `variable` argument. Lets investigate if the hours of sleep the individual got in the previous night (`sleep_hour`) has an influence on the network structure:
 
