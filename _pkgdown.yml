@@ -45,3 +45,8 @@ reference:
       - starts_with("print")
       - starts_with("format")
       - compare_to_truth
+
+  - title: "Data"
+    desc: "Example datasets"
+    contents:
+      - studentlife
