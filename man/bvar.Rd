@@ -26,7 +26,8 @@ bvar(
   cores = 1,
   seed = NULL,
   adapt_delta = NULL,
-  max_treedepth = NULL
+  max_treedepth = NULL,
+  save_data = FALSE
 )
 }
 \arguments{
@@ -48,7 +49,7 @@ a covariate.}
 
 \item{re_interactions}{List or NULL. Random-effect interaction terms.}
 
-\item{re_cols}{Character vector. Columns from X to include as random slopes.}
+\item{re_cols}{Character vector. Columns from X and/or "Intercept" to include as random slopes.}
 
 \item{re_temporal}{Logical. Include random slopes on lag predictors?
 Default \code{FALSE}.}
@@ -91,15 +92,19 @@ Increasing this allows the sampler to take more leapfrog steps per
 iteration, which can help with difficult posteriors (e.g., funnels in
 hierarchical logistic models) but increases computation. Default
 \code{NULL} (CmdStan default of 10).}
+
+\item{save_data}{Logical. If \code{TRUE}, store the preprocessed (sorted,
+listwise-deleted) estimation data in the \code{data_used} slot of the
+returned object for reproducibility and downstream analyses.
+Default \code{FALSE}.}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-\code{priors}.
+\code{priors}. If \code{save_data = TRUE}, also includes
+\code{data_used} (the cleaned estimation data frame).
 }
 \description{
-Compiles and samples the appropriate Stan model for the chosen family,
-extracts all results into plain base-R objects, and returns a \code{bvarnet}
-object.
+The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 }

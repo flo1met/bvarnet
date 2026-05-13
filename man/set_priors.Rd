@@ -2,7 +2,7 @@
 % Please edit documentation in R/set_priors.R
 \name{set_priors}
 \alias{set_priors}
-\title{Build a complete prior specification for bvarnet}
+\title{Build a prior specification object for \code{bvar()}}
 \usage{
 set_priors(beta = NULL, phi = NULL, sd_u = NULL, kappa = NULL, sigma = NULL)
 }
@@ -25,4 +25,11 @@ A \code{bvarnet_priors} S3 object.
 Returns a \code{bvarnet_priors} object containing a \code{bvarnet_prior}
 for every model parameter type.  Any argument left as \code{NULL} uses the
 package default.
+Available prior distributions are:
+\itemize{
+\item normal(loc, scale)
+\item student_t(loc, scale, df)
+\item cauchy(loc, scale)
+For standart deviations and random effects, the prior is automatically converted to a half-prior (truncated at \code{loc}) in the Stan code, so the printed format reflects this.
+}
 }

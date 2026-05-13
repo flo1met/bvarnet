@@ -19,7 +19,8 @@ to_stan_data(
   K,
   na_action = c("listwise"),
   skip_lag = TRUE,
-  priors = set_priors()
+  priors = set_priors(),
+  save_data = FALSE
 )
 }
 \arguments{

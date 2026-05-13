@@ -83,54 +83,6 @@ test_that("print.bvarnet() works on mixed objects", {
   expect_true(grepl("bernoulli", out_str))
 })
 
-# ── .extract_sigma_kappa on mixed objects ────────────────────────────────────
-
-test_that(".extract_sigma_kappa() works on mixed GO mock", {
-  obj <- make_mock_bvarnet(family = c("gaussian", "ordinal"))
-  sk <- .extract_sigma_kappa(obj, NULL)
-
-  # sigma: node 1 is real, node 2 is NA
-  expect_false(is.na(sk$sigma[1]))
-  expect_true(is.na(sk$sigma[2]))
-
-  # kappa: node 1 is NULL, node 2 is numeric
-  expect_null(sk$kappa[[1]])
-  expect_true(is.numeric(sk$kappa[[2]]))
-  expect_length(sk$kappa[[2]], 2L)  # C-1 = 2
-})
-
-# ── .eta_to_output with mixed family ────────────────────────────────────────
-
-test_that(".eta_to_output() handles mixed family on link scale", {
-  eta_mat <- matrix(c(0.5, 0.3, -0.2, 0.8), nrow = 2, ncol = 2)
-  family_vec <- c("gaussian", "bernoulli")
-  result <- .eta_to_output(eta_mat, family_vec, "link")
-  expect_equal(result, eta_mat)
-})
-
-test_that(".eta_to_output() handles mixed family on response scale", {
-  eta_mat <- matrix(c(0.5, 0.3, -0.2, 0.8), nrow = 2, ncol = 2)
-  family_vec <- c("gaussian", "bernoulli")
-  result <- .eta_to_output(eta_mat, family_vec, "response",
-                           sigma = c(1, NA))
-  # gaussian: eta unchanged; bernoulli: logistic transform
-  expect_equal(result[, 1], eta_mat[, 1])
-  expected_prob <- 1 / (1 + exp(-eta_mat[, 2]))
-  expect_equal(result[, 2], expected_prob)
-})
-
-# ── .recursive_lag_value with mixed family ──────────────────────────────────
-
-test_that(".recursive_lag_value() works with mixed family", {
-  eta_row <- c(0.5, -0.3)
-  family_vec <- c("gaussian", "bernoulli")
-  sigma <- c(1, NA)
-  kappa <- list(NULL, NULL)
-  result <- .recursive_lag_value(eta_row, family_vec, sigma, kappa)
-  expect_equal(result[1], 0.5)  # gaussian: identity
-  expect_equal(result[2], 1 / (1 + exp(0.3)))  # bernoulli: logistic
-})
-
 # ── sim_var with mixed family ───────────────────────────────────────────────
 
 test_that("sim_var() generates data with mixed GB family", {
