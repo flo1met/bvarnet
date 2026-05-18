@@ -4,8 +4,6 @@
 
 ``` r
 library(bvarnet)
-
-# subject to be removed again...
 library(qgraph)
 ```
 
@@ -74,7 +72,7 @@ print(fit)
 #> Rhat max:    1.002
 #> Divergences: 0
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  55.4 sec
+#> Total time:  55.8 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary
@@ -134,16 +132,16 @@ summary(fit)
 #>  kappa(critical, c2)     —        1.164  1.154  0.548  1.816 1     7963.996 10452.848
 #>  kappa(dependable, c2)   —       -1.242 -1.232 -1.848 -0.666 1    10986.504 11362.741
 #> 
-#> ... 10 more rows. Use extract_param(fit) for full output.
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
 #> ==================================================
-#> Use extract_param() for the full parameter table.
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
 #> Use extract_network_matrix() for the temporal network matrix.
 ```
 
 ## Extracting Random Effects
 
-Additionally to the `extract_*` that we already described in
+Additionally to the `extract_*` functions that we already described in
 `Vignette(bvarnet)`, we can use the
 [`extract_random_effects()`](https://flo1met.github.io/bvarnet/reference/extract_random_effects.md)
 function to only extract the random effects:

@@ -23,16 +23,16 @@ values:
 
 ``` r
 head(studentlife)
-#> # A tibble: 6 × 77
+#> # A tibble: 6 × 76
 #>      id   day happy happyornot   sad sadornot social_number stress_level sleep_hour sleep_quality difficult_stay_awake
-#>   <dbl> <dbl> <dbl>      <dbl> <dbl>    <dbl>         <dbl>        <dbl>      <dbl>         <dbl>                <dbl>
-#> 1     0     1    NA         NA    NA       NA         NA            3.17       7.5           1.5                     1
-#> 2     0     2    NA         NA    NA       NA          4            2          5.33          2.33                    1
-#> 3     0     4    NA         NA    NA       NA          2            4.5        9             2                       1
-#> 4     0     5    NA         NA    NA       NA          2           NA          3             4                       1
-#> 5     0     6    NA         NA    NA       NA         NA            1.5       NA            NA                      NA
-#> 6     0     7    NA         NA    NA       NA          2.67         2.5        5             3                       2
-#> # ℹ 66 more variables: anxious <dbl>, calm <dbl>, conventional <dbl>, critical <dbl>, dependable <dbl>, disorganized <dbl>,
+#>   <dbl> <dbl> <dbl>      <int> <dbl>    <dbl>         <dbl>        <dbl>      <dbl>         <dbl>                <int>
+#> 1     0     1    NA         NA    NA       NA         NA               3       7.5           1.5                     0
+#> 2     0     2    NA         NA    NA       NA          4               2       5.33          2.33                    0
+#> 3     0     4    NA         NA    NA       NA          2               4       9             2                       0
+#> 4     0     5    NA         NA    NA       NA          2              NA       3             4                       0
+#> 5     0     6    NA         NA    NA       NA         NA               1      NA            NA                      NA
+#> 6     0     7    NA         NA    NA       NA          2.67            2       5             3                       1
+#> # ℹ 65 more variables: anxious <dbl>, calm <dbl>, conventional <dbl>, critical <dbl>, dependable <dbl>, disorganized <dbl>,
 #> #   enthusiastic <dbl>, open_to_experiences <dbl>, reserved <dbl>, sympathetic <dbl>, act_running_ep_0 <dbl>,
 #> #   act_running_ep_1 <dbl>, act_running_ep_2 <dbl>, act_running_ep_3 <dbl>, act_running_ep_4 <dbl>, act_still_ep_0 <dbl>,
 #> #   act_still_ep_1 <dbl>, act_still_ep_2 <dbl>, act_still_ep_3 <dbl>, act_still_ep_4 <dbl>, act_unknown_ep_0 <dbl>,
@@ -131,7 +131,7 @@ print(fit_no_skip_lag)
 #> Rhat max:    1.001
 #> Divergences: 4  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  7.9 sec
+#> Total time:  8.5 sec
 #> ========================================
 print(fit_skip_lag)
 #> BVAR Network fit
@@ -144,7 +144,7 @@ print(fit_skip_lag)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  14.4 sec
+#> Total time:  14.6 sec
 #> ========================================
 ```
 
@@ -200,10 +200,10 @@ summary(fit_no_skip_lag)
 #>  kappa(critical, c2)     —        0.945  0.939 -0.384  2.291 1.000 15379.49 12143.76
 #>  kappa(dependable, c2)   —       -0.631 -0.622 -1.978  0.699 1.001 18780.65 12187.75
 #> 
-#> ... 10 more rows. Use extract_param(fit) for full output.
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
 #> ==================================================
-#> Use extract_param() for the full parameter table.
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
 #> Use extract_network_matrix() for the temporal network matrix.
 summary(fit_skip_lag)
 #> BVAR Network Summary
@@ -249,10 +249,10 @@ summary(fit_skip_lag)
 #>  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191
 #>  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794
 #> 
-#> ... 10 more rows. Use extract_param(fit) for full output.
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
 #> ==================================================
-#> Use extract_param() for the full parameter table.
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
 #> Use extract_network_matrix() for the temporal network matrix.
 ```
 

@@ -19,7 +19,8 @@ data(studentlife)
 
 There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read `vignette("Missing-Data")`.
+read
+[`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md).
 
 ## Model Estimation
 
@@ -62,7 +63,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  12.1 sec
+#> Total time:  11.3 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary

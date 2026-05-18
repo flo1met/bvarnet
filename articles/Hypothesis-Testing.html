@@ -36,6 +36,9 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
     <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
+    <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
+    <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
+    <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -83,7 +86,7 @@
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
 <p>There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read <code>vignette("Missing-Data")</code>.</p>
+read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="model-estimation">Model Estimation<a class="anchor" aria-label="anchor" href="#model-estimation"></a>
@@ -125,7 +128,7 @@ they are</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  12.1 sec</span></span>
+<span><span class="co">#&gt; Total time:  11.3 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>

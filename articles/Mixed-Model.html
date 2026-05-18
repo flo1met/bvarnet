@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Mixed-Model • bvarnet</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Mixed-Model">
 </head>
@@ -84,11 +84,11 @@ on different scales.</p>
 outcome:</p>
 <ul>
 <li>
-<strong>ordinal</strong>: <code>anxious</code> and <code>calm</code>
-(5-point Likert items)</li>
+<strong>ordinal</strong>: <code>stress_level</code> (5-point Likert
+items)</li>
 <li>
-<strong>binary</strong>: <code>happyornot</code> (binarised daily
-average)</li>
+<strong>binary</strong>: <code>happyornot_bin</code> (binarised
+daily average)</li>
 <li>
 <strong>gaussian</strong>: <code>sleep_duration</code> (hours)</li>
 </ul>
@@ -103,13 +103,15 @@ average)</li>
 <h3 id="priors">Priors<a class="anchor" aria-label="anchor" href="#priors"></a>
 </h3>
 <p>For a mixed-family model we specify priors for all parameter types
-that can appear. Here that means <code>phi</code> (temporal),
-<code>beta</code> (intercept / fixed effects), <code>kappa</code>
+that can appear. Here that means we need to specify priors for the
+following parameters: <code>intercept</code>, <code>phi</code>
+(temporal), <code>beta</code> (fixed effects), <code>kappa</code>
 (ordinal thresholds), and <code>sigma</code> (gaussian residual SD).</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span></span>
-<span>  phi   <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span>,</span>
-<span>  beta  <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  intercept <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
+<span>  phi <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>,</span>
+<span>  beta <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  kappa <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>,</span>
 <span>  sigma <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -120,8 +122,7 @@ that can appear. Here that means <code>phi</code> (temporal),
 <p>We pass a named character vector to <code>family</code> so that each
 outcome gets the appropriate likelihood.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">#potential bug: we were able to run with binary that were saved as numeric (and have decimals)</span></span>
-<span><span class="va">fit_mixed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">fit_mixed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
 <span>  id_col   <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
 <span>  y_cols   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"stress_level"</span>, <span class="st">"happyornot"</span>, <span class="st">"sleep_duration"</span><span class="op">)</span>,</span>
@@ -139,34 +140,87 @@ outcome gets the appropriate likelihood.</p>
 <span>  chains   <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  cores    <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  seed     <span class="op">=</span> <span class="fl">1337</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in `.to_stan_data_node()`:</span></span>
-<span><span class="co">#&gt; ! Ordinal Y must contain integer values. Found non-integer entries.</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="results">Results<a class="anchor" aria-label="anchor" href="#results"></a>
 </h3>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error:</span></span>
-<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span></code></pre></div>
+<span><span class="co">#&gt; BVAR Network fit</span></span>
+<span><span class="co">#&gt; ======================================== </span></span>
+<span><span class="co">#&gt; Family:      mixed (stress_level=ordinal, happyornot=bernoulli, sleep_duration=gaussian)</span></span>
+<span><span class="co">#&gt; Outcomes (p): 3 </span></span>
+<span><span class="co">#&gt; Lags (K):     1 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   1 </span></span>
+<span><span class="co">#&gt; Observations: 87 </span></span>
+<span><span class="co">#&gt; Rhat max:    1.001</span></span>
+<span><span class="co">#&gt; Divergences: 1  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Priors:</span></span>
+<span><span class="co">#&gt;   intercept ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt;   beta   ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
+<span><span class="co">#&gt;   sigma  ~ Half-Normal(0, 1)</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt; Total time:  1.0 sec</span></span>
+<span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error:</span></span>
-<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span></code></pre></div>
+<span><span class="co">#&gt; BVAR Network Summary</span></span>
+<span><span class="co">#&gt; ================================================== </span></span>
+<span><span class="co">#&gt; Family: mixed (stress_level=ordinal, happyornot=bernoulli, sleep_duration=gaussian) | p=3 | K=1 | n=87</span></span>
+<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 1</span></span>
+<span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Intercept ---</span></span>
+<span><span class="co">#&gt;  predictor outcome        mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  Intercept happyornot     -1.167 -1.160 -1.734 -0.626 1    11176.10 9116.660</span></span>
+<span><span class="co">#&gt;  Intercept sleep_duration  5.644  5.648  5.297  5.986 1    12937.83 9771.961</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Autoregressive ---</span></span>
+<span><span class="co">#&gt;  predictor           outcome        mean  median q5     q95   rhat ess_bulk  ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_stress_level   stress_level   0.196 0.194   0.033 0.367 1     8462.812 8610.870</span></span>
+<span><span class="co">#&gt;  lag1_happyornot     happyornot     0.441 0.440  -0.257 1.136 1    12339.308 9618.399</span></span>
+<span><span class="co">#&gt;  lag1_sleep_duration sleep_duration 0.226 0.225   0.108 0.345 1    10963.284 9073.396</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
+<span><span class="co">#&gt;  predictor           outcome        mean   median q5     q95    rhat  ess_bulk  ess_tail </span></span>
+<span><span class="co">#&gt;  lag1_happyornot     stress_level    0.188  0.192 -0.258  0.627 1.000 11502.547  9541.818</span></span>
+<span><span class="co">#&gt;  lag1_sleep_duration stress_level   -0.104 -0.102 -0.189 -0.023 1.000  7852.874  8120.769</span></span>
+<span><span class="co">#&gt;  lag1_stress_level   happyornot     -0.234 -0.230 -0.650  0.175 1.000  9856.815  9572.424</span></span>
+<span><span class="co">#&gt;  lag1_sleep_duration happyornot      0.067  0.067 -0.120  0.248 1.000  9073.367  9094.861</span></span>
+<span><span class="co">#&gt;  lag1_stress_level   sleep_duration -0.198 -0.199 -0.453  0.053 1.000 11200.448  9478.212</span></span>
+<span><span class="co">#&gt;  lag1_happyornot     sleep_duration -0.292 -0.297 -0.868  0.285 1.001 13926.942 10143.977</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Residual SD ---</span></span>
+<span><span class="co">#&gt;  predictor      outcome mean  median q5    q95  rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  sleep_duration sigma   1.418 1.411  1.249 1.61 1    13626.98 10426.3 </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; --- Threshold ---</span></span>
+<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95   rhat  ess_bulk ess_tail </span></span>
+<span><span class="co">#&gt;  kappa(stress_level, c1) —       -0.085 -0.067 -0.458 0.232 1.000  5995.39  4848.848</span></span>
+<span><span class="co">#&gt;  kappa(stress_level, c2) —        0.243  0.243 -0.034 0.515 1.000 15220.91 12517.771</span></span>
+<span><span class="co">#&gt;  kappa(stress_level, c3) —        0.484  0.476  0.192 0.803 1.000 15744.65 13041.185</span></span>
+<span><span class="co">#&gt;  kappa(stress_level, c4) —        0.992  0.955  0.505 1.606 1.001 11753.41 11016.804</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ==================================================</span></span>
+<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
 <p>The temporal network can be extracted and inspected as usual:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error:</span></span>
-<span><span class="co">#&gt; ! object 'fit_mixed' not found</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
 <img src="figure/unnamed-chunk-7-1.png" alt="plot of chunk unnamed-chunk-7"><div class="figcaption">plot of chunk unnamed-chunk-7</div>
 </div>
 <p>As every other model, the mixed model can be extended by random
 effects (<code>Vignette(Random-Effects)</code>), hypothesis tests can be
-performed (<code>Vignette(Hypothesis-Testing)</code>) and predictions
-can be made based on the model (<code>Vignette(Prediction)</code>).</p>
+performed (<code>Vignette(Hypothesis-Testing)</code>).</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -11,9 +11,9 @@ the package. For more elaborated usecases, we refer to the additional
 vignettes
 
 - [`vignette("Hypothesis-Testing")`](https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.md)
-- `vignette("Mixed-Model")`
-- `vignette("Missing-Data")`
-- `vignette("Random-Effects")`
+- [`vignette("Mixed-Model")`](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md)
+- [`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md)
+- [`vignette("Random-Effects")`](https://flo1met.github.io/bvarnet/articles/Random-Effects.md)
 - [`vignette("MCMC-Diagnostics")`](https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.md)
 
 ## Setup
@@ -35,7 +35,8 @@ data(studentlife)
 
 There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read `vignette("Missing-Data")`.
+read
+[`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md).
 
 Currently, `bvarnet` allowes for the following outcome variables:
 
@@ -142,7 +143,7 @@ print(fit)
 #>   beta   ~ Normal(0, 1)  (default)
 #>   phi    ~ Normal(0, 0.5)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  12.7 sec
+#> Total time:  12.6 sec
 #> ========================================
 ```
 
@@ -251,9 +252,9 @@ nw_mat <- extract_network_matrix(fit)
 qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-20](figure/unnamed-chunk-20-1.png)
+![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
 
-plot of chunk unnamed-chunk-20
+plot of chunk unnamed-chunk-8
 
 Lastly, if you want to perform hypothesis tests on your estimated
 parameters we refer you to the `Vignette(Hypothesis-Testing)`.

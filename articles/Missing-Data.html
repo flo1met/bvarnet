@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Missing-Data • bvarnet</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Missing-Data">
 </head>
@@ -91,16 +91,16 @@
 missing values:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span>
-<span><span class="co">#&gt; # A tibble: 6 × 77</span></span>
+<span><span class="co">#&gt; # A tibble: 6 × 76</span></span>
 <span><span class="co">#&gt;      id   day happy happyornot   sad sadornot social_number stress_level sleep_hour sleep_quality difficult_stay_awake</span></span>
-<span><span class="co">#&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;         &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;                &lt;dbl&gt;</span></span>
-<span><span class="co">#&gt; 1     0     1    NA         NA    NA       NA         NA            3.17       7.5           1.5                     1</span></span>
-<span><span class="co">#&gt; 2     0     2    NA         NA    NA       NA          4            2          5.33          2.33                    1</span></span>
-<span><span class="co">#&gt; 3     0     4    NA         NA    NA       NA          2            4.5        9             2                       1</span></span>
-<span><span class="co">#&gt; 4     0     5    NA         NA    NA       NA          2           NA          3             4                       1</span></span>
-<span><span class="co">#&gt; 5     0     6    NA         NA    NA       NA         NA            1.5       NA            NA                      NA</span></span>
-<span><span class="co">#&gt; 6     0     7    NA         NA    NA       NA          2.67         2.5        5             3                       2</span></span>
-<span><span class="co">#&gt; # ℹ 66 more variables: anxious &lt;dbl&gt;, calm &lt;dbl&gt;, conventional &lt;dbl&gt;, critical &lt;dbl&gt;, dependable &lt;dbl&gt;, disorganized &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;      &lt;int&gt; &lt;dbl&gt;    &lt;dbl&gt;         &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;                &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1     0     1    NA         NA    NA       NA         NA               3       7.5           1.5                     0</span></span>
+<span><span class="co">#&gt; 2     0     2    NA         NA    NA       NA          4               2       5.33          2.33                    0</span></span>
+<span><span class="co">#&gt; 3     0     4    NA         NA    NA       NA          2               4       9             2                       0</span></span>
+<span><span class="co">#&gt; 4     0     5    NA         NA    NA       NA          2              NA       3             4                       0</span></span>
+<span><span class="co">#&gt; 5     0     6    NA         NA    NA       NA         NA               1      NA            NA                      NA</span></span>
+<span><span class="co">#&gt; 6     0     7    NA         NA    NA       NA          2.67            2       5             3                       1</span></span>
+<span><span class="co">#&gt; # ℹ 65 more variables: anxious &lt;dbl&gt;, calm &lt;dbl&gt;, conventional &lt;dbl&gt;, critical &lt;dbl&gt;, dependable &lt;dbl&gt;, disorganized &lt;dbl&gt;,</span></span>
 <span><span class="co">#&gt; #   enthusiastic &lt;dbl&gt;, open_to_experiences &lt;dbl&gt;, reserved &lt;dbl&gt;, sympathetic &lt;dbl&gt;, act_running_ep_0 &lt;dbl&gt;,</span></span>
 <span><span class="co">#&gt; #   act_running_ep_1 &lt;dbl&gt;, act_running_ep_2 &lt;dbl&gt;, act_running_ep_3 &lt;dbl&gt;, act_running_ep_4 &lt;dbl&gt;, act_still_ep_0 &lt;dbl&gt;,</span></span>
 <span><span class="co">#&gt; #   act_still_ep_1 &lt;dbl&gt;, act_still_ep_2 &lt;dbl&gt;, act_still_ep_3 &lt;dbl&gt;, act_still_ep_4 &lt;dbl&gt;, act_unknown_ep_0 &lt;dbl&gt;,</span></span>
@@ -198,7 +198,7 @@ mechanism, and once without:</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 4  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  7.9 sec</span></span>
+<span><span class="co">#&gt; Total time:  8.5 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_skip_lag</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network fit</span></span>
@@ -211,7 +211,7 @@ mechanism, and once without:</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  14.4 sec</span></span>
+<span><span class="co">#&gt; Total time:  14.6 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <p>Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
@@ -263,10 +263,10 @@ converge.</p>
 <span><span class="co">#&gt;  kappa(critical, c2)     —        0.945  0.939 -0.384  2.291 1.000 15379.49 12143.76</span></span>
 <span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.631 -0.622 -1.978  0.699 1.001 18780.65 12187.75</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
 <span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_skip_lag</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>
@@ -312,10 +312,10 @@ converge.</p>
 <span><span class="co">#&gt;  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191</span></span>
 <span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
 <span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="why-does-skip_lag-false-produce-fewer-observations">Why does <code>skip_lag = FALSE</code> produce fewer
