@@ -7,10 +7,19 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width  = 7,
+  fig.height = 4
+)
 
+has_cmdstan  <- instantiate::stan_cmdstan_exists()
+has_bayesplot <- requireNamespace("bayesplot", quietly = TRUE)
+```
 
-
-``` r
+```{r setup}
 library(bvarnet)
 library(bayesplot)
 ```
@@ -36,8 +45,7 @@ For a deeper treatment of HMC/NUTS theory and every diagnostic described here, s
 
 We reuse the five-variable ordinal model from `vignette("bvarnet")`. The same `studentlife` data are used throughout.
 
-
-``` r
+```{r}
 data(studentlife)
 
 priors <- set_priors(
@@ -46,8 +54,7 @@ priors <- set_priors(
 )
 ```
 
-
-``` r
+```{r, eval = has_cmdstan, results = "hide", message = FALSE}
 fit <- bvar(
   id_col   = "id",
   time_col = "day",
@@ -64,24 +71,8 @@ fit <- bvar(
 )
 ```
 
-
-``` r
+```{r, eval = has_cmdstan}
 print(fit)
-#> BVAR Network fit
-#> ======================================== 
-#> Family:      ordinal
-#> Outcomes (p): 5 
-#> Lags (K):     1 
-#> Fixed eff.:   0 
-#> Observations: 147 
-#> Rhat max:    1.001
-#> Divergences: 1  WARNING: check model/priors.
-#> Priors:
-#>   beta   ~ Normal(0, 1)  (default)
-#>   phi    ~ Normal(0, 0.5)
-#>   kappa  ~ Normal(0, 1)
-#> Total time:  13.0 sec
-#> ========================================
 ```
 
 ---
@@ -94,26 +85,15 @@ print(fit)
 
 The convergence table is stored in `fit$convergence` as a data frame with one row per parameter, alongside bulk-ESS and tail-ESS.
 
-
-``` r
+```{r, eval = has_cmdstan}
 head(fit$convergence)
-#>   variable      rhat ess_bulk  ess_tail
-#> 1     lp__ 1.0006264  5807.04  8763.894
-#> 2 phi[1,1] 1.0002434 19633.01 11959.170
-#> 3 phi[2,1] 0.9999424 16400.52 11459.448
-#> 4 phi[3,1] 0.9999472 19919.94 12271.959
-#> 5 phi[4,1] 1.0001548 29249.05 11530.322
-#> 6 phi[5,1] 1.0000761 18623.57 12379.016
 ```
 
 A quick summary of the R-hat distribution across all parameters:
 
-
-``` r
+```{r, eval = has_cmdstan}
 rhat_vals <- fit$convergence$rhat
 summary(rhat_vals)
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  0.9999  1.0000  1.0001  1.0001  1.0002  1.0007
 ```
 
 ---
@@ -127,19 +107,15 @@ Even though NUTS chains produce correlated samples, the **Effective Sample Size 
 | `ess_bulk` | Central tendency (mean, median) | $\geq 400$ |
 | `ess_tail` | Tail quantiles, credible interval bounds | $\geq 400$ |
 
-
-``` r
+```{r, eval = has_cmdstan}
 ess_bulk <- fit$convergence$ess_bulk
 ess_tail <- fit$convergence$ess_tail
 
 cat("Bulk ESS — min:", round(min(ess_bulk, na.rm = TRUE)),
     "  median:", round(median(ess_bulk, na.rm = TRUE)), "\n")
-#> Bulk ESS — min: 5807   median: 18210
 cat("Tail ESS — min:", round(min(ess_tail, na.rm = TRUE)),
     "  median:", round(median(ess_tail, na.rm = TRUE)), "\n")
-#> Tail ESS — min: 8764   median: 12304
 cat("Parameters with bulk ESS < 400:", sum(ess_bulk < 400, na.rm = TRUE), "\n")
-#> Parameters with bulk ESS < 400: 0
 ```
 
 ---
@@ -150,37 +126,28 @@ A **trace plot** shows the sampled value of a parameter at each iteration for ev
 
 To investigate the trace plots, we can use the `mcmc_trace()` from the `bayesplot` package.
 
-
-``` r
+```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
 phi_pars <- grep("^phi", dimnames(fit$draws)[[3]], value = TRUE)[1:6] # select some lag-coefficient parameters
 
 mcmc_trace(fit$draws, pars = phi_pars) +
   ggplot2::labs(title = "Trace plots — first six lag coefficients (phi)")
 ```
 
-![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
-
 Complementary **density overlay** plots show whether chain-specific posteriors are consistent:
 
-
-``` r
+```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
 mcmc_dens_overlay(fit$draws, pars = phi_pars) +
   ggplot2::labs(title = "Per-chain posterior densities — phi")
 ```
 
-![plot of chunk unnamed-chunk-9](figure/unnamed-chunk-9-1.png)
-
 We can do this for any sampled parameter, for example the threshold parameter kappa:
 
-
-``` r
+```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
 kappa_pars <- grep("^kappa", dimnames(fit$draws)[[3]], value = TRUE)[1:4]
 
 mcmc_trace(fit$draws, pars = kappa_pars) +
   ggplot2::labs(title = "Trace plots — first four cutpoints (kappa)")
 ```
-
-![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10-1.png)
 
 ---
 
@@ -188,14 +155,8 @@ mcmc_trace(fit$draws, pars = kappa_pars) +
 
 Stan's NUTS sampler reports two additional per-chain diagnostics stored in `fit$diagnostics`:
 
-
-``` r
+```{r, eval = has_cmdstan}
 fit$diagnostics
-#>   num_divergent num_max_treedepth     ebfmi
-#> 1             0                 0 0.8941142
-#> 2             0                 0 0.9862093
-#> 3             0                 0 0.9318894
-#> 4             1                 0 0.9390785
 ```
 
 ### Divergences

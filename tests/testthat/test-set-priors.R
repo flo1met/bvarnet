@@ -322,13 +322,13 @@ test_that(".ensure_prior_slots does nothing for complete priors", {
 test_that(".prior_warnings returns correct needed set for bernoulli without REs", {
   p <- set_priors()
   needed <- bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L)
-  expect_equal(needed, c("beta", "phi", "intercept"))
+  expect_equal(needed, c("intercept", "beta", "phi"))
 })
 
 test_that(".prior_warnings returns correct needed set for gaussian with REs", {
   p <- set_priors()
   needed <- bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 2L)
-  expect_equal(needed, c("beta", "phi", "intercept", "sd_u", "sigma"))
+  expect_equal(needed, c("intercept", "beta", "phi", "sd_u", "sigma"))
 })
 
 test_that(".prior_warnings returns correct needed set for ordinal", {
@@ -357,7 +357,7 @@ test_that(".prior_warnings messages about auto-filled defaults", {
   p <- set_priors(beta = prior("cauchy", 0, 2))
   expect_message(
     bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 0L),
-    "Using default priors for: phi, intercept, sigma"
+    "Using default priors for: intercept, phi, sigma"
   )
 })
 

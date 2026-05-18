@@ -590,47 +590,35 @@ savage_dickey <- function(object, params, null_value = 0,
 
 # ---- Primary export: bf_table() ----------------------------------------------#' Compute Bayes factor table for a bvarnet model
 #'
-#' Computes Savage-Dickey density ratio Bayes factors for each parameter in the
-#' requested subset and returns a tidy data frame.
+#' Compute Savege-Dickey Bayes factors
 #'
-#' For \code{type = "fe"} and \code{"intercepts"}, the table contains three
-#' levels: per-cell (logspline), per-predictor joint (MVN), and a global
-#' joint-all (MVN).  For \code{type = "ar"} and \code{"cl"}, the existing
-#' two-level structure (per-cell + per-type joint) is unchanged.
-#'
-#' \code{type = "lag_fe"} emits only grouped joint rows for lag × predictor
-#' interaction terms: per-lag-block and full-term omnibus.  Per-cell rows for
-#' these parameters are already included when \code{type = "fe"} is requested.
-#'
-#' When \code{variable} is non-NULL, only effects involving the named
-#' variable(s) are included.  Network variables (from \code{Y}) filter phi rows
-#' and lag × covariate interaction rows by the lagged predictor.  Covariate
-#' names (from \code{X}) filter fixed-effect rows and interaction terms.  Both
-#' types can be combined.  \code{variable} is combinable with \code{type} and
-#' \code{lag}; when \code{type = "all"} and \code{variable} is set, the
-#' auto-selected types depend on what was requested (network variables →
-#' \code{"ar"}, \code{"cl"}, \code{"temporal"}; covariates → \code{"fe"},
-#' \code{"lag_fe"}, \code{"temporal"} interaction rows).
+#' Computes Savage-Dickey density ratio Bayes factors for each (requested set of) parameter in the model.  
+#' By default, all applicable parameters are tested and returned in a tidy data frame.  
+#' The \code{type} argument controls which parameter groups are included; the \code{variable} argument can be used to filter to effects involving specific variables.
+#' The \code{log_BF10} argument allows including the natural log of the Bayes factor in the output, and \code{round} controls numeric rounding of the results.
 #'
 #' @param object     A \code{bvarnet} object returned by \code{bvar()}.
-#' @param type       Character vector or \code{"all"} (default).  Which
-#'   parameter groups to test.
-#'   Options: \code{"ar"} (autoregressive), \code{"cl"} (cross-lagged),
-#'   \code{"intercepts"}, \code{"fe"} (non-intercept fixed effects),
-#'   \code{"lag_fe"} (lag × predictor interaction joint tests),
-#'   \code{"temporal"} (joint test of all phi parameters across all lags,
-#'   i.e. the entire temporal structure AR + CL, excluding covariates;
-#'   additionally emits separate joint rows for AR-only and CL-only
-#'   components; when lag \ifelse{html}{\out{&times;}}{\eqn{\times}}
-#'   covariate interactions are present, additional rows are emitted for
-#'   per-interaction-term and AR-only / CL-only interaction sub-tests,
-#'   plus a full temporal + interactions omnibus).
-#'   \code{"all"} auto-selects all applicable types (skips
-#'   \code{"intercepts"} for ordinal models and \code{"lag_fe"} when
-#'   no lag interactions exist).  When \code{variable} is set,
-#'   \code{"all"} also skips \code{"intercepts"} and \code{"fe"}.
-#'   Per-cell \code{"ar"} and \code{"cl"} rows respect the \code{lag}
-#'   argument; \code{"temporal"} always covers all lags via joint tests.
+#' @param type Character vector specifying which parameter groups to test.
+#'   Use \code{"all"} (default) to include all applicable groups automatically.
+#'   Available options:
+#'   \describe{
+#'     \item{\code{"ar"}}{Autoregressive effects (self-loops). Per-cell BFs
+#'       for the lag specified by \code{lag}, plus a joint BF.}
+#'     \item{\code{"cl"}}{Cross-lagged effects. Same structure as \code{"ar"}.}
+#'     \item{\code{"intercepts"}}{Intercept parameters. Skipped automatically
+#'       for ordinal outcomes.}
+#'     \item{\code{"fe"}}{Non-intercept fixed effects (covariates).}
+#'     \item{\code{"lag_fe"}}{Joint BFs for lag \eqn{\times} covariate
+#'       interaction terms. Only available when the model was fitted with
+#'       \code{fe_interactions} containing lag terms.}
+#'     \item{\code{"temporal"}}{Joint BF for the entire temporal structure
+#'       (all AR + CL parameters across all lags). When lag \eqn{\times}
+#'       covariate interactions are present, additional omnibus rows are
+#'       included.}
+#'   }
+#'   \code{"all"} skips \code{"intercepts"} for ordinal models, skips
+#'   \code{"lag_fe"} when no lag interactions exist, and — when
+#'   \code{variable} is set — skips \code{"intercepts"} and \code{"fe"}.
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"} and \code{"cl"} types.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
@@ -643,17 +631,24 @@ savage_dickey <- function(object, params, null_value = 0,
 #'   lag × covariate interaction rows (effects **of** that covariate).
 #'   Both types can be combined in a single call.
 #'   Cannot be combined with \code{type = "intercepts"}.
+#' @param log_BF10 Logical; if \code{TRUE}, an additional \code{log_BF10}
+#'   column (natural log of \code{BF10}) is appended to the output.
+#'   Default is \code{FALSE}.
+#' @param round Integer or \code{NULL}; number of decimal places to round
+#'   numeric output columns.  Default is \code{5}.  Set to \code{NULL} to
+#'   disable rounding.
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
-#'   \code{outcome}, \code{BF01}, \code{BF10}, \code{log_BF01},
-#'   \code{post_density}, \code{prior_density}, \code{method}.
+#'   \code{outcome}, \code{BF10} (and optionally \code{log_BF10}).
 #'
 #' @export
 bf_table <- function(object,
                      type = "all",
                      lag = 1L,
                      null_value = 0,
-                     variable = NULL) {
+                     variable = NULL,
+                     log_BF10 = FALSE,
+                     round = 5L) {
   stopifnot(inherits(object, "bvarnet"))
 
   # ---- Variable validation ----
@@ -1113,15 +1108,21 @@ bf_table <- function(object,
     }  }
 
   if (length(rows) == 0L) {
-    return(data.frame(
+    out <- data.frame(
       type = character(0), predictor = character(0), outcome = character(0),
-      BF01 = numeric(0), BF10 = numeric(0), log_BF01 = numeric(0),
-      post_density = numeric(0), prior_density = numeric(0),
-      method = character(0), stringsAsFactors = FALSE
-    ))
+      BF10 = numeric(0), stringsAsFactors = FALSE
+    )
+    if (isTRUE(log_BF10)) out$log_BF10 <- numeric(0)
+    return(out)
   }
   out <- do.call(rbind, rows)
   rownames(out) <- NULL
+  out <- out[, c("type", "predictor", "outcome", "BF10")]
+  if (isTRUE(log_BF10)) out$log_BF10 <- log(out$BF10)
+  if (!is.null(round)) {
+    num_cols <- sapply(out, is.numeric)
+    out[num_cols] <- lapply(out[num_cols], round, digits = round)
+  }
   out
 }
 

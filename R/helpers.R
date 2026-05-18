@@ -271,7 +271,8 @@ print.bvarnet <- function(x, ...) {
     priors_to_show <- x$priors_needed
     if (is.null(priors_to_show)) {
       # Backward compat: old objects without priors_needed
-      priors_to_show <- c("beta", "phi")
+      has_intercept <- .family_has(x, "gaussian") || .family_has(x, "bernoulli")
+      priors_to_show <- if (has_intercept) c("intercept", "beta", "phi") else c("beta", "phi")
       has_re <- !is.null(sd$n_re) && sd$n_re > 0
       if (has_re) priors_to_show <- c(priors_to_show, "sd_u")
       if (.family_has(x, "gaussian")) priors_to_show <- c(priors_to_show, "sigma")

@@ -20,8 +20,6 @@ has_cmdstan <- instantiate::stan_cmdstan_exists()
 
 ```{r setup}
 library(bvarnet)
-
-# subject to be removed again...
 library(qgraph)
 ```
 
@@ -71,7 +69,7 @@ summary(fit)
 
 ## Extracting Random Effects
 
-Additionally to the `extract_*` that we already described in `Vignette(bvarnet)`, we can use the `extract_random_effects()` function to only extract the random effects:
+Additionally to the `extract_*` functions that we already described in `Vignette(bvarnet)`, we can use the `extract_random_effects()` function to only extract the random effects:
 ```{r, eval = has_cmdstan}
 re <- extract_random_effects(fit)
 re

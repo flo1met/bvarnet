@@ -248,13 +248,12 @@ test_that("bf_table returns correct data frame shape for ar + cl", {
   res <- bf_table(mock, type = c("ar", "cl"))
 
   expect_s3_class(res, "data.frame")
-  expect_true(all(c("type", "predictor", "outcome", "BF01", "BF10",
-                     "log_BF01", "post_density", "prior_density", "method")
+  expect_true(all(c("type", "predictor", "outcome", "BF10")
                   %in% names(res)))
 
   # p=2, K=1 → ar: 2 + 1 joint + cl: 2 + 1 joint = 6
   expect_equal(nrow(res), 6)
-  expect_true(all(res$BF01 > 0))
+  expect_true(all(res$BF10 > 0))
   expect_true(any(grepl("joint", res$type)))
 })
 
@@ -296,8 +295,8 @@ test_that("bf_table joint row BF01 is positive and finite", {
   res <- bf_table(mock, type = c("ar", "cl"))
   joint_rows <- res[grepl("joint", res$type), ]
   expect_equal(nrow(joint_rows), 2)  # one for AR, one for CL
-  expect_true(all(is.finite(joint_rows$BF01)))
-  expect_true(all(joint_rows$BF01 > 0))
+  expect_true(all(is.finite(joint_rows$BF10)))
+  expect_true(all(joint_rows$BF10 > 0))
 })
 
 
@@ -509,7 +508,7 @@ test_that("bf_table lag_fe: p=2, K=1, 1 interaction → 2 rows", {
   # K=1: 1 per-lag joint only (omnibus suppressed since identical)
   expect_equal(nrow(res), 1)
   expect_true("Lag Interaction (per lag)" %in% res$type)
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table lag_fe: p=2, K=2 → 3 rows (2 per-lag + 1 omnibus)", {
@@ -608,11 +607,8 @@ test_that("bf_table temporal returns 1 row (joint only) for p=2, K=1", {
   combined <- res[res$type == "Temporal (joint)", ]
   expect_equal(combined$predictor, "all_phi")
   expect_equal(combined$outcome, "\u2014")
-  expect_true(combined$BF01 > 0)
-  expect_true(is.finite(combined$BF01))
-  expect_equal(combined$BF01 * combined$BF10, 1)
-  expect_equal(combined$log_BF01, log(combined$BF01))
-  expect_equal(combined$method, "mvn")
+  expect_true(combined$BF10 > 0)
+  expect_true(is.finite(combined$BF10))
 })
 
 test_that("bf_table temporal collects all phi params (p=2, K=1)", {
@@ -624,8 +620,9 @@ test_that("bf_table temporal collects all phi params (p=2, K=1)", {
 
   res <- bf_table(mock, type = "temporal")
   combined <- res[res$type == "Temporal (joint)", ]
-  # The method should be "mvn" since 4 > 1
-  expect_equal(combined$method, "mvn")
+  # Should return a single row for the joint test
+  expect_equal(nrow(combined), 1L)
+  expect_true(combined$BF10 > 0)
 })
 
 test_that("bf_table temporal can be combined with ar and cl", {
@@ -645,7 +642,7 @@ test_that("bf_table temporal works for all families", {
     res  <- bf_table(mock, type = "temporal")
     # K=1: 1 row (combined joint only)
     expect_equal(nrow(res), 1, info = paste("family:", fam))
-    expect_true(all(is.finite(res$BF01)), info = paste("family:", fam))
+    expect_true(all(is.finite(res$BF10)), info = paste("family:", fam))
   }
 })
 
@@ -706,7 +703,7 @@ test_that("bf_table temporal with lag interaction emits interaction rows", {
   expect_equal(res$predictor[res$type == "Temporal CL \u00d7 Interaction (joint)"], "x_1")
   expect_equal(res$predictor[res$type == "Temporal + Interactions (joint)"],
                "all_temporal")
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table temporal with 2 interaction terms emits per-term rows", {
@@ -791,7 +788,7 @@ test_that("bf_table temporal p=1: no CL row emitted", {
   expect_true("Temporal (joint)"    %in% res$type)
   expect_false("Temporal AR (joint)" %in% res$type)
   expect_false("Temporal CL (joint)" %in% res$type)
-  expect_true(all(res$method == "logspline"))
+  expect_true(all(res$BF10 > 0))
 })
 
 
@@ -815,7 +812,7 @@ test_that("bf_table type='all' works for gaussian (no interactions)", {
   expect_true(any(grepl("Temporal", res$type)))
   # No lag interaction rows
   expect_false(any(grepl("Lag Interaction", res$type)))
-  expect_true(all(res$BF01 > 0))
+  expect_true(all(res$BF10 > 0))
 })
 
 test_that("bf_table type='all' skips intercepts for ordinal", {
@@ -832,7 +829,7 @@ test_that("bf_table type='fe' works for pure ordinal (no intercept in X)", {
   per_cell <- res[res$type == "Fixed Effect", ]
   expect_equal(nrow(per_cell), 2L)
   expect_true(all(per_cell$predictor == "x_1"))
-  expect_true(all(is.finite(per_cell$BF10)))
+  expect_true(all(is.finite(per_cell$BF10) & per_cell$BF10 > 0))
 })
 
 test_that("bf_table type='all' includes FE for pure ordinal", {
@@ -874,7 +871,7 @@ test_that("bf_table type='all' includes lag_fe when interactions exist", {
   expect_true(any(grepl("Lag Interaction", res$type)))
   expect_true(any(grepl("Temporal", res$type)))
   expect_true(any(grepl("Intercept", res$type)))
-  expect_true(all(res$BF01 > 0))
+  expect_true(all(res$BF10 > 0))
 })
 
 
@@ -888,7 +885,7 @@ test_that("bf_table(variable = 'y_1', type = 'ar') returns only y_1 self-loop", 
   expect_equal(nrow(res), 1L)
   expect_equal(res$type[1], "Autoregressive")
   expect_equal(res$outcome[1], "y_1")
-  expect_true(res$BF01[1] > 0)
+  expect_true(res$BF10[1] > 0)
 })
 
 test_that("bf_table(variable = 'y_1', type = 'cl') returns CL effects from y_1", {
@@ -911,7 +908,7 @@ test_that("bf_table(variable = 'y_1') with type = 'all' skips fe/intercepts", {
   expect_true(any(res$type == "Autoregressive"))
   expect_true(any(res$type == "Cross-lagged"))
   expect_true(any(grepl("Temporal", res$type)))
-  expect_true(all(res$BF01 > 0))
+  expect_true(all(res$BF10 > 0))
 })
 
 test_that("bf_table(variable = c('y_1', 'y_2')) returns effects from both", {
@@ -971,7 +968,7 @@ test_that("bf_table returns 0-row data frame when variable+type yields no params
   res <- bf_table(mock, variable = "y_1", type = "cl")
   expect_s3_class(res, "data.frame")
   expect_equal(nrow(res), 0L)
-  expect_equal(ncol(res), 9L)
+  expect_equal(ncol(res), 4L)
 })
 
 test_that("bf_table(variable) joint rows only span filtered params", {
@@ -997,7 +994,7 @@ test_that("bf_table(variable) temporal joints scope to variable", {
   # all_ar: phi[1,1] (1), all_cl: phi[1,2] (1)
   # Should get: Temporal (joint), Temporal AR (joint), Temporal CL (joint)
   expect_true("Temporal (joint)" %in% res$type)
-  expect_true(all(res$BF01 > 0))
+  expect_true(all(res$BF10 > 0))
 })
 
 test_that("bf_table(variable + type='lag_fe') filters to variable interactions", {
@@ -1033,7 +1030,7 @@ test_that("bf_table(variable + type='lag_fe') filters to variable interactions",
   res <- bf_table(mock, variable = "y_1", type = "lag_fe")
   expect_s3_class(res, "data.frame")
   expect_true(nrow(res) >= 1L)
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table(variable) with K=2 filters across lags", {
@@ -1119,7 +1116,7 @@ test_that("bf_table(variable + temporal) with K=1 interactions filters correctly
   expect_true("Temporal (joint)" %in% res$type)
   # Should have omnibus row combining phi + interactions
   expect_true("Temporal + Interactions (joint)" %in% res$type)
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 
@@ -1133,7 +1130,7 @@ test_that("bf_table(variable = covariate, type = 'fe') filters to that covariate
   # p=2, 1 predictor "x_1": 2 per-cell + 1 joint = 3
   expect_equal(nrow(res), 3L)
   expect_true(all(grepl("Fixed Effect", res$type)))
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table(variable = covariate, type = 'all') auto-selects fe + lag_fe", {
@@ -1180,7 +1177,7 @@ test_that("bf_table(variable = covariate, type = 'all') auto-selects fe + lag_fe
   expect_false(any(grepl("Autoregressive", res$type)))
   expect_false(any(grepl("Cross-lagged", res$type)))
   expect_false("Temporal (joint)" %in% res$type)
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table(variable = mixed network + covariate) combines both", {
@@ -1221,7 +1218,7 @@ test_that("bf_table(variable = mixed network + covariate) combines both", {
   expect_true(any(grepl("Fixed Effect", res$type)))
   # Should have lag interaction rows
   expect_true(any(grepl("Lag Interaction", res$type)))
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
 })
 
 test_that("bf_table(variable = unknown) errors with available names", {
@@ -1250,7 +1247,7 @@ test_that("mixed-family type='all' does not crash on ordinal intercepts", {
   res <- bf_table(mock)
   expect_s3_class(res, "data.frame")
   expect_true(nrow(res) > 0)
-  expect_true(all(is.finite(res$BF01) & res$BF01 > 0))
+  expect_true(all(is.finite(res$BF10) & res$BF10 > 0))
   # Intercept rows should exist for gaussian but not include ordinal sentinel
   int_rows <- res[grepl("^Intercept", res$type), ]
   expect_true(nrow(int_rows) > 0)

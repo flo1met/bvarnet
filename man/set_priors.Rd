@@ -5,8 +5,8 @@
 \title{Build a prior specification object for \code{bvar()}}
 \usage{
 set_priors(
-  beta = NULL,
   intercept = NULL,
+  beta = NULL,
   phi = NULL,
   sd_u = NULL,
   kappa = NULL,
@@ -14,10 +14,10 @@ set_priors(
 )
 }
 \arguments{
-\item{beta}{Prior for fixed-effect regression coefficients (slopes).}
-
 \item{intercept}{Prior for the intercept. Only applies to gaussian and bernoulli models;
 for ordinal models the intercept is absorbed into the kappa (threshold parameter).}
+
+\item{beta}{Prior for fixed-effect regression coefficients (slopes).}
 
 \item{phi}{Prior for lag coefficients.}
 
