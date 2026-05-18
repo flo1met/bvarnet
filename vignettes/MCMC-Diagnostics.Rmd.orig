@@ -188,16 +188,11 @@ To draw each new sample, NUTS simulates a trajectory through parameter space, ta
 
 The total number of draws available for inference is `iter × chains` (16 000 with the defaults above).  Increasing `iter` directly improves ESS at a proportional computational cost.  Increasing `warmup` can help when the sampler struggles to find the typical set (visible as a long burn-in in trace plots).
 
-A practical rule: start with `warmup = 1000, iter = 2000` for exploration,
-then increase to `iter = 4000` (or more) for final inference.
-
 ### `adapt_delta`: Controlling Divergences
 
 `adapt_delta` (default 0.80) is the **target acceptance rate** that Stan's dual-averaging algorithm uses when adapting the step size during warmup. A higher target forces a smaller step size, which reduces discretisation error and typically eliminates divergences.
 
-**Trade-off:** smaller step sizes mean shorter trajectories per unit time, so
-ESS per second decreases.  Increase `adapt_delta` only when you observe
-divergences; do not set it near 1 unless needed.
+**Trade-off:** smaller step sizes mean shorter trajectories per unit time, so ESS per second decreases.  Increase `adapt_delta` only when you observe divergences; do not set it near 1 unless needed.
 
 Typical values:
 
@@ -213,10 +208,7 @@ For full details see the [Stan reference on `adapt_delta`](https://mc-stan.org/d
 
 `max_treedepth` (default 10) caps the doubling steps NUTS may take. The maximum trajectory length is $2^{\text{max\_treedepth}}$ leapfrog steps.
 
-Increase this when `fit$diagnostics` shows a non-trivial number of iterations
-hitting the tree-depth limit.  Each additional level doubles compute time per
-affected iteration, so increases of 1–2 beyond the default are usually
-sufficient.
+Increase this when `fit$diagnostics` shows a non-trivial number of iterations hitting the tree-depth limit.  Each additional level doubles compute time per affected iteration, so increases of 1–2 beyond the default are usually sufficient.
 
 For full details see the [Stan reference on `max_treedepth`](https://mc-stan.org/docs/reference-manual/mcmc.html#nuts-configuration).
 
