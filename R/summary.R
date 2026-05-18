@@ -119,6 +119,10 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
         "Autoregressive"   = "extract_temporal(fit, effect = \"ar\")",
         "Cross-lagged"     = "extract_temporal(fit, effect = \"cl\")",
         "Random Effect SD" = "extract_random_effects(fit)",
+        "Intercept"        = "extract_param(fit, type = \"Intercept\")",
+        "Fixed Effect"     = "extract_param(fit, type = \"Fixed Effect\")",
+        "Residual SD"      = "extract_param(fit, type = \"Residual SD\")",
+        "Threshold"        = "extract_param(fit, type = \"Threshold\")",
         "extract_param(fit)")
       cat(sprintf("... %d more rows. Use %s for full output.\n",
                   n_total - max_rows, hint))
@@ -126,7 +130,7 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
   }
 
   cat("\n", strrep("=", 50), "\n", sep = "")
-  cat("Use extract_param() for the full parameter table.\n")
+  cat("Use extract_param() or extract_param(fit, type = \"...\") for the full parameter table.\n")
   cat("Use extract_network_matrix() for the temporal network matrix.\n")
   invisible(x)
 }

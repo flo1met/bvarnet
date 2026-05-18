@@ -10,6 +10,11 @@
 #'   beta and phi parameters.  Default \code{FALSE}.
 #' @param null_value Numeric scalar; the null hypothesis value for Bayes
 #'   factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.
+#' @param type Character vector or \code{NULL} (default). If supplied, only
+#'   rows matching the given type(s) are returned.  Valid values are:
+#'   \code{"Intercept"}, \code{"Fixed Effect"}, \code{"Autoregressive"},
+#'   \code{"Cross-lagged"}, \code{"Random Effect SD"}, \code{"Residual SD"},
+#'   \code{"Threshold"}.
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
 #'   \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
@@ -17,8 +22,22 @@
 #'   \code{BF01}, \code{BF10}.
 #'
 #' @export
-extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
+extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
+                          type = NULL) {
   stopifnot(inherits(object, "bvarnet"))
+
+  .valid_types <- c("Intercept", "Fixed Effect", "Autoregressive",
+                    "Cross-lagged", "Random Effect SD", "Residual SD",
+                    "Threshold")
+  if (!is.null(type)) {
+    bad <- setdiff(type, .valid_types)
+    if (length(bad) > 0L)
+      stop(sprintf(
+        "Unknown type value(s): %s. Valid types are: %s.",
+        paste(sQuote(bad), collapse = ", "),
+        paste(sQuote(.valid_types), collapse = ", ")
+      ), call. = FALSE)
+  }
 
   sd   <- object$standata
   nm   <- get_param_names(sd)
@@ -160,6 +179,9 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0) {
       }
     }
   }
+
+  if (!is.null(type))
+    out <- out[out$type %in% type, , drop = FALSE]
 
   out
 }

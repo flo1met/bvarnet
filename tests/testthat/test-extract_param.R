@@ -200,3 +200,53 @@ test_that("extract_param predictor labels use variable names from standata", {
   phi_rows <- subset(res, type %in% c("Autoregressive", "Cross-lagged"))
   expect_true(all(grepl("lag1_y_[0-9]+", phi_rows$predictor)))
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §N — extract_param() type= argument
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("extract_param type=NULL returns all rows (backward compat)", {
+  obj  <- make_mock_bvarnet("gaussian")
+  full <- extract_param(obj)
+  with_null <- extract_param(obj, type = NULL)
+  expect_equal(full, with_null)
+})
+
+test_that("extract_param type='Threshold' returns only threshold rows for ordinal", {
+  obj <- make_mock_bvarnet("ordinal")
+  res <- extract_param(obj, type = "Threshold")
+  expect_true(is.data.frame(res))
+  expect_true(nrow(res) > 0L)
+  expect_true(all(res$type == "Threshold"))
+})
+
+test_that("extract_param type='Residual SD' returns only residual SD rows for gaussian", {
+  obj <- make_mock_bvarnet("gaussian")
+  res <- extract_param(obj, type = "Residual SD")
+  expect_true(is.data.frame(res))
+  expect_equal(nrow(res), obj$standata$p)
+  expect_true(all(res$type == "Residual SD"))
+})
+
+test_that("extract_param type= returns empty data.frame when type absent in model", {
+  obj <- make_mock_bvarnet("bernoulli")
+  res <- extract_param(obj, type = "Threshold")
+  expect_true(is.data.frame(res))
+  expect_equal(nrow(res), 0L)
+})
+
+test_that("extract_param type= accepts multiple types", {
+  obj <- make_mock_bvarnet("gaussian")
+  res <- extract_param(obj, type = c("Autoregressive", "Cross-lagged"))
+  expect_true(all(res$type %in% c("Autoregressive", "Cross-lagged")))
+  expect_true(nrow(res) > 0L)
+})
+
+test_that("extract_param type= errors on unknown type value", {
+  obj <- make_mock_bvarnet("bernoulli")
+  expect_error(
+    extract_param(obj, type = "NotAType"),
+    "Unknown type value"
+  )
+})

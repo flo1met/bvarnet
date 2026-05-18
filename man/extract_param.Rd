@@ -4,7 +4,7 @@
 \alias{extract_param}
 \title{Extract labelled parameter summaries from a fitted bvarnet model}
 \usage{
-extract_param(object, bayes_factor = FALSE, null_value = 0)
+extract_param(object, bayes_factor = FALSE, null_value = 0, type = NULL)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{bvar()}.}
@@ -15,6 +15,12 @@ beta and phi parameters.  Default \code{FALSE}.}
 
 \item{null_value}{Numeric scalar; the null hypothesis value for Bayes
 factor computation (default 0).  Only used when \code{bayes_factor = TRUE}.}
+
+\item{type}{Character vector or \code{NULL} (default). If supplied, only
+rows matching the given type(s) are returned.  Valid values are:
+\code{"Intercept"}, \code{"Fixed Effect"}, \code{"Autoregressive"},
+\code{"Cross-lagged"}, \code{"Random Effect SD"}, \code{"Residual SD"},
+\code{"Threshold"}.}
 }
 \value{
 A data frame with columns: \code{type}, \code{predictor},
