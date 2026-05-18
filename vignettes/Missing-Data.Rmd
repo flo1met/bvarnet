@@ -1,0 +1,264 @@
+---
+title: "Missing-Data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Missing-Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+## Setup
+
+First, lets load the package:
+
+``` r
+library(bvarnet)
+```
+
+
+## Data
+
+Now, we can load the example data:
+
+``` r
+data(studentlife)
+```
+
+
+## Missing Data in `bvarnet`
+
+Inspecting the dataset, we can see that there are quite a lot of missing values:
+
+``` r
+head(studentlife)
+#> # A tibble: 6 × 76
+#>      id   day happy happyornot   sad sadornot social_number stress_level sleep_hour sleep_quality difficult_stay_awake
+#>   <dbl> <dbl> <dbl>      <int> <dbl>    <dbl>         <dbl>        <dbl>      <dbl>         <dbl>                <int>
+#> 1     0     1    NA         NA    NA       NA         NA               3       7.5           1.5                     0
+#> 2     0     2    NA         NA    NA       NA          4               2       5.33          2.33                    0
+#> 3     0     4    NA         NA    NA       NA          2               4       9             2                       0
+#> 4     0     5    NA         NA    NA       NA          2              NA       3             4                       0
+#> 5     0     6    NA         NA    NA       NA         NA               1      NA            NA                      NA
+#> 6     0     7    NA         NA    NA       NA          2.67            2       5             3                       1
+#> # ℹ 65 more variables: anxious <dbl>, calm <dbl>, conventional <dbl>, critical <dbl>, dependable <dbl>, disorganized <dbl>,
+#> #   enthusiastic <dbl>, open_to_experiences <dbl>, reserved <dbl>, sympathetic <dbl>, act_running_ep_0 <dbl>,
+#> #   act_running_ep_1 <dbl>, act_running_ep_2 <dbl>, act_running_ep_3 <dbl>, act_running_ep_4 <dbl>, act_still_ep_0 <dbl>,
+#> #   act_still_ep_1 <dbl>, act_still_ep_2 <dbl>, act_still_ep_3 <dbl>, act_still_ep_4 <dbl>, act_unknown_ep_0 <dbl>,
+#> #   act_unknown_ep_1 <dbl>, act_unknown_ep_2 <dbl>, act_unknown_ep_3 <dbl>, act_unknown_ep_4 <dbl>, act_walking_ep_0 <dbl>,
+#> #   act_walking_ep_1 <dbl>, act_walking_ep_2 <dbl>, act_walking_ep_3 <dbl>, act_walking_ep_4 <dbl>, act_on_foot_ep_0 <dbl>,
+#> #   act_on_foot_ep_1 <dbl>, act_on_foot_ep_2 <dbl>, act_on_foot_ep_3 <dbl>, act_on_foot_ep_4 <dbl>, …
+```
+
+If we look at the subset of variables that we use in the `Vignette("bvarnet")` c("anxious", "calm", "conventional", "critical", "dependable"), we see there is approximately $90\%$ of missing data:
+
+``` r
+sum(is.na(studentlife[c("anxious", "calm", "conventional", "critical", "dependable")])) / (5*nrow(studentlife))
+#> [1] 0.8988494
+```
+
+
+## The Skipping-Lag Mechanism
+
+Currently, `bvarnet` handles missing data through a listwise deletion and skipping lag-mechanism. 
+Listwise deletion is a computational simple solution to the missing data problem, but does rely on the assumption that data are *missing completely at random (MCAR)*. Violating this assumption may lead to biased parameter estimation.
+In longitudinal settings such as like the Vector Autoregressive models, listwise deletion can introduce irregular gaps in the observed time series. This violates the modeling assumption of no missing time points and equal length of time gaps.
+To address this issue, we introduce a skipping-lag mechanism. Specifically, lagged effects are only estimated when the time difference between two observations does not exceed a threshold determined by the autoregressive order K. That is, for a VAR(K) model, lagged relationships are only included if the effective time gap corresponds to at most K time steps.
+In other words, the model excludes the estimation of temporal parameters across large time gaps, thereby preserving the interpretation of lagged effects as local (short-term) dependencies.
+
+## Comparison: With and Without Lag Skipping
+
+In the `bvar` function the skipping-lag mechanism can be turned on and off by using the `skip_lag` argument. To illustrate this, we can fit the model once using the lag skipping mechanism, and once without:
+
+``` r
+fit_no_skip_lag <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  skip_lag = FALSE,
+  data = studentlife,
+  family = c("ordinal"),
+  priors = set_priors(),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+
+fit_skip_lag <- bvar(
+  id_col = "id",
+  time_col = "day",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  x_cols = NULL,
+  re_temporal = FALSE,
+  K = 1,
+  skip_lag = TRUE,
+  data = studentlife,
+  family = c("ordinal"),
+  priors = set_priors(),
+  iter = 4000,
+  warmup = 1000,
+  chains = 4,
+  cores = 4,
+  seed = 1337
+)
+```
+
+## Model Output
+
+We can print an overview of the models we just ran using the `print(fit)` functions:
+
+``` r
+print(fit_no_skip_lag)
+#> BVAR Network fit
+#> ======================================== 
+#> Family:      ordinal
+#> Outcomes (p): 5 
+#> Lags (K):     1 
+#> Fixed eff.:   0 
+#> Observations: 67 
+#> Rhat max:    1.001
+#> Divergences: 4  WARNING: check model/priors.
+#> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
+#> Total time:  8.5 sec
+#> ========================================
+print(fit_skip_lag)
+#> BVAR Network fit
+#> ======================================== 
+#> Family:      ordinal
+#> Outcomes (p): 5 
+#> Lags (K):     1 
+#> Fixed eff.:   0 
+#> Observations: 147 
+#> Rhat max:    1.001
+#> Divergences: 2  WARNING: check model/priors.
+#> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
+#> Total time:  14.6 sec
+#> ========================================
+```
+
+Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
+
+To further inspect the model parameters we can use the `summary(fit)` function:
+
+
+``` r
+summary(fit_no_skip_lag)
+#> BVAR Network Summary
+#> ================================================== 
+#> Family: ordinal | p=5 | K=1 | n=67
+#> Rhat max: 1.001 | Divergences: 4
+#>   WARNING: divergent transitions detected — check model/priors.
+#> 
+#> --- Autoregressive ---
+#>  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail
+#>  lag1_anxious      anxious      0.339 0.338   0.040 0.651 1    14313.98 12663.29
+#>  lag1_calm         calm         0.272 0.271  -0.032 0.583 1    12597.37 11566.30
+#>  lag1_conventional conventional 0.704 0.699   0.387 1.037 1    14261.66 11256.07
+#>  lag1_critical     critical     0.375 0.371   0.132 0.628 1    17694.93 12596.36
+#>  lag1_dependable   dependable   0.509 0.503   0.256 0.782 1    15301.30 12277.34
+#> 
+#> 
+#> --- Cross-lagged ---
+#>  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail
+#>  lag1_calm         anxious      -0.302 -0.300 -0.608 -0.003 1    10483.74 10555.98
+#>  lag1_conventional anxious       0.214  0.213 -0.090  0.522 1    15024.71 12494.95
+#>  lag1_critical     anxious       0.131  0.130 -0.110  0.375 1    18724.81 11340.99
+#>  lag1_dependable   anxious       0.114  0.114 -0.129  0.364 1    14973.68 12577.59
+#>  lag1_anxious      calm         -0.115 -0.116 -0.426  0.195 1    13347.20 11867.03
+#>  lag1_conventional calm         -0.226 -0.224 -0.549  0.091 1    13782.69 12198.55
+#>  lag1_critical     calm         -0.110 -0.111 -0.363  0.146 1    18142.55 12199.66
+#>  lag1_dependable   calm          0.180  0.177 -0.073  0.442 1    15069.37 11928.87
+#>  lag1_anxious      conventional -0.156 -0.153 -0.472  0.157 1    13342.76 12063.64
+#>  lag1_calm         conventional -0.040 -0.040 -0.333  0.253 1    11344.55 12031.13
+#> 
+#> ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.
+#> 
+#> --- Threshold ---
+#>  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail
+#>  kappa(anxious, c1)      —       -0.699 -0.689 -2.162  0.738 1.000 12338.40 12029.46
+#>  kappa(calm, c1)         —       -2.297 -2.259 -4.094 -0.655 1.000 12290.58 10066.12
+#>  kappa(conventional, c1) —       -0.639 -0.631 -2.081  0.774 1.000 14940.93 11881.86
+#>  kappa(critical, c1)     —       -0.004  0.005 -1.379  1.347 1.000 13376.88 11823.21
+#>  kappa(dependable, c1)   —       -1.497 -1.482 -2.988 -0.071 1.000 13894.65 11128.82
+#>  kappa(anxious, c2)      —        1.569  1.569  0.188  2.938 1.000 17380.14 11741.22
+#>  kappa(calm, c2)         —       -1.036 -1.021 -2.468  0.355 1.000 21368.65 12745.46
+#>  kappa(conventional, c2) —       -0.146 -0.144 -1.519  1.231 1.001 16691.08 13160.89
+#>  kappa(critical, c2)     —        0.945  0.939 -0.384  2.291 1.000 15379.49 12143.76
+#>  kappa(dependable, c2)   —       -0.631 -0.622 -1.978  0.699 1.001 18780.65 12187.75
+#> 
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
+#> 
+#> ==================================================
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
+#> Use extract_network_matrix() for the temporal network matrix.
+summary(fit_skip_lag)
+#> BVAR Network Summary
+#> ================================================== 
+#> Family: ordinal | p=5 | K=1 | n=147
+#> Rhat max: 1.001 | Divergences: 2
+#>   WARNING: divergent transitions detected — check model/priors.
+#> 
+#> --- Autoregressive ---
+#>  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail
+#>  lag1_anxious      anxious      0.203 0.203  -0.054 0.460 1    15617.37 12599.58
+#>  lag1_calm         calm         0.176 0.174  -0.058 0.415 1    13025.39 11190.21
+#>  lag1_conventional conventional 0.558 0.554   0.280 0.843 1    14346.16 11205.97
+#>  lag1_critical     critical     0.278 0.277   0.075 0.492 1    18103.80 11283.74
+#>  lag1_dependable   dependable   0.476 0.473   0.247 0.714 1    15253.27 12152.74
+#> 
+#> 
+#> --- Cross-lagged ---
+#>  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail
+#>  lag1_calm         anxious      -0.308 -0.307 -0.556 -0.069 1    12276.01 12256.25
+#>  lag1_conventional anxious       0.113  0.112 -0.145  0.375 1    15288.24 12209.56
+#>  lag1_critical     anxious       0.065  0.065 -0.142  0.273 1    21335.42 11693.19
+#>  lag1_dependable   anxious       0.054  0.052 -0.158  0.267 1    14645.31 12404.76
+#>  lag1_anxious      calm         -0.085 -0.085 -0.338  0.168 1    15499.73 13047.83
+#>  lag1_conventional calm         -0.162 -0.162 -0.423  0.096 1    14847.92 12191.17
+#>  lag1_critical     calm         -0.077 -0.077 -0.286  0.131 1    20946.54 12223.59
+#>  lag1_dependable   calm          0.116  0.115 -0.096  0.328 1    15982.24 11988.57
+#>  lag1_anxious      conventional -0.184 -0.184 -0.462  0.095 1    14348.25 12403.62
+#>  lag1_calm         conventional -0.105 -0.105 -0.349  0.134 1    12989.52 12059.56
+#> 
+#> ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.
+#> 
+#> --- Threshold ---
+#>  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail 
+#>  kappa(anxious, c1)      —       -1.033 -1.029 -1.470 -0.613 1.000 11123.68  9566.673
+#>  kappa(calm, c1)         —       -1.300 -1.266 -1.869 -0.848 1.000 14564.11 10916.416
+#>  kappa(conventional, c1) —       -1.033 -1.012 -1.471 -0.674 1.000 14373.14 11229.523
+#>  kappa(critical, c1)     —        0.086  0.095 -0.239  0.379 1.000 12541.34 10745.366
+#>  kappa(dependable, c1)   —       -1.726 -1.680 -2.521 -1.081 1.000 10748.70 10274.783
+#>  kappa(anxious, c2)      —        0.459  0.464  0.139  0.765 1.000 13762.57 12456.461
+#>  kappa(calm, c2)         —       -0.884 -0.875 -1.244 -0.552 1.000 18423.96 13368.980
+#>  kappa(conventional, c2) —       -0.707 -0.710 -1.008 -0.397 1.000 15460.49 10840.830
+#>  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191
+#>  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794
+#> 
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
+#> 
+#> ==================================================
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
+#> Use extract_network_matrix() for the temporal network matrix.
+```
+
+### Why does `skip_lag = FALSE` produce fewer observations?
+
+When `skip_lag = FALSE`, any row whose previous observation is not exactly one time step away lacks a valid lag. Because the autoregressive component cannot be computed for that row, the row is dropped entirely from the likelihood. This is the conservative choice: every observation that remains has a genuine lagged value, so estimates of the temporal coefficients ($\phi$) are unbiased (given the model).
+
+When `skip_lag = TRUE` (the default), those same rows are kept. The contribution of the autoregressive effect is set to zero, while the outcome is still modeled through the intercept, fixed effects, and (if present) random effects. Oly the temporal component is "switched off" for that row.
+
+### Practical implications
+
+The two approaches trade off sample size against potential bias in the autoregressive estimates:
+
+* **`skip_lag = FALSE`** — Every row has a valid lag, so $\phi$ estimates reflect true short-term dynamics. However, in datasets with many irregular gaps (such as the present one), a large share of observations is discarded, reducing statistical power for all parameters.
+* **`skip_lag = TRUE`** — All observations contribute to the estimation of the intercept, fixed effects, and residual variance. Because zero-filled lags are treated as "no temporal information" rather than "the lag was zero", rows with gaps gently pull $\phi$ toward zero. In datasets with many gaps this can lead to a slight weakening of autoregressive estimates.
+
+Currently, more sophisticated missing data handling (e.g. imputation) has to be implemented by the users themselves.
