@@ -39,8 +39,7 @@ Extract and summarize model parameters
 Bayes factors and model comparison
 
 - [`bf_table()`](https://flo1met.github.io/bvarnet/reference/bf_table.md)
-  : Computes Savage-Dickey density ratio Bayes factors for each
-  parameter in the requested subset and returns a tidy data frame.
+  : Compute Savege-Dickey Bayes factors
 
 ## Simulation & Prediction
 

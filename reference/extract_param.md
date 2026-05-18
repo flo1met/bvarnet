@@ -7,7 +7,7 @@ model parameters.
 ## Usage
 
 ``` r
-extract_param(object, bayes_factor = FALSE, null_value = 0)
+extract_param(object, bayes_factor = FALSE, null_value = 0, type = NULL)
 ```
 
 ## Arguments
@@ -27,6 +27,13 @@ extract_param(object, bayes_factor = FALSE, null_value = 0)
 
   Numeric scalar; the null hypothesis value for Bayes factor computation
   (default 0). Only used when `bayes_factor = TRUE`.
+
+- type:
+
+  Character vector or `NULL` (default). If supplied, only rows matching
+  the given type(s) are returned. Valid values are: `"Intercept"`,
+  `"Fixed Effect"`, `"Autoregressive"`, `"Cross-lagged"`,
+  `"Random Effect SD"`, `"Residual SD"`, `"Threshold"`.
 
 ## Value
 

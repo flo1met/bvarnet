@@ -11,9 +11,9 @@ the package. For more elaborated usecases, we refer to the additional
 vignettes
 
 - [`vignette("Hypothesis-Testing")`](https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.md)
-- [`vignette("Mixed-Model")`](https://flo1met.github.io/bvarnet/articles/Mixed-Model.md)
-- [`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md)
-- [`vignette("Random-Effects")`](https://flo1met.github.io/bvarnet/articles/Random-Effects.md)
+- `vignette("Mixed-Model")`
+- `vignette("Missing-Data")`
+- `vignette("Random-Effects")`
 - [`vignette("MCMC-Diagnostics")`](https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.md)
 
 ## Setup
@@ -35,8 +35,7 @@ data(studentlife)
 
 There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read
-[`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md).
+read `vignette("Missing-Data")`.
 
 Currently, `bvarnet` allowes for the following outcome variables:
 
@@ -56,7 +55,7 @@ the parameters. For this we can use the
 [`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
 function. As we are running a ordinal model, without covariates, we have
 to specify priors on the temporal structure (denoted by the $\Phi$
-matrix) and on the category threshold parameters ($\kappa$) which are
+matrix) and on the category threshold parameters ($\kappa$) which is
 specific to the adjacent category ordinal model.
 
 ``` r
@@ -65,16 +64,12 @@ priors <- set_priors(phi = prior(family = "normal",
                                  scale = 0.5),
                      kappa = prior(family = "normal",
                                    loc = 0,
-                                   scale = 2),
-                     sigma = prior(family = "normal",
-                                   loc = 0,
-                                   scale = 3))
+                                   scale = 1))
 
 priors
 #> bvarnet prior specification:
 #>   phi    ~ Normal(0, 0.5)
-#>   kappa  ~ Normal(0, 2)
-#>   sigma  ~ Half-Normal(0, 3)
+#>   kappa  ~ Normal(0, 1)
 ```
 
 Currently, three prior families are implemented: normal, student-t and
@@ -103,7 +98,6 @@ fit <- bvar(
   cores = 4,
   seed = 1337
 )
-#> Warning: Prior(s) set but not used by this model: sigma. These will be ignored.
 ```
 
 If you want to learn how to extend this model to a multilevel model,
@@ -143,12 +137,12 @@ print(fit)
 #> Fixed eff.:   0 
 #> Observations: 147 
 #> Rhat max:    1.001
-#> Divergences: 2  WARNING: check model/priors.
+#> Divergences: 1  WARNING: check model/priors.
 #> Priors:
 #>   beta   ~ Normal(0, 1)  (default)
 #>   phi    ~ Normal(0, 0.5)
-#>   kappa  ~ Normal(0, 2)
-#> Total time:  13.4 sec
+#>   kappa  ~ Normal(0, 1)
+#> Total time:  12.7 sec
 #> ========================================
 ```
 
@@ -166,50 +160,50 @@ summary(fit)
 #> BVAR Network Summary
 #> ================================================== 
 #> Family: ordinal | p=5 | K=1 | n=147
-#> Rhat max: 1.001 | Divergences: 2
+#> Rhat max: 1.001 | Divergences: 1
 #>   WARNING: divergent transitions detected — check model/priors.
 #> 
 #> --- Autoregressive ---
-#>  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail
-#>  lag1_anxious      anxious      0.203 0.203  -0.054 0.460 1    15617.37 12599.58
-#>  lag1_calm         calm         0.176 0.174  -0.058 0.415 1    13025.39 11190.21
-#>  lag1_conventional conventional 0.558 0.554   0.280 0.843 1    14346.16 11205.97
-#>  lag1_critical     critical     0.278 0.277   0.075 0.492 1    18103.80 11283.74
-#>  lag1_dependable   dependable   0.476 0.473   0.247 0.714 1    15253.27 12152.74
+#>  predictor         outcome      mean  median q5     q95   rhat  ess_bulk ess_tail
+#>  lag1_anxious      anxious      0.190 0.191  -0.064 0.441 1.000 19633.01 11959.17
+#>  lag1_calm         calm         0.173 0.173  -0.057 0.409 1.001 15187.45 12033.26
+#>  lag1_conventional conventional 0.522 0.522   0.252 0.801 1.000 18655.99 12661.32
+#>  lag1_critical     critical     0.273 0.270   0.066 0.492 1.001 24042.28 12349.77
+#>  lag1_dependable   dependable   0.459 0.456   0.228 0.697 1.000 19660.02 12414.55
 #> 
 #> 
 #> --- Cross-lagged ---
 #>  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail
-#>  lag1_calm         anxious      -0.308 -0.307 -0.556 -0.069 1    12276.01 12256.25
-#>  lag1_conventional anxious       0.113  0.112 -0.145  0.375 1    15288.24 12209.56
-#>  lag1_critical     anxious       0.065  0.065 -0.142  0.273 1    21335.42 11693.19
-#>  lag1_dependable   anxious       0.054  0.052 -0.158  0.267 1    14645.31 12404.76
-#>  lag1_anxious      calm         -0.085 -0.085 -0.338  0.168 1    15499.73 13047.83
-#>  lag1_conventional calm         -0.162 -0.162 -0.423  0.096 1    14847.92 12191.17
-#>  lag1_critical     calm         -0.077 -0.077 -0.286  0.131 1    20946.54 12223.59
-#>  lag1_dependable   calm          0.116  0.115 -0.096  0.328 1    15982.24 11988.57
-#>  lag1_anxious      conventional -0.184 -0.184 -0.462  0.095 1    14348.25 12403.62
-#>  lag1_calm         conventional -0.105 -0.105 -0.349  0.134 1    12989.52 12059.56
+#>  lag1_calm         anxious      -0.295 -0.293 -0.534 -0.064 1    16400.52 11459.45
+#>  lag1_conventional anxious       0.109  0.110 -0.145  0.363 1    19919.94 12271.96
+#>  lag1_critical     anxious       0.059  0.059 -0.142  0.266 1    29249.05 11530.32
+#>  lag1_dependable   anxious       0.049  0.047 -0.156  0.259 1    18623.56 12379.02
+#>  lag1_anxious      calm         -0.080 -0.080 -0.331  0.168 1    19087.17 12676.98
+#>  lag1_conventional calm         -0.157 -0.157 -0.416  0.100 1    17990.79 12297.06
+#>  lag1_critical     calm         -0.073 -0.072 -0.279  0.137 1    30605.37 12311.23
+#>  lag1_dependable   calm          0.110  0.108 -0.096  0.318 1    18954.26 13189.49
+#>  lag1_anxious      conventional -0.172 -0.174 -0.438  0.096 1    19308.78 12656.36
+#>  lag1_calm         conventional -0.102 -0.100 -0.343  0.136 1    15993.48 13042.57
 #> 
 #> ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.
 #> 
 #> --- Threshold ---
-#>  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail 
-#>  kappa(anxious, c1)      —       -1.033 -1.029 -1.470 -0.613 1.000 11123.68  9566.673
-#>  kappa(calm, c1)         —       -1.300 -1.266 -1.869 -0.848 1.000 14564.11 10916.416
-#>  kappa(conventional, c1) —       -1.033 -1.012 -1.471 -0.674 1.000 14373.14 11229.523
-#>  kappa(critical, c1)     —        0.086  0.095 -0.239  0.379 1.000 12541.34 10745.366
-#>  kappa(dependable, c1)   —       -1.726 -1.680 -2.521 -1.081 1.000 10748.70 10274.783
-#>  kappa(anxious, c2)      —        0.459  0.464  0.139  0.765 1.000 13762.57 12456.461
-#>  kappa(calm, c2)         —       -0.884 -0.875 -1.244 -0.552 1.000 18423.96 13368.980
-#>  kappa(conventional, c2) —       -0.707 -0.710 -1.008 -0.397 1.000 15460.49 10840.830
-#>  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191
-#>  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794
+#>  predictor               outcome mean   median q5     q95    rhat ess_bulk ess_tail
+#>  kappa(anxious, c1)      —       -0.987 -0.986 -1.396 -0.581 1    17267.83 10548.39
+#>  kappa(calm, c1)         —       -1.201 -1.168 -1.711 -0.796 1    17288.56 10950.22
+#>  kappa(conventional, c1) —       -0.986 -0.967 -1.385 -0.648 1    19490.40 12274.73
+#>  kappa(critical, c1)     —        0.089  0.097 -0.234  0.380 1    16714.72 12274.38
+#>  kappa(dependable, c1)   —       -1.514 -1.475 -2.193 -0.969 1    13656.79 10635.92
+#>  kappa(anxious, c2)      —        0.442  0.448  0.125  0.737 1    15943.52 12871.09
+#>  kappa(calm, c2)         —       -0.843 -0.835 -1.179 -0.539 1    18624.66 13571.76
+#>  kappa(conventional, c2) —       -0.686 -0.687 -0.976 -0.388 1    18078.73 13500.06
+#>  kappa(critical, c2)     —        0.529  0.528  0.287  0.775 1    17260.78 14724.44
+#>  kappa(dependable, c2)   —       -0.832 -0.833 -1.218 -0.444 1    17188.28 10192.67
 #> 
-#> ... 10 more rows. Use extract_param(fit) for full output.
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
 #> ==================================================
-#> Use extract_param() for the full parameter table.
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
 #> Use extract_network_matrix() for the temporal network matrix.
 ```
 
@@ -217,32 +211,32 @@ summary(fit)
 
 Here we can see, that we can not see all category threshold parameters
 ($\kappa$). To inspect them completely we have to extract them using
-[`extract_param()`](https://flo1met.github.io/bvarnet/reference/extract_param.md):
+`extract_param(fit, type = "Threshold")`:
 
 ``` r
-params <- extract_param(fit)
-params[params$type == "Threshold",] # add seperate extractor function for kappa, sigma..
-#>         type               predictor outcome        mean      median         q5        q95      rhat ess_bulk  ess_tail
-#> 26 Threshold      kappa(anxious, c1)       — -1.03285109 -1.02852445 -1.4703235 -0.6134608 1.0001894 11123.68  9566.673
-#> 27 Threshold         kappa(calm, c1)       — -1.30014533 -1.26565785 -1.8692502 -0.8476075 1.0001328 14564.11 10916.416
-#> 28 Threshold kappa(conventional, c1)       — -1.03336729 -1.01205985 -1.4711615 -0.6738048 1.0000887 14373.13 11229.523
-#> 29 Threshold     kappa(critical, c1)       —  0.08567509  0.09505895 -0.2386167  0.3793493 1.0003189 12541.34 10745.366
-#> 30 Threshold   kappa(dependable, c1)       — -1.72568614 -1.68045880 -2.5214071 -1.0805193 1.0003006 10748.70 10274.783
-#> 31 Threshold      kappa(anxious, c2)       —  0.45936818  0.46442090  0.1385890  0.7650862 1.0000192 13762.57 12456.461
-#> 32 Threshold         kappa(calm, c2)       — -0.88438434 -0.87529079 -1.2444187 -0.5517570 1.0001721 18423.96 13368.980
-#> 33 Threshold kappa(conventional, c2)       — -0.70673963 -0.71005004 -1.0081459 -0.3967633 0.9999131 15460.49 10840.830
-#> 34 Threshold     kappa(critical, c2)       —  0.54833491  0.54694036  0.2981471  0.8061212 1.0002716 16603.34 12957.191
-#> 35 Threshold   kappa(dependable, c2)       — -0.85949747 -0.85968742 -1.2632601 -0.4558807 1.0010041 10048.09  6937.794
-#> 36 Threshold      kappa(anxious, c3)       —  0.95189554  0.93533212  0.5917419  1.3648925 0.9999869 14502.71 11369.641
-#> 37 Threshold         kappa(calm, c3)       — -0.36802642 -0.37436518 -0.6744710 -0.0440537 1.0001101 13760.73 12421.296
-#> 38 Threshold kappa(conventional, c3)       —  0.62996635  0.62775770  0.2608396  1.0047809 0.9999474 13535.62 10171.390
-#> 39 Threshold     kappa(critical, c3)       —  0.76699860  0.75749318  0.5062937  1.0600305 0.9999889 17305.51 12710.418
-#> 40 Threshold   kappa(dependable, c3)       —  0.12516613  0.12449102 -0.2202632  0.4724522 1.0004251 11098.90  7811.925
-#> 41 Threshold      kappa(anxious, c4)       —  1.92440208  1.88030470  1.1873595  2.8280811 1.0000381 14967.02 10543.057
-#> 42 Threshold         kappa(calm, c4)       —  1.35545685  1.34728995  0.9012824  1.8378872 0.9999767 18072.38 11041.277
-#> 43 Threshold kappa(conventional, c4)       —  2.57589420  2.55145715  1.8081027  3.4241004 1.0004303 19188.28 10144.966
-#> 44 Threshold     kappa(critical, c4)       —  1.15580404  1.10903125  0.7258669  1.7561748 1.0001773 20899.16 12835.077
-#> 45 Threshold   kappa(dependable, c4)       —  1.15106984  1.14520455  0.6797434  1.6414832 1.0000701 14456.67 10624.680
+params <- extract_param(fit, type = "Threshold")
+params
+#>         type               predictor outcome        mean     median         q5         q95      rhat ess_bulk ess_tail
+#> 26 Threshold      kappa(anxious, c1)       — -0.98739947 -0.9860493 -1.3959425 -0.58128709 1.0002899 17267.83 10548.39
+#> 27 Threshold         kappa(calm, c1)       — -1.20056112 -1.1684911 -1.7108714 -0.79625675 1.0001173 17288.56 10950.22
+#> 28 Threshold kappa(conventional, c1)       — -0.98550582 -0.9670843 -1.3851722 -0.64823757 1.0000965 19490.40 12274.73
+#> 29 Threshold     kappa(critical, c1)       —  0.08918956  0.0971121 -0.2338354  0.38037924 1.0000410 16714.72 12274.38
+#> 30 Threshold   kappa(dependable, c1)       — -1.51421608 -1.4750196 -2.1928847 -0.96885779 0.9999901 13656.79 10635.93
+#> 31 Threshold      kappa(anxious, c2)       —  0.44160030  0.4480043  0.1246503  0.73744380 1.0001864 15943.52 12871.09
+#> 32 Threshold         kappa(calm, c2)       — -0.84343255 -0.8350261 -1.1789986 -0.53859744 0.9999530 18624.66 13571.76
+#> 33 Threshold kappa(conventional, c2)       — -0.68574365 -0.6871833 -0.9757996 -0.38764781 1.0000669 18078.73 13500.06
+#> 34 Threshold     kappa(critical, c2)       —  0.52905562  0.5279551  0.2874228  0.77458323 1.0002312 17260.78 14724.44
+#> 35 Threshold   kappa(dependable, c2)       — -0.83224176 -0.8331054 -1.2180161 -0.44414506 1.0004728 17188.28 10192.67
+#> 36 Threshold      kappa(anxious, c3)       —  0.91591078  0.9039044  0.5767963  1.29100115 0.9999471 16410.18 13830.48
+#> 37 Threshold         kappa(calm, c3)       — -0.35622581 -0.3623932 -0.6523983 -0.04375198 0.9999353 15096.12 13654.72
+#> 38 Threshold kappa(conventional, c3)       —  0.61041320  0.6068505  0.2562171  0.97513834 1.0001069 15027.75 12162.08
+#> 39 Threshold     kappa(critical, c3)       —  0.73137454  0.7238967  0.4781784  1.01258300 1.0000583 18194.09 14135.84
+#> 40 Threshold   kappa(dependable, c3)       —  0.12394548  0.1239607 -0.2146176  0.46524592 1.0001516 12629.71 10121.86
+#> 41 Threshold      kappa(anxious, c4)       —  1.64429481  1.6027258  1.0616271  2.36308576 1.0000596 15643.85 11786.75
+#> 42 Threshold         kappa(calm, c4)       —  1.28145587  1.2735726  0.8468702  1.73513969 0.9999143 21851.63 11834.63
+#> 43 Threshold kappa(conventional, c4)       —  2.21871737  2.2052999  1.5672800  2.91469544 1.0002161 18781.33 10564.61
+#> 44 Threshold     kappa(critical, c4)       —  1.06503664  1.0262242  0.6818237  1.57819682 0.9998645 19805.16 13097.76
+#> 45 Threshold   kappa(dependable, c4)       —  1.08776225  1.0817278  0.6448819  1.56455443 1.0003547 14400.05 10104.37
 ```
 
 ## Network Visualization
@@ -257,9 +251,9 @@ nw_mat <- extract_network_matrix(fit)
 qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
+![plot of chunk unnamed-chunk-20](figure/unnamed-chunk-20-1.png)
 
-plot of chunk unnamed-chunk-8
+plot of chunk unnamed-chunk-20
 
 Lastly, if you want to perform hypothesis tests on your estimated
 parameters we refer you to the `Vignette(Hypothesis-Testing)`.

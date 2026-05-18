@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>MCMC-Diagnostics • bvarnet</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="MCMC-Diagnostics">
 </head>
@@ -36,9 +36,6 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
     <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
-    <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -71,8 +68,366 @@
     
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
-  </main>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/bayesplot/" class="external-link">bayesplot</a></span><span class="op">)</span></span></code></pre></div>
+<div class="section level2">
+<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+</h2>
+<p><code>bvarnet</code> uses the No-U-Turn Sampler (NUTS), a variant of
+Hamiltonian Monte Carlo (HMC), via CmdStan. Unlike simple
+Metropolis-Hastings, NUTS adapts the step-size and trajectory length
+automatically during a warmup phase, making it very efficient for the
+high-dimensional, correlated posteriors typical of multilevel VAR
+models. Even so, every MCMC analysis should pass a set of standard
+diagnostic checks before results are interpreted.</p>
+<p>This vignette covers:</p>
+<ol style="list-style-type: decimal">
+<li>Fitting a model with sensible defaults</li>
+<li>Convergence diagnostics: R-hat and Effective Sample Size</li>
+<li>Trace plots for visual inspection</li>
+<li>Sampler-level warnings: divergences and exceeded tree depth</li>
+<li>Tuning the sampler via <code>iter</code>, <code>warmup</code>,
+<code>adapt_delta</code>, and <code>max_treedepth</code>
+</li>
+</ol>
+<p>For a deeper treatment of HMC/NUTS theory and every diagnostic
+described here, see the <a href="https://mc-stan.org/docs/reference-manual/mcmc.html" class="external-link">Stan
+Reference Manual — MCMC Sampling</a> and the community <a href="https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations" class="external-link">Stan
+Wiki</a>.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="fitting-a-reference-model">Fitting a Reference Model<a class="anchor" aria-label="anchor" href="#fitting-a-reference-model"></a>
+</h2>
+<p>We reuse the five-variable ordinal model from
+<code><a href="../articles/bvarnet.html">vignette("bvarnet")</a></code>. The same <code>studentlife</code> data
+are used throughout.</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span></span>
+<span>  phi   <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>,</span>
+<span>  kappa <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>, loc <span class="op">=</span> <span class="fl">0</span>, scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
+<span>  id_col   <span class="op">=</span> <span class="st">"id"</span>,</span>
+<span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
+<span>  y_cols   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"anxious"</span>, <span class="st">"calm"</span>, <span class="st">"conventional"</span>, <span class="st">"critical"</span>, <span class="st">"dependable"</span><span class="op">)</span>,</span>
+<span>  K        <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  data     <span class="op">=</span> <span class="va">studentlife</span>,</span>
+<span>  family   <span class="op">=</span> <span class="st">"ordinal"</span>,</span>
+<span>  priors   <span class="op">=</span> <span class="va">priors</span>,</span>
+<span>  iter     <span class="op">=</span> <span class="fl">4000</span>,</span>
+<span>  warmup   <span class="op">=</span> <span class="fl">1000</span>,</span>
+<span>  chains   <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  cores    <span class="op">=</span> <span class="fl">4</span>,</span>
+<span>  seed     <span class="op">=</span> <span class="fl">1337</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="co">#&gt; BVAR Network fit</span></span>
+<span><span class="co">#&gt; ======================================== </span></span>
+<span><span class="co">#&gt; Family:      ordinal</span></span>
+<span><span class="co">#&gt; Outcomes (p): 5 </span></span>
+<span><span class="co">#&gt; Lags (K):     1 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   0 </span></span>
+<span><span class="co">#&gt; Observations: 147 </span></span>
+<span><span class="co">#&gt; Rhat max:    1.001</span></span>
+<span><span class="co">#&gt; Divergences: 1  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Priors:</span></span>
+<span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
+<span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt; Total time:  13.0 sec</span></span>
+<span><span class="co">#&gt; ========================================</span></span></code></pre></div>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="r-hat-between-chain-convergence">R-hat: Between-Chain Convergence<a class="anchor" aria-label="anchor" href="#r-hat-between-chain-convergence"></a>
+</h2>
+<p><strong>R-hat</strong>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>R</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{R}</annotation></semantics></math>)
+measures whether independent chains have converged to the same
+distribution by comparing within-chain to between-chain variance. A
+value of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≈</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\hat{R} \approx 1</annotation></semantics></math>
+indicates that all chains are exploring the same region of parameter
+space.</p>
+<p><strong>Rule of thumb:</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>R</mi><mo accent="true">̂</mo></mover><mo>≤</mo><mn>1.01</mn></mrow><annotation encoding="application/x-tex">\hat{R} \leq 1.01</annotation></semantics></math>
+is the modern criterion. Values above 1.01 suggest the chains have
+<em>not</em> converged and longer sampling is needed.</p>
+<p>The convergence table is stored in <code>fit$convergence</code> as a
+data frame with one row per parameter, alongside bulk-ESS and
+tail-ESS.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   variable      rhat ess_bulk  ess_tail</span></span>
+<span><span class="co">#&gt; 1     lp__ 1.0006264  5807.04  8763.894</span></span>
+<span><span class="co">#&gt; 2 phi[1,1] 1.0002434 19633.01 11959.170</span></span>
+<span><span class="co">#&gt; 3 phi[2,1] 0.9999424 16400.52 11459.448</span></span>
+<span><span class="co">#&gt; 4 phi[3,1] 0.9999472 19919.94 12271.959</span></span>
+<span><span class="co">#&gt; 5 phi[4,1] 1.0001548 29249.05 11530.322</span></span>
+<span><span class="co">#&gt; 6 phi[5,1] 1.0000761 18623.57 12379.016</span></span></code></pre></div>
+<p>A quick summary of the R-hat distribution across all parameters:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">rhat_vals</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">$</span><span class="va">rhat</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">rhat_vals</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
+<span><span class="co">#&gt;  0.9999  1.0000  1.0001  1.0001  1.0002  1.0007</span></span></code></pre></div>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="effective-sample-size-ess">Effective Sample Size (ESS)<a class="anchor" aria-label="anchor" href="#effective-sample-size-ess"></a>
+</h2>
+<p>Even though NUTS chains produce correlated samples, the
+<strong>Effective Sample Size (ESS)</strong> measures how many
+<em>independent</em> draws the correlated sequence is worth.
+<code>bvarnet</code> stores two variants:</p>
+<table class="table">
+<thead><tr class="header">
+<th>Statistic</th>
+<th>Targets</th>
+<th>Minimum recommended</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>ess_bulk</code></td>
+<td>Central tendency (mean, median)</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>400</mn></mrow><annotation encoding="application/x-tex">\geq 400</annotation></semantics></math></td>
+</tr>
+<tr class="even">
+<td><code>ess_tail</code></td>
+<td>Tail quantiles, credible interval bounds</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>400</mn></mrow><annotation encoding="application/x-tex">\geq 400</annotation></semantics></math></td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ess_bulk</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">$</span><span class="va">ess_bulk</span></span>
+<span><span class="va">ess_tail</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">$</span><span class="va">ess_tail</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Bulk ESS — min:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ess_bulk</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="st">"  median:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">ess_bulk</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Bulk ESS — min: 5807   median: 18210</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Tail ESS — min:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ess_tail</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>    <span class="st">"  median:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">ess_tail</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Tail ESS — min: 8764   median: 12304</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Parameters with bulk ESS &lt; 400:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">ess_bulk</span> <span class="op">&lt;</span> <span class="fl">400</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Parameters with bulk ESS &lt; 400: 0</span></span></code></pre></div>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="trace-plots">Trace Plots<a class="anchor" aria-label="anchor" href="#trace-plots"></a>
+</h2>
+<p>A <strong>trace plot</strong> shows the sampled value of a parameter
+at each iteration for every chain. Healthy chains look like a fuzzy
+caterpillar, they mix rapidly and all chains overlap. Trends, spikes, or
+chains that stay separated indicate sampling problems.</p>
+<p>To investigate the trace plots, we can use the
+<code><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace()</a></code> from the <code>bayesplot</code> package.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">phi_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^phi"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span><span class="op">)</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">]</span> <span class="co"># select some lag-coefficient parameters</span></span>
+<span></span>
+<span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">phi_pars</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Trace plots — first six lag coefficients (phi)"</span><span class="op">)</span></span></code></pre></div>
+<div class="float">
+<img src="figure/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8"><div class="figcaption">plot of chunk unnamed-chunk-8</div>
+</div>
+<p>Complementary <strong>density overlay</strong> plots show whether
+chain-specific posteriors are consistent:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-distributions.html" class="external-link">mcmc_dens_overlay</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">phi_pars</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Per-chain posterior densities — phi"</span><span class="op">)</span></span></code></pre></div>
+<div class="float">
+<img src="figure/unnamed-chunk-9-1.png" alt="plot of chunk unnamed-chunk-9"><div class="figcaption">plot of chunk unnamed-chunk-9</div>
+</div>
+<p>We can do this for any sampled parameter, for example the threshold
+parameter kappa:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">kappa_pars</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/grep.html" class="external-link">grep</a></span><span class="op">(</span><span class="st">"^kappa"</span>, <span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span><span class="op">)</span><span class="op">[[</span><span class="fl">3</span><span class="op">]</span><span class="op">]</span>, value <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">]</span></span>
+<span></span>
+<span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">kappa_pars</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Trace plots — first four cutpoints (kappa)"</span><span class="op">)</span></span></code></pre></div>
+<div class="float">
+<img src="figure/unnamed-chunk-10-1.png" alt="plot of chunk unnamed-chunk-10"><div class="figcaption">plot of chunk unnamed-chunk-10</div>
+</div>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="sampler-diagnostics-divergences-and-exceeded-tree-depth">Sampler Diagnostics: Divergences and Exceeded Tree Depth<a class="anchor" aria-label="anchor" href="#sampler-diagnostics-divergences-and-exceeded-tree-depth"></a>
+</h2>
+<p>Stan’s NUTS sampler reports two additional per-chain diagnostics
+stored in <code>fit$diagnostics</code>:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">diagnostics</span></span>
+<span><span class="co">#&gt;   num_divergent num_max_treedepth     ebfmi</span></span>
+<span><span class="co">#&gt; 1             0                 0 0.8941142</span></span>
+<span><span class="co">#&gt; 2             0                 0 0.9862093</span></span>
+<span><span class="co">#&gt; 3             0                 0 0.9318894</span></span>
+<span><span class="co">#&gt; 4             1                 0 0.9390785</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="divergences">Divergences<a class="anchor" aria-label="anchor" href="#divergences"></a>
+</h3>
+<p>A <strong>divergence</strong> occurs when the numerical integrator of
+HMC deviates from the true Hamiltonian trajectory. Even a small number
+of divergences can indicate that the sampler is missing regions of the
+posterior, leading to <strong>biased estimates</strong>. They should
+<em>not</em> be ignored!</p>
+<p>Common causes and remedies:</p>
+<ul>
+<li>
+<strong>Funnel-shaped posterior</strong> (common in hierarchical
+models)</li>
+<li>
+<strong>Step size too large</strong>: increase
+<code>adapt_delta</code> towards 1 (see below).</li>
+<li>
+<strong>Model misspecification</strong>: revisit the prior scale or
+model structure.</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="exceeded-tree-depth">Exceeded Tree Depth<a class="anchor" aria-label="anchor" href="#exceeded-tree-depth"></a>
+</h3>
+<p>To draw each new sample, NUTS simulates a trajectory through
+parameter space, taking small steps and deciding when to turn around.
+The <code>max_treedepth</code> argument (default 10) sets a hard limit
+on how long that trajectory can be. When this warning appears, it means
+the sampler wanted to keep exploring but was cut off — it hit the limit
+before it was ready to stop. Unlike divergences, this does
+<strong>not</strong> mean the results are biased. It is a
+<strong>slowness warning</strong>: the sampler is doing extra work to
+produce each draw, so your effective sample size per hour of compute
+time is lower than it could be. Increasing <code>max_treedepth</code>
+gives the sampler more room to move, which typically resolves the
+warning.</p>
+<hr>
+</div>
+</div>
+<div class="section level2">
+<h2 id="tuning-the-sampler">Tuning the Sampler<a class="anchor" aria-label="anchor" href="#tuning-the-sampler"></a>
+</h2>
+<div class="section level3">
+<h3 id="chain-length-iter-and-warmup">Chain Length: <code>iter</code> and <code>warmup</code><a class="anchor" aria-label="anchor" href="#chain-length-iter-and-warmup"></a>
+</h3>
+<p><code><a href="../reference/bvar.html">bvar()</a></code> exposes two length arguments:</p>
+<table class="table">
+<colgroup>
+<col width="40%">
+<col width="36%">
+<col width="24%">
+</colgroup>
+<thead><tr class="header">
+<th>Argument</th>
+<th>Default</th>
+<th>Role</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>warmup</code></td>
+<td>1000</td>
+<td>Iterations used for adaptation (step-size, mass matrix).
+<strong>Discarded</strong> from inference.</td>
+</tr>
+<tr class="even">
+<td><code>iter</code></td>
+<td>4000</td>
+<td>Post-warmup (sampling) iterations <em>per chain</em>. Used for
+inference.</td>
+</tr>
+</tbody>
+</table>
+<p>The total number of draws available for inference is
+<code>iter × chains</code> (16 000 with the defaults above). Increasing
+<code>iter</code> directly improves ESS at a proportional computational
+cost. Increasing <code>warmup</code> can help when the sampler struggles
+to find the typical set (visible as a long burn-in in trace plots).</p>
+<p>A practical rule: start with <code>warmup = 1000, iter = 2000</code>
+for exploration, then increase to <code>iter = 4000</code> (or more) for
+final inference.</p>
+</div>
+<div class="section level3">
+<h3 id="adapt_delta-controlling-divergences">
+<code>adapt_delta</code>: Controlling Divergences<a class="anchor" aria-label="anchor" href="#adapt_delta-controlling-divergences"></a>
+</h3>
+<p><code>adapt_delta</code> (default 0.80) is the <strong>target
+acceptance rate</strong> that Stan’s dual-averaging algorithm uses when
+adapting the step size during warmup. A higher target forces a smaller
+step size, which reduces discretisation error and typically eliminates
+divergences.</p>
+<p><strong>Trade-off:</strong> smaller step sizes mean shorter
+trajectories per unit time, so ESS per second decreases. Increase
+<code>adapt_delta</code> only when you observe divergences; do not set
+it near 1 unless needed.</p>
+<p>Typical values:</p>
+<table class="table">
+<thead><tr class="header">
+<th>Situation</th>
+<th><code>adapt_delta</code></th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Default / no divergences</td>
+<td>0.80 (CmdStan default)</td>
+</tr>
+<tr class="even">
+<td>Some divergences</td>
+<td>0.90–0.95</td>
+</tr>
+<tr class="odd">
+<td>Persistent divergences in hierarchical models</td>
+<td>0.97–0.99</td>
+</tr>
+</tbody>
+</table>
+<p>For full details see the <a href="https://mc-stan.org/docs/reference-manual/mcmc.html#adaptation.section" class="external-link">Stan
+reference on <code>adapt_delta</code></a>.</p>
+</div>
+<div class="section level3">
+<h3 id="max_treedepth-controlling-trajectory-length">
+<code>max_treedepth</code>: Controlling Trajectory Length<a class="anchor" aria-label="anchor" href="#max_treedepth-controlling-trajectory-length"></a>
+</h3>
+<p><code>max_treedepth</code> (default 10) caps the doubling steps NUTS
+may take. The maximum trajectory length is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>2</mn><mtext mathvariant="normal">max_treedepth</mtext></msup><annotation encoding="application/x-tex">2^{\text{max\_treedepth}}</annotation></semantics></math>
+leapfrog steps.</p>
+<p>Increase this when <code>fit$diagnostics</code> shows a non-trivial
+number of iterations hitting the tree-depth limit. Each additional level
+doubles compute time per affected iteration, so increases of 1–2 beyond
+the default are usually sufficient.</p>
+<p>For full details see the <a href="https://mc-stan.org/docs/reference-manual/mcmc.html#nuts-configuration" class="external-link">Stan
+reference on <code>max_treedepth</code></a>.</p>
+<hr>
+</div>
+</div>
+<div class="section level2">
+<h2 id="quick-checklist">Quick Checklist<a class="anchor" aria-label="anchor" href="#quick-checklist"></a>
+</h2>
+<p>Before reporting results from a <code>bvarnet</code> model:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>R-hat</strong>: all parameters
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≤</mo><mn>1.01</mn></mrow><annotation encoding="application/x-tex">\leq 1.01</annotation></semantics></math>.</li>
+<li>
+<strong>ESS</strong>: <code>ess_bulk</code> and
+<code>ess_tail</code>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≥</mo><mn>400</mn></mrow><annotation encoding="application/x-tex">\geq 400</annotation></semantics></math>
+for all parameters of interest.</li>
+<li>
+<strong>Trace plots</strong>: caterpillar-like mixing, no trends or
+stuck chains.</li>
+<li>
+<strong>Divergences</strong>: zero, or investigate with higher
+<code>adapt_delta</code>.</li>
+<li>
+<strong>Tree-depth warnings</strong>: none, or increase
+<code>max_treedepth</code>.</li>
+</ol>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

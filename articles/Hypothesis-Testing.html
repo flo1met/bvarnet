@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Hypothesis-Testing • bvarnet</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Hypothesis-Testing">
 </head>
@@ -36,9 +36,6 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
     <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
-    <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -76,18 +73,7 @@
 <p>First, lets load the package:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># subject to be removed again...</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Attaching package: 'dplyr'</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:stats':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     filter, lag</span></span>
-<span><span class="co">#&gt; The following objects are masked from 'package:base':</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;     intersect, setdiff, setequal, union</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">qgraph</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="data">Data<a class="anchor" aria-label="anchor" href="#data"></a>
@@ -97,18 +83,14 @@
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
 <p>There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">df_mis</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">na.omit</a></span><span class="op">(</span><span class="va">df</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">id</span>, <span class="va">day</span>, <span class="va">anxious</span>, <span class="va">calm</span>, <span class="va">conventional</span>, <span class="va">critical</span>, <span class="va">dependable</span>, <span class="va">sleep_hour</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error in `UseMethod()`:</span></span>
-<span><span class="co">#&gt; ! no applicable method for 'select' applied to an object of class "function"</span></span></code></pre></div>
+read <code>vignette("Missing-Data")</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="model-estimation">Model Estimation<a class="anchor" aria-label="anchor" href="#model-estimation"></a>
 </h2>
 <p>This time, well simply use the default priors, for the ordinal model
 they are</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bvar.html">bvar</a></span><span class="op">(</span></span>
 <span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span>
 <span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span>
@@ -131,7 +113,7 @@ they are</p>
 <h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
 </h2>
 <p>Again, lets get the model overview and summary:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network fit</span></span>
 <span><span class="co">#&gt; ======================================== </span></span>
@@ -143,7 +125,7 @@ they are</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  11.6 sec</span></span>
+<span><span class="co">#&gt; Total time:  12.1 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>
@@ -198,10 +180,10 @@ they are</p>
 <span><span class="co">#&gt;  kappa(critical, c2)     —        0.423  0.423 -0.034  0.889 1.000 16313.25 13806.83</span></span>
 <span><span class="co">#&gt;  kappa(dependable, c2)   —       -1.082 -1.076 -1.759 -0.435 1.000 16347.72 12825.94</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
 <span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -230,16 +212,16 @@ which variable we want to look at using the <code>variable</code>
 argument. Lets investigate if the hours of sleep the individual got in
 the previous night (<code>sleep_hour</code>) has an influence on the
 network structure:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bf_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span>, variable <span class="op">=</span> <span class="st">"sleep_hour"</span><span class="op">)</span></span>
 <span><span class="va">bf_tab</span></span>
-<span><span class="co">#&gt;                   type  predictor      outcome         BF01         BF10  log_BF01 post_density prior_density    method</span></span>
-<span><span class="co">#&gt; 1         Fixed Effect sleep_hour      anxious 2.953163e+01 3.386200e-02  3.385462 1.178141e+01    0.39894228 logspline</span></span>
-<span><span class="co">#&gt; 2         Fixed Effect sleep_hour         calm 1.927787e+01 5.187295e-02  2.958958 7.690758e+00    0.39894228 logspline</span></span>
-<span><span class="co">#&gt; 3         Fixed Effect sleep_hour conventional 2.659601e+01 3.759962e-02  3.280761 1.061027e+01    0.39894228 logspline</span></span>
-<span><span class="co">#&gt; 4         Fixed Effect sleep_hour     critical 3.388268e+01 2.951361e-02  3.522904 1.351723e+01    0.39894228 logspline</span></span>
-<span><span class="co">#&gt; 5         Fixed Effect sleep_hour   dependable 2.938576e+01 3.403009e-02  3.380510 1.172322e+01    0.39894228 logspline</span></span>
-<span><span class="co">#&gt; 6 Fixed Effect (joint) sleep_hour            — 1.367269e+07 7.313847e-08 16.430911 1.381670e+05    0.01010533       mvn</span></span></code></pre></div>
+<span><span class="co">#&gt;                   type  predictor      outcome    BF10</span></span>
+<span><span class="co">#&gt; 1         Fixed Effect sleep_hour      anxious 0.03386</span></span>
+<span><span class="co">#&gt; 2         Fixed Effect sleep_hour         calm 0.05187</span></span>
+<span><span class="co">#&gt; 3         Fixed Effect sleep_hour conventional 0.03760</span></span>
+<span><span class="co">#&gt; 4         Fixed Effect sleep_hour     critical 0.02951</span></span>
+<span><span class="co">#&gt; 5         Fixed Effect sleep_hour   dependable 0.03403</span></span>
+<span><span class="co">#&gt; 6 Fixed Effect (joint) sleep_hour            — 0.00000</span></span></code></pre></div>
 <p>The output now shows 6 rows. The five “Fixed Effect” rows show if the
 the covariate <code>sleep_hour</code> has an influence on each node
 separately. The “Fixed Effect (join)” row displays a single Bayes factor
@@ -256,8 +238,44 @@ baseline level of the network.</p>
 <p>For more elaborate analyses, or to report more results at once, we
 can get a table with all single and joint Bayes factors. For this we can
 call the <code>bf_table(fit)</code> function</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">bf_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bf_tab</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
+<span><span class="va">bf_tab</span></span>
+<span><span class="co">#&gt;                      type         predictor      outcome     BF10</span></span>
+<span><span class="co">#&gt; 1          Autoregressive      lag1_anxious      anxious  0.42563</span></span>
+<span><span class="co">#&gt; 2          Autoregressive         lag1_calm         calm  0.54824</span></span>
+<span><span class="co">#&gt; 3          Autoregressive lag1_conventional conventional  2.23181</span></span>
+<span><span class="co">#&gt; 4          Autoregressive     lag1_critical     critical  1.01615</span></span>
+<span><span class="co">#&gt; 5          Autoregressive   lag1_dependable   dependable  6.07838</span></span>
+<span><span class="co">#&gt; 6  Autoregressive (joint)            all_ar            —  2.49597</span></span>
+<span><span class="co">#&gt; 7            Cross-lagged         lag1_calm      anxious  0.85207</span></span>
+<span><span class="co">#&gt; 8            Cross-lagged lag1_conventional      anxious  0.41647</span></span>
+<span><span class="co">#&gt; 9            Cross-lagged     lag1_critical      anxious  1.52971</span></span>
+<span><span class="co">#&gt; 10           Cross-lagged   lag1_dependable      anxious  0.38114</span></span>
+<span><span class="co">#&gt; 11           Cross-lagged      lag1_anxious         calm  0.38559</span></span>
+<span><span class="co">#&gt; 12           Cross-lagged lag1_conventional         calm  0.66942</span></span>
+<span><span class="co">#&gt; 13           Cross-lagged     lag1_critical         calm  0.55497</span></span>
+<span><span class="co">#&gt; 14           Cross-lagged   lag1_dependable         calm  0.54173</span></span>
+<span><span class="co">#&gt; 15           Cross-lagged      lag1_anxious conventional  1.28950</span></span>
+<span><span class="co">#&gt; 16           Cross-lagged         lag1_calm conventional  0.40758</span></span>
+<span><span class="co">#&gt; 17           Cross-lagged     lag1_critical conventional  0.39803</span></span>
+<span><span class="co">#&gt; 18           Cross-lagged   lag1_dependable conventional  0.36941</span></span>
+<span><span class="co">#&gt; 19           Cross-lagged      lag1_anxious     critical  0.38522</span></span>
+<span><span class="co">#&gt; 20           Cross-lagged         lag1_calm     critical  0.33946</span></span>
+<span><span class="co">#&gt; 21           Cross-lagged lag1_conventional     critical  0.37277</span></span>
+<span><span class="co">#&gt; 22           Cross-lagged   lag1_dependable     critical  0.49510</span></span>
+<span><span class="co">#&gt; 23           Cross-lagged      lag1_anxious   dependable  2.31460</span></span>
+<span><span class="co">#&gt; 24           Cross-lagged         lag1_calm   dependable  0.46823</span></span>
+<span><span class="co">#&gt; 25           Cross-lagged lag1_conventional   dependable 24.44204</span></span>
+<span><span class="co">#&gt; 26           Cross-lagged     lag1_critical   dependable  0.73579</span></span>
+<span><span class="co">#&gt; 27   Cross-lagged (joint)            all_cl            —  0.00333</span></span>
+<span><span class="co">#&gt; 28       Temporal (joint)           all_phi            —  0.00000</span></span>
+<span><span class="co">#&gt; 29           Fixed Effect        sleep_hour      anxious  0.03386</span></span>
+<span><span class="co">#&gt; 30           Fixed Effect        sleep_hour         calm  0.05187</span></span>
+<span><span class="co">#&gt; 31           Fixed Effect        sleep_hour conventional  0.03760</span></span>
+<span><span class="co">#&gt; 32           Fixed Effect        sleep_hour     critical  0.02951</span></span>
+<span><span class="co">#&gt; 33           Fixed Effect        sleep_hour   dependable  0.03403</span></span>
+<span><span class="co">#&gt; 34   Fixed Effect (joint)        sleep_hour            —  0.00000</span></span></code></pre></div>
 <p>The table can be used to easily get a set of Bayes factors. If we
 have hypotheses concerning the temporal structure, we can call the
 <code>bf_table(fit)</code> function using the argument

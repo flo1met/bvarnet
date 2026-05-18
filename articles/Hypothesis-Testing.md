@@ -6,18 +6,7 @@ First, lets load the package:
 
 ``` r
 library(bvarnet)
-
-# subject to be removed again...
 library(qgraph)
-library(dplyr)
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 ```
 
 ## Data
@@ -30,14 +19,7 @@ data(studentlife)
 
 There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read
-[`vignette("Missing-Data")`](https://flo1met.github.io/bvarnet/articles/Missing-Data.md).
-
-``` r
-df_mis <- na.omit(df %>% select(id, day, anxious, calm, conventional, critical, dependable, sleep_hour))
-#> Error in `UseMethod()`:
-#> ! no applicable method for 'select' applied to an object of class "function"
-```
+read `vignette("Missing-Data")`.
 
 ## Model Estimation
 
@@ -80,7 +62,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.6 sec
+#> Total time:  12.1 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary
@@ -135,10 +117,10 @@ summary(fit)
 #>  kappa(critical, c2)     —        0.423  0.423 -0.034  0.889 1.000 16313.25 13806.83
 #>  kappa(dependable, c2)   —       -1.082 -1.076 -1.759 -0.435 1.000 16347.72 12825.94
 #> 
-#> ... 10 more rows. Use extract_param(fit) for full output.
+#> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
 #> ==================================================
-#> Use extract_param() for the full parameter table.
+#> Use extract_param() or extract_param(fit, type = "...") for the full parameter table.
 #> Use extract_network_matrix() for the temporal network matrix.
 ```
 
@@ -171,13 +153,13 @@ the network structure:
 ``` r
 bf_tab <- bf_table(fit, variable = "sleep_hour")
 bf_tab
-#>                   type  predictor      outcome         BF01         BF10  log_BF01 post_density prior_density    method
-#> 1         Fixed Effect sleep_hour      anxious 2.953163e+01 3.386200e-02  3.385462 1.178141e+01    0.39894228 logspline
-#> 2         Fixed Effect sleep_hour         calm 1.927787e+01 5.187295e-02  2.958958 7.690758e+00    0.39894228 logspline
-#> 3         Fixed Effect sleep_hour conventional 2.659601e+01 3.759962e-02  3.280761 1.061027e+01    0.39894228 logspline
-#> 4         Fixed Effect sleep_hour     critical 3.388268e+01 2.951361e-02  3.522904 1.351723e+01    0.39894228 logspline
-#> 5         Fixed Effect sleep_hour   dependable 2.938576e+01 3.403009e-02  3.380510 1.172322e+01    0.39894228 logspline
-#> 6 Fixed Effect (joint) sleep_hour            — 1.367269e+07 7.313847e-08 16.430911 1.381670e+05    0.01010533       mvn
+#>                   type  predictor      outcome    BF10
+#> 1         Fixed Effect sleep_hour      anxious 0.03386
+#> 2         Fixed Effect sleep_hour         calm 0.05187
+#> 3         Fixed Effect sleep_hour conventional 0.03760
+#> 4         Fixed Effect sleep_hour     critical 0.02951
+#> 5         Fixed Effect sleep_hour   dependable 0.03403
+#> 6 Fixed Effect (joint) sleep_hour            — 0.00000
 ```
 
 The output now shows 6 rows. The five “Fixed Effect” rows show if the
@@ -200,6 +182,42 @@ call the `bf_table(fit)` function
 
 ``` r
 bf_tab <- bf_table(fit)
+bf_tab
+#>                      type         predictor      outcome     BF10
+#> 1          Autoregressive      lag1_anxious      anxious  0.42563
+#> 2          Autoregressive         lag1_calm         calm  0.54824
+#> 3          Autoregressive lag1_conventional conventional  2.23181
+#> 4          Autoregressive     lag1_critical     critical  1.01615
+#> 5          Autoregressive   lag1_dependable   dependable  6.07838
+#> 6  Autoregressive (joint)            all_ar            —  2.49597
+#> 7            Cross-lagged         lag1_calm      anxious  0.85207
+#> 8            Cross-lagged lag1_conventional      anxious  0.41647
+#> 9            Cross-lagged     lag1_critical      anxious  1.52971
+#> 10           Cross-lagged   lag1_dependable      anxious  0.38114
+#> 11           Cross-lagged      lag1_anxious         calm  0.38559
+#> 12           Cross-lagged lag1_conventional         calm  0.66942
+#> 13           Cross-lagged     lag1_critical         calm  0.55497
+#> 14           Cross-lagged   lag1_dependable         calm  0.54173
+#> 15           Cross-lagged      lag1_anxious conventional  1.28950
+#> 16           Cross-lagged         lag1_calm conventional  0.40758
+#> 17           Cross-lagged     lag1_critical conventional  0.39803
+#> 18           Cross-lagged   lag1_dependable conventional  0.36941
+#> 19           Cross-lagged      lag1_anxious     critical  0.38522
+#> 20           Cross-lagged         lag1_calm     critical  0.33946
+#> 21           Cross-lagged lag1_conventional     critical  0.37277
+#> 22           Cross-lagged   lag1_dependable     critical  0.49510
+#> 23           Cross-lagged      lag1_anxious   dependable  2.31460
+#> 24           Cross-lagged         lag1_calm   dependable  0.46823
+#> 25           Cross-lagged lag1_conventional   dependable 24.44204
+#> 26           Cross-lagged     lag1_critical   dependable  0.73579
+#> 27   Cross-lagged (joint)            all_cl            —  0.00333
+#> 28       Temporal (joint)           all_phi            —  0.00000
+#> 29           Fixed Effect        sleep_hour      anxious  0.03386
+#> 30           Fixed Effect        sleep_hour         calm  0.05187
+#> 31           Fixed Effect        sleep_hour conventional  0.03760
+#> 32           Fixed Effect        sleep_hour     critical  0.02951
+#> 33           Fixed Effect        sleep_hour   dependable  0.03403
+#> 34   Fixed Effect (joint)        sleep_hour            —  0.00000
 ```
 
 The table can be used to easily get a set of Bayes factors. If we have

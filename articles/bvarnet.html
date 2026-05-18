@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>bvarnet • bvarnet</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="bvarnet">
 </head>
@@ -36,9 +36,6 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/Hypothesis-Testing.html">Hypothesis-Testing</a></li>
     <li><a class="dropdown-item" href="../articles/MCMC-Diagnostics.html">MCMC-Diagnostics</a></li>
-    <li><a class="dropdown-item" href="../articles/Missing-Data.html">Missing-Data</a></li>
-    <li><a class="dropdown-item" href="../articles/Mixed-Model.html">Mixed-Model</a></li>
-    <li><a class="dropdown-item" href="../articles/Random-Effects.html">Random-Effects</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -81,9 +78,9 @@ of the package. For more elaborated usecases, we refer to the additional
 vignettes</p>
 <ul>
 <li><code><a href="../articles/Hypothesis-Testing.html">vignette("Hypothesis-Testing")</a></code></li>
-<li><code><a href="../articles/Mixed-Model.html">vignette("Mixed-Model")</a></code></li>
-<li><code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code></li>
-<li><code><a href="../articles/Random-Effects.html">vignette("Random-Effects")</a></code></li>
+<li><code>vignette("Mixed-Model")</code></li>
+<li><code>vignette("Missing-Data")</code></li>
+<li><code>vignette("Random-Effects")</code></li>
 <li><code><a href="../articles/MCMC-Diagnostics.html">vignette("MCMC-Diagnostics")</a></code></li>
 </ul>
 </div>
@@ -103,7 +100,7 @@ vignettes</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span></code></pre></div>
 <p>There is some missing data in the dataset. The models default options
 handle this by themselves. For a further elaboration on this, you can
-read <code><a href="../articles/Missing-Data.html">vignette("Missing-Data")</a></code>.</p>
+read <code>vignette("Missing-Data")</code>.</p>
 <p>Currently, <code>bvarnet</code> allowes for the following outcome
 variables:</p>
 <ul>
@@ -131,23 +128,19 @@ to specify priors on the temporal structure (denoted by the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Φ</mi><annotation encoding="application/x-tex">\Phi</annotation></semantics></math>
 matrix) and on the category threshold parameters
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>)
-which are specific to the adjacent category ordinal model.</p>
+which is specific to the adjacent category ordinal model.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">priors</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/set_priors.html">set_priors</a></span><span class="op">(</span>phi <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
 <span>                                 loc <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>                                 scale <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>,</span>
 <span>                     kappa <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
 <span>                                   loc <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                                   scale <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
-<span>                     sigma <span class="op">=</span> <span class="fu"><a href="../reference/prior.html">prior</a></span><span class="op">(</span>family <span class="op">=</span> <span class="st">"normal"</span>,</span>
-<span>                                   loc <span class="op">=</span> <span class="fl">0</span>,</span>
-<span>                                   scale <span class="op">=</span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span>                                   scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">priors</span></span>
 <span><span class="co">#&gt; bvarnet prior specification:</span></span>
 <span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
-<span><span class="co">#&gt;   kappa  ~ Normal(0, 2)</span></span>
-<span><span class="co">#&gt;   sigma  ~ Half-Normal(0, 3)</span></span></code></pre></div>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span></code></pre></div>
 <p>Currently, three prior families are implemented: normal, student-t
 and chauchy. For standart deviations and random effects all of these
 priors are automatically scaled to half-priors. For each distribution,
@@ -174,8 +167,7 @@ distribution, the degrees of freedom can also be specified.</p>
 <span>  chains <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  cores <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">1337</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Warning: Prior(s) set but not used by this model: sigma. These will be ignored.</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 <p>If you want to learn how to extend this model to a multilevel model,
 check out the <code>Vignette(Random-Effects)</code>.</p>
 </div>
@@ -210,12 +202,12 @@ expected and can be safely ignored.</p>
 <span><span class="co">#&gt; Fixed eff.:   0 </span></span>
 <span><span class="co">#&gt; Observations: 147 </span></span>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
-<span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Divergences: 1  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:</span></span>
 <span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
 <span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
-<span><span class="co">#&gt;   kappa  ~ Normal(0, 2)</span></span>
-<span><span class="co">#&gt; Total time:  13.4 sec</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt; Total time:  12.7 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <p>Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
@@ -230,50 +222,50 @@ converge.</p>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>
 <span><span class="co">#&gt; ================================================== </span></span>
 <span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=147</span></span>
-<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 2</span></span>
+<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 1</span></span>
 <span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; --- Autoregressive ---</span></span>
-<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_anxious      anxious      0.203 0.203  -0.054 0.460 1    15617.37 12599.58</span></span>
-<span><span class="co">#&gt;  lag1_calm         calm         0.176 0.174  -0.058 0.415 1    13025.39 11190.21</span></span>
-<span><span class="co">#&gt;  lag1_conventional conventional 0.558 0.554   0.280 0.843 1    14346.16 11205.97</span></span>
-<span><span class="co">#&gt;  lag1_critical     critical     0.278 0.277   0.075 0.492 1    18103.80 11283.74</span></span>
-<span><span class="co">#&gt;  lag1_dependable   dependable   0.476 0.473   0.247 0.714 1    15253.27 12152.74</span></span>
+<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat  ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  lag1_anxious      anxious      0.190 0.191  -0.064 0.441 1.000 19633.01 11959.17</span></span>
+<span><span class="co">#&gt;  lag1_calm         calm         0.173 0.173  -0.057 0.409 1.001 15187.45 12033.26</span></span>
+<span><span class="co">#&gt;  lag1_conventional conventional 0.522 0.522   0.252 0.801 1.000 18655.99 12661.32</span></span>
+<span><span class="co">#&gt;  lag1_critical     critical     0.273 0.270   0.066 0.492 1.001 24042.28 12349.77</span></span>
+<span><span class="co">#&gt;  lag1_dependable   dependable   0.459 0.456   0.228 0.697 1.000 19660.02 12414.55</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; --- Cross-lagged ---</span></span>
 <span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_calm         anxious      -0.308 -0.307 -0.556 -0.069 1    12276.01 12256.25</span></span>
-<span><span class="co">#&gt;  lag1_conventional anxious       0.113  0.112 -0.145  0.375 1    15288.24 12209.56</span></span>
-<span><span class="co">#&gt;  lag1_critical     anxious       0.065  0.065 -0.142  0.273 1    21335.42 11693.19</span></span>
-<span><span class="co">#&gt;  lag1_dependable   anxious       0.054  0.052 -0.158  0.267 1    14645.31 12404.76</span></span>
-<span><span class="co">#&gt;  lag1_anxious      calm         -0.085 -0.085 -0.338  0.168 1    15499.73 13047.83</span></span>
-<span><span class="co">#&gt;  lag1_conventional calm         -0.162 -0.162 -0.423  0.096 1    14847.92 12191.17</span></span>
-<span><span class="co">#&gt;  lag1_critical     calm         -0.077 -0.077 -0.286  0.131 1    20946.54 12223.59</span></span>
-<span><span class="co">#&gt;  lag1_dependable   calm          0.116  0.115 -0.096  0.328 1    15982.24 11988.57</span></span>
-<span><span class="co">#&gt;  lag1_anxious      conventional -0.184 -0.184 -0.462  0.095 1    14348.25 12403.62</span></span>
-<span><span class="co">#&gt;  lag1_calm         conventional -0.105 -0.105 -0.349  0.134 1    12989.52 12059.56</span></span>
+<span><span class="co">#&gt;  lag1_calm         anxious      -0.295 -0.293 -0.534 -0.064 1    16400.52 11459.45</span></span>
+<span><span class="co">#&gt;  lag1_conventional anxious       0.109  0.110 -0.145  0.363 1    19919.94 12271.96</span></span>
+<span><span class="co">#&gt;  lag1_critical     anxious       0.059  0.059 -0.142  0.266 1    29249.05 11530.32</span></span>
+<span><span class="co">#&gt;  lag1_dependable   anxious       0.049  0.047 -0.156  0.259 1    18623.56 12379.02</span></span>
+<span><span class="co">#&gt;  lag1_anxious      calm         -0.080 -0.080 -0.331  0.168 1    19087.17 12676.98</span></span>
+<span><span class="co">#&gt;  lag1_conventional calm         -0.157 -0.157 -0.416  0.100 1    17990.79 12297.06</span></span>
+<span><span class="co">#&gt;  lag1_critical     calm         -0.073 -0.072 -0.279  0.137 1    30605.37 12311.23</span></span>
+<span><span class="co">#&gt;  lag1_dependable   calm          0.110  0.108 -0.096  0.318 1    18954.26 13189.49</span></span>
+<span><span class="co">#&gt;  lag1_anxious      conventional -0.172 -0.174 -0.438  0.096 1    19308.78 12656.36</span></span>
+<span><span class="co">#&gt;  lag1_calm         conventional -0.102 -0.100 -0.343  0.136 1    15993.48 13042.57</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; --- Threshold ---</span></span>
-<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail </span></span>
-<span><span class="co">#&gt;  kappa(anxious, c1)      —       -1.033 -1.029 -1.470 -0.613 1.000 11123.68  9566.673</span></span>
-<span><span class="co">#&gt;  kappa(calm, c1)         —       -1.300 -1.266 -1.869 -0.848 1.000 14564.11 10916.416</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c1) —       -1.033 -1.012 -1.471 -0.674 1.000 14373.14 11229.523</span></span>
-<span><span class="co">#&gt;  kappa(critical, c1)     —        0.086  0.095 -0.239  0.379 1.000 12541.34 10745.366</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c1)   —       -1.726 -1.680 -2.521 -1.081 1.000 10748.70 10274.783</span></span>
-<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.459  0.464  0.139  0.765 1.000 13762.57 12456.461</span></span>
-<span><span class="co">#&gt;  kappa(calm, c2)         —       -0.884 -0.875 -1.244 -0.552 1.000 18423.96 13368.980</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c2) —       -0.707 -0.710 -1.008 -0.397 1.000 15460.49 10840.830</span></span>
-<span><span class="co">#&gt;  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794</span></span>
+<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c1)      —       -0.987 -0.986 -1.396 -0.581 1    17267.83 10548.39</span></span>
+<span><span class="co">#&gt;  kappa(calm, c1)         —       -1.201 -1.168 -1.711 -0.796 1    17288.56 10950.22</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c1) —       -0.986 -0.967 -1.385 -0.648 1    19490.40 12274.73</span></span>
+<span><span class="co">#&gt;  kappa(critical, c1)     —        0.089  0.097 -0.234  0.380 1    16714.72 12274.38</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c1)   —       -1.514 -1.475 -2.193 -0.969 1    13656.79 10635.92</span></span>
+<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.442  0.448  0.125  0.737 1    15943.52 12871.09</span></span>
+<span><span class="co">#&gt;  kappa(calm, c2)         —       -0.843 -0.835 -1.179 -0.539 1    18624.66 13571.76</span></span>
+<span><span class="co">#&gt;  kappa(conventional, c2) —       -0.686 -0.687 -0.976 -0.388 1    18078.73 13500.06</span></span>
+<span><span class="co">#&gt;  kappa(critical, c2)     —        0.529  0.528  0.287  0.775 1    17260.78 14724.44</span></span>
+<span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.832 -0.833 -1.218 -0.444 1    17188.28 10192.67</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit) for full output.</span></span>
+<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() for the full parameter table.</span></span>
+<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
 <span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -283,31 +275,31 @@ converge.</p>
 parameters
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>).
 To inspect them completely we have to extract them using
-<code><a href="../reference/extract_param.html">extract_param()</a></code>:</p>
+<code>extract_param(fit, type = "Threshold")</code>:</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">params</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_param.html">extract_param</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
-<span><span class="va">params</span><span class="op">[</span><span class="va">params</span><span class="op">$</span><span class="va">type</span> <span class="op">==</span> <span class="st">"Threshold"</span>,<span class="op">]</span> <span class="co"># add seperate extractor function for kappa, sigma..</span></span>
-<span><span class="co">#&gt;         type               predictor outcome        mean      median         q5        q95      rhat ess_bulk  ess_tail</span></span>
-<span><span class="co">#&gt; 26 Threshold      kappa(anxious, c1)       — -1.03285109 -1.02852445 -1.4703235 -0.6134608 1.0001894 11123.68  9566.673</span></span>
-<span><span class="co">#&gt; 27 Threshold         kappa(calm, c1)       — -1.30014533 -1.26565785 -1.8692502 -0.8476075 1.0001328 14564.11 10916.416</span></span>
-<span><span class="co">#&gt; 28 Threshold kappa(conventional, c1)       — -1.03336729 -1.01205985 -1.4711615 -0.6738048 1.0000887 14373.13 11229.523</span></span>
-<span><span class="co">#&gt; 29 Threshold     kappa(critical, c1)       —  0.08567509  0.09505895 -0.2386167  0.3793493 1.0003189 12541.34 10745.366</span></span>
-<span><span class="co">#&gt; 30 Threshold   kappa(dependable, c1)       — -1.72568614 -1.68045880 -2.5214071 -1.0805193 1.0003006 10748.70 10274.783</span></span>
-<span><span class="co">#&gt; 31 Threshold      kappa(anxious, c2)       —  0.45936818  0.46442090  0.1385890  0.7650862 1.0000192 13762.57 12456.461</span></span>
-<span><span class="co">#&gt; 32 Threshold         kappa(calm, c2)       — -0.88438434 -0.87529079 -1.2444187 -0.5517570 1.0001721 18423.96 13368.980</span></span>
-<span><span class="co">#&gt; 33 Threshold kappa(conventional, c2)       — -0.70673963 -0.71005004 -1.0081459 -0.3967633 0.9999131 15460.49 10840.830</span></span>
-<span><span class="co">#&gt; 34 Threshold     kappa(critical, c2)       —  0.54833491  0.54694036  0.2981471  0.8061212 1.0002716 16603.34 12957.191</span></span>
-<span><span class="co">#&gt; 35 Threshold   kappa(dependable, c2)       — -0.85949747 -0.85968742 -1.2632601 -0.4558807 1.0010041 10048.09  6937.794</span></span>
-<span><span class="co">#&gt; 36 Threshold      kappa(anxious, c3)       —  0.95189554  0.93533212  0.5917419  1.3648925 0.9999869 14502.71 11369.641</span></span>
-<span><span class="co">#&gt; 37 Threshold         kappa(calm, c3)       — -0.36802642 -0.37436518 -0.6744710 -0.0440537 1.0001101 13760.73 12421.296</span></span>
-<span><span class="co">#&gt; 38 Threshold kappa(conventional, c3)       —  0.62996635  0.62775770  0.2608396  1.0047809 0.9999474 13535.62 10171.390</span></span>
-<span><span class="co">#&gt; 39 Threshold     kappa(critical, c3)       —  0.76699860  0.75749318  0.5062937  1.0600305 0.9999889 17305.51 12710.418</span></span>
-<span><span class="co">#&gt; 40 Threshold   kappa(dependable, c3)       —  0.12516613  0.12449102 -0.2202632  0.4724522 1.0004251 11098.90  7811.925</span></span>
-<span><span class="co">#&gt; 41 Threshold      kappa(anxious, c4)       —  1.92440208  1.88030470  1.1873595  2.8280811 1.0000381 14967.02 10543.057</span></span>
-<span><span class="co">#&gt; 42 Threshold         kappa(calm, c4)       —  1.35545685  1.34728995  0.9012824  1.8378872 0.9999767 18072.38 11041.277</span></span>
-<span><span class="co">#&gt; 43 Threshold kappa(conventional, c4)       —  2.57589420  2.55145715  1.8081027  3.4241004 1.0004303 19188.28 10144.966</span></span>
-<span><span class="co">#&gt; 44 Threshold     kappa(critical, c4)       —  1.15580404  1.10903125  0.7258669  1.7561748 1.0001773 20899.16 12835.077</span></span>
-<span><span class="co">#&gt; 45 Threshold   kappa(dependable, c4)       —  1.15106984  1.14520455  0.6797434  1.6414832 1.0000701 14456.67 10624.680</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">params</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_param.html">extract_param</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"Threshold"</span><span class="op">)</span></span>
+<span><span class="va">params</span></span>
+<span><span class="co">#&gt;         type               predictor outcome        mean     median         q5         q95      rhat ess_bulk ess_tail</span></span>
+<span><span class="co">#&gt; 26 Threshold      kappa(anxious, c1)       — -0.98739947 -0.9860493 -1.3959425 -0.58128709 1.0002899 17267.83 10548.39</span></span>
+<span><span class="co">#&gt; 27 Threshold         kappa(calm, c1)       — -1.20056112 -1.1684911 -1.7108714 -0.79625675 1.0001173 17288.56 10950.22</span></span>
+<span><span class="co">#&gt; 28 Threshold kappa(conventional, c1)       — -0.98550582 -0.9670843 -1.3851722 -0.64823757 1.0000965 19490.40 12274.73</span></span>
+<span><span class="co">#&gt; 29 Threshold     kappa(critical, c1)       —  0.08918956  0.0971121 -0.2338354  0.38037924 1.0000410 16714.72 12274.38</span></span>
+<span><span class="co">#&gt; 30 Threshold   kappa(dependable, c1)       — -1.51421608 -1.4750196 -2.1928847 -0.96885779 0.9999901 13656.79 10635.93</span></span>
+<span><span class="co">#&gt; 31 Threshold      kappa(anxious, c2)       —  0.44160030  0.4480043  0.1246503  0.73744380 1.0001864 15943.52 12871.09</span></span>
+<span><span class="co">#&gt; 32 Threshold         kappa(calm, c2)       — -0.84343255 -0.8350261 -1.1789986 -0.53859744 0.9999530 18624.66 13571.76</span></span>
+<span><span class="co">#&gt; 33 Threshold kappa(conventional, c2)       — -0.68574365 -0.6871833 -0.9757996 -0.38764781 1.0000669 18078.73 13500.06</span></span>
+<span><span class="co">#&gt; 34 Threshold     kappa(critical, c2)       —  0.52905562  0.5279551  0.2874228  0.77458323 1.0002312 17260.78 14724.44</span></span>
+<span><span class="co">#&gt; 35 Threshold   kappa(dependable, c2)       — -0.83224176 -0.8331054 -1.2180161 -0.44414506 1.0004728 17188.28 10192.67</span></span>
+<span><span class="co">#&gt; 36 Threshold      kappa(anxious, c3)       —  0.91591078  0.9039044  0.5767963  1.29100115 0.9999471 16410.18 13830.48</span></span>
+<span><span class="co">#&gt; 37 Threshold         kappa(calm, c3)       — -0.35622581 -0.3623932 -0.6523983 -0.04375198 0.9999353 15096.12 13654.72</span></span>
+<span><span class="co">#&gt; 38 Threshold kappa(conventional, c3)       —  0.61041320  0.6068505  0.2562171  0.97513834 1.0001069 15027.75 12162.08</span></span>
+<span><span class="co">#&gt; 39 Threshold     kappa(critical, c3)       —  0.73137454  0.7238967  0.4781784  1.01258300 1.0000583 18194.09 14135.84</span></span>
+<span><span class="co">#&gt; 40 Threshold   kappa(dependable, c3)       —  0.12394548  0.1239607 -0.2146176  0.46524592 1.0001516 12629.71 10121.86</span></span>
+<span><span class="co">#&gt; 41 Threshold      kappa(anxious, c4)       —  1.64429481  1.6027258  1.0616271  2.36308576 1.0000596 15643.85 11786.75</span></span>
+<span><span class="co">#&gt; 42 Threshold         kappa(calm, c4)       —  1.28145587  1.2735726  0.8468702  1.73513969 0.9999143 21851.63 11834.63</span></span>
+<span><span class="co">#&gt; 43 Threshold kappa(conventional, c4)       —  2.21871737  2.2052999  1.5672800  2.91469544 1.0002161 18781.33 10564.61</span></span>
+<span><span class="co">#&gt; 44 Threshold     kappa(critical, c4)       —  1.06503664  1.0262242  0.6818237  1.57819682 0.9998645 19805.16 13097.76</span></span>
+<span><span class="co">#&gt; 45 Threshold   kappa(dependable, c4)       —  1.08776225  1.0817278  0.6448819  1.56455443 1.0003547 14400.05 10104.37</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -321,7 +313,7 @@ inspect this using either the <code>extract_temporal(fit)</code>, or the
 <code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8"><div class="figcaption">plot of chunk unnamed-chunk-8</div>
+<img src="figure/unnamed-chunk-20-1.png" alt="plot of chunk unnamed-chunk-20"><div class="figcaption">plot of chunk unnamed-chunk-20</div>
 </div>
 <p>Lastly, if you want to perform hypothesis tests on your estimated
 parameters we refer you to the

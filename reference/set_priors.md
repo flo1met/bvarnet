@@ -15,14 +15,27 @@ default. Available prior distributions are:
 ## Usage
 
 ``` r
-set_priors(beta = NULL, phi = NULL, sd_u = NULL, kappa = NULL, sigma = NULL)
+set_priors(
+  intercept = NULL,
+  beta = NULL,
+  phi = NULL,
+  sd_u = NULL,
+  kappa = NULL,
+  sigma = NULL
+)
 ```
 
 ## Arguments
 
+- intercept:
+
+  Prior for the intercept. Only applies to gaussian and bernoulli
+  models; for ordinal models the intercept is absorbed into the kappa
+  (threshold parameter).
+
 - beta:
 
-  Prior for fixed-effect regression coefficients.
+  Prior for fixed-effect regression coefficients (slopes).
 
 - phi:
 
