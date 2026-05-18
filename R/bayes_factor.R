@@ -20,6 +20,7 @@
 #'
 #' @return Numeric scalar — the density.
 #' @keywords internal
+#' @noRd
 eval_prior_density <- function(prior, x) {
   # TODO: if stationarity constraints are added to Phi, the effective prior
 	#       becomes truncated and this analytical density must be corrected.
@@ -42,6 +43,7 @@ eval_prior_density <- function(prior, x) {
 #'
 #' @return Numeric scalar — the product of marginal densities.
 #' @keywords internal
+#' @noRd
 eval_joint_prior_density <- function(prior_list, param_types, null_vec) {
   prod(mapply(function(ptype, x) {
     eval_prior_density(prior_list[[ptype]], x)
@@ -62,6 +64,7 @@ eval_joint_prior_density <- function(prior_list, param_types, null_vec) {
 #'
 #' @return Character vector of Stan parameter names.
 #' @keywords internal
+#' @noRd
 get_phi_indices <- function(sd, lag = 1L, effect = c("ar", "cl", "all")) {
   effect <- match.arg(effect)
   p <- sd$p
@@ -99,6 +102,7 @@ get_phi_indices <- function(sd, lag = 1L, effect = c("ar", "cl", "all")) {
 #' @param type One of \code{"intercepts"} or \code{"fe"} (non-intercept fixed effects).
 #' @return Character vector of Stan parameter names.
 #' @keywords internal
+#' @noRd
 get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
   type  <- match.arg(type)
   p     <- sd$p
@@ -144,6 +148,7 @@ get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
 #' @param type One of \code{"fe"} or \code{"intercepts"}.
 #' @return Named list of character vectors keyed by predictor name.
 #' @keywords internal
+#' @noRd
 get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
   type  <- match.arg(type)
   p     <- sd$p
@@ -185,6 +190,7 @@ get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
 #'   and \code{cl} (CL-like interaction params where lagged outcome !=
 #'   target outcome).
 #' @keywords internal
+#' @noRd
 get_lag_interaction_indices_by_term <- function(sd) {
   terms    <- sd$fe_interaction_terms
   fe_ic    <- sd$fe_interaction_colnames
@@ -261,6 +267,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @return Named list with elements \code{BF01}, \code{post_density},
 #'   \code{prior_density}.
 #' @keywords internal
+#' @noRd
 .compute_sddr_logspline <- function(draws, prior, null = 0) {
   # logspline with tryCatch — fall back to KDE on failure
   fit <- tryCatch(
@@ -297,6 +304,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @return Named list with elements \code{BF01}, \code{post_density},
 #'   \code{prior_density}.
 #' @keywords internal
+#' @noRd
 .compute_sddr_mvn <- function(draws_mat, prior_list, param_types, null_vec) {
   d <- ncol(draws_mat)
   S <- nrow(draws_mat)
@@ -319,6 +327,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 
 #' Determine the prior type for a Stan parameter name
 #' @keywords internal
+#' @noRd
 .param_type <- function(param_name) {
   if (grepl("^phi\\[",   param_name)) return("phi")
   if (grepl("^beta\\[",  param_name)) return("beta")
@@ -331,6 +340,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 
 #' Determine whether a parameter uses a half-prior
 #' @keywords internal
+#' @noRd
 .is_half_prior <- function(param_name) {
   grepl("^(sigma|sd_u)\\[", param_name)
 }
@@ -351,6 +361,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #'   \code{post_density}, \code{prior_density}, \code{method}, \code{params},
 #'   \code{null_value}.
 #' @keywords internal
+#' @noRd
 savage_dickey <- function(object, params, null_value = 0,
                           method = c("auto", "logspline", "mvn")) {
   stopifnot(inherits(object, "bvarnet"))
@@ -445,6 +456,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @param params Character vector of Stan parameter names.
 #' @return Numeric vector or matrix.
 #' @keywords internal
+#' @noRd
 .extract_draws_raw <- function(object, params) {
   draws_3d <- object$draws   # iter x chains x params
   idx <- match(params, dimnames(draws_3d)[[3]])
@@ -469,6 +481,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #'   or \code{NULL}), \code{x_names} (character vector of matched covariate
 #'   names, or \code{NULL}), and \code{has_y}/\code{has_x} logicals.
 #' @keywords internal
+#' @noRd
 .classify_variable <- function(sd, variable) {
   y_names <- colnames(sd$Y)
   x_names <- colnames(sd$X)
@@ -505,6 +518,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @param var_idx Integer vector of variable column positions.
 #' @return Character vector of filtered Stan parameter names.
 #' @keywords internal
+#' @noRd
 .filter_phi_by_variable <- function(sd, lag, effect, var_idx) {
   all_params <- get_phi_indices(sd, lag = lag, effect = effect)
   p <- sd$p
@@ -524,6 +538,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @return Same structure as \code{get_lag_interaction_indices_by_term()} but
 #'   with only parameters where the lagged variable is in \code{var_idx}.
 #' @keywords internal
+#' @noRd
 .filter_lag_interaction_by_variable <- function(sd, var_idx) {
   term_groups <- get_lag_interaction_indices_by_term(sd)
   p <- sd$p; K <- sd$K
@@ -571,6 +586,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @return Filtered version of \code{get_lag_interaction_indices_by_term()},
 #'   retaining only terms whose non-lag suffix matches \code{x_names}.
 #' @keywords internal
+#' @noRd
 .filter_lag_interaction_by_covariate <- function(sd, x_names) {
   term_groups <- get_lag_interaction_indices_by_term(sd)
   # Term keys are the covariate suffix (e.g., "x_1" from c("lag","x_1"))
@@ -583,6 +599,7 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @param x_names Character vector of covariate names to keep.
 #' @return Filtered list retaining only predictors in \code{x_names}.
 #' @keywords internal
+#' @noRd
 .filter_fe_by_covariate <- function(by_pred, x_names) {
   by_pred[names(by_pred) %in% x_names]
 }
@@ -616,21 +633,12 @@ savage_dickey <- function(object, params, null_value = 0,
 #'       covariate interactions are present, additional omnibus rows are
 #'       included.}
 #'   }
-#'   \code{"all"} skips \code{"intercepts"} for ordinal models, skips
-#'   \code{"lag_fe"} when no lag interactions exist, and — when
-#'   \code{variable} is set — skips \code{"intercepts"} and \code{"fe"}.
 #' @param lag        Integer; which lag block to use (default 1). Applies to
 #'   \code{"ar"} and \code{"cl"} types.
 #' @param null_value Numeric scalar; the null hypothesis value (default 0).
 #' @param variable   Character vector or \code{NULL} (default).  One or more
-#'   variable names — either network variables (from \code{colnames(standata$Y)})
-#'   or covariates (from \code{x_cols}, excluding \code{"Intercept"} and
-#'   interaction columns).  When set, only effects involving these variables are
-#'   included: network variables filter phi rows (effects **from** the variable
-#'   as lagged predictor); covariate names filter fixed-effect rows and
-#'   lag × covariate interaction rows (effects **of** that covariate).
-#'   Both types can be combined in a single call.
-#'   Cannot be combined with \code{type = "intercepts"}.
+#'   variable names.  When set, only effects involving these variables are
+#'   included.
 #' @param log_BF10 Logical; if \code{TRUE}, an additional \code{log_BF10}
 #'   column (natural log of \code{BF10}) is appended to the output.
 #'   Default is \code{FALSE}.
@@ -1131,6 +1139,7 @@ bf_table <- function(object,
 
 #' Produce human-readable labels for a Stan parameter name (internal)
 #' @keywords internal
+#' @noRd
 .param_label <- function(stan_name, nm) {
   # Parse "phi[r,c]" or "beta[r,c]"
   parts <- regmatches(stan_name, regexec("^(\\w+)\\[(\\d+),(\\d+)\\]$", stan_name))[[1]]
@@ -1159,6 +1168,7 @@ bf_table <- function(object,
 
 #' Human-readable type label (internal)
 #' @keywords internal
+#' @noRd
 .type_label <- function(type) {
   switch(type,
     ar         = "Autoregressive",

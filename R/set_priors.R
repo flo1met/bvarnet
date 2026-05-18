@@ -236,6 +236,7 @@ get_default_priors <- function(family = NULL, has_re = TRUE) {
 #' @param family_vec Named character vector of families per node.
 #' @return A complete \code{bvarnet_priors} object.
 #' @keywords internal
+#' @noRd
 .ensure_prior_slots <- function(priors, family_vec) {
   # sd_u is always passed to Stan (even when n_re == 0)
   required <- c("beta", "phi", "sd_u")
@@ -275,6 +276,7 @@ get_default_priors <- function(family = NULL, has_re = TRUE) {
 #' @param n_re Integer. Number of random-effect columns from the built design.
 #' @return Character vector of prior names the model actually uses.
 #' @keywords internal
+#' @noRd
 .prior_warnings <- function(priors, family_vec, n_re) {
   has_intercept <- any(family_vec %in% c("gaussian", "bernoulli"))
   needed <- if (has_intercept) c("intercept", "beta", "phi") else c("beta", "phi")

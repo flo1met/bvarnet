@@ -2,18 +2,22 @@
 
 #' Does any node have a given family?
 #' @keywords internal
+#' @noRd
 .family_has <- function(object, fam) any(object$family == fam)
 
 #' Which nodes have a given family?
 #' @keywords internal
+#' @noRd
 .family_which <- function(object, fam) which(object$family == fam)
 
 #' Is the model mixed-family?
 #' @keywords internal
+#' @noRd
 .is_mixed <- function(object) length(unique(object$family)) > 1L
 
 #' Format a family vector for display
 #' @keywords internal
+#' @noRd
 .format_family <- function(family_vec) {
   if (length(unique(family_vec)) == 1L) return(unname(family_vec[1]))
   paste0("mixed (", paste(names(family_vec), family_vec,
@@ -118,6 +122,7 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 #' @return A 4D array with dimensions
 #'   \code{[S, p, J, n_re]} where \code{S = n_iter * n_chains}.
 #' @keywords internal
+#' @noRd
 .extract_u_draws <- function(object) {
   stopifnot(inherits(object, "bvarnet"))
   sd <- object$standata
@@ -185,6 +190,7 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 #' @param object A \code{bvarnet} object.
 #' @return A 3D array with dimensions \code{[p, J, n_re]}.
 #' @keywords internal
+#' @noRd
 .posterior_mean_u <- function(object) {
   u_draws <- .extract_u_draws(object)   # [S, p, J, n_re]
   # Average over the draw dimension (dim 1)

@@ -70,7 +70,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.3 sec
+#> Total time:  11.4 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary
@@ -134,7 +134,7 @@ summary(fit)
 
 ## Hypothesis Testing with Bayes Factors
 
-To estimate Bayes factors for a single parameter, or a set of parameters, we can use the `bf_table()` function. Bayes factors are computed via the **Savage–Dickey density ratio** (SDDR; Wagenmakers et al., 2010), which, for a point null $H_0 : \theta = \theta_0$ nested in $H_1 : \theta \neq \theta_0$ with shared nuisance parameters, gives
+To estimate Bayes factors for a single parameter, or a set of parameters, we can use the `bf_table()` function. Bayes factors are computed via the **Savage–Dickey density ratio** (SDDR), which, for a point null $H_0 : \theta = \theta_0$ nested in $H_1 : \theta \neq \theta_0$ with shared nuisance parameters, gives
 
 $$
 \mathrm{BF}_{01} \;=\; \frac{p(\theta = \theta_0 \mid y)}{p(\theta = \theta_0)},
@@ -209,8 +209,16 @@ bf_tab
 #> 34   Fixed Effect (joint)        sleep_hour            —  0.00000
 ```
 
-The table can be used to easily get a set of Bayes factors. If we have hypotheses concerning the temporal structure, we can call the `bf_table(fit)` function using the argument `type = "temporal"`. The following arguments are available for the `type` argument: ""
+The table can be used to easily get a set of Bayes factors. If we have hypotheses concerning the temporal structure, we can call the `bf_table(fit)` function using the argument `type = "temporal"`. 
 
 
+``` r
+bf_temp <- bf_table(fit, type = "temporal")
+bf_temp
+#>               type predictor outcome BF10
+#> 1 Temporal (joint)   all_phi       —    0
+```
 
-$\mathbf{x}_{it}^ = \mathbf{M}^T \mathbf{x}_{it}$
+The following arguments are available as filters for the `type` argument: "ar", "cl", "intercepts", "fe", "lag_fe", and "temporal".
+
+

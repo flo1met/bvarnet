@@ -34,10 +34,7 @@ interaction terms. Only available when the model was fitted with
 (all AR + CL parameters across all lags). When lag \eqn{\times}
 covariate interactions are present, additional omnibus rows are
 included.}
-}
-\code{"all"} skips \code{"intercepts"} for ordinal models, skips
-\code{"lag_fe"} when no lag interactions exist, and — when
-\code{variable} is set — skips \code{"intercepts"} and \code{"fe"}.}
+}}
 
 \item{lag}{Integer; which lag block to use (default 1). Applies to
 \code{"ar"} and \code{"cl"} types.}
@@ -45,14 +42,8 @@ included.}
 \item{null_value}{Numeric scalar; the null hypothesis value (default 0).}
 
 \item{variable}{Character vector or \code{NULL} (default).  One or more
-variable names — either network variables (from \code{colnames(standata$Y)})
-or covariates (from \code{x_cols}, excluding \code{"Intercept"} and
-interaction columns).  When set, only effects involving these variables are
-included: network variables filter phi rows (effects \strong{from} the variable
-as lagged predictor); covariate names filter fixed-effect rows and
-lag × covariate interaction rows (effects \strong{of} that covariate).
-Both types can be combined in a single call.
-Cannot be combined with \code{type = "intercepts"}.}
+variable names.  When set, only effects involving these variables are
+included.}
 
 \item{log_BF10}{Logical; if \code{TRUE}, an additional \code{log_BF10}
 column (natural log of \code{BF10}) is appended to the output.

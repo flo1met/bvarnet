@@ -31,6 +31,7 @@
 #'
 #' @return A named list ready to pass to \code{CmdStanModel$sample()}.
 #' @keywords internal
+#' @noRd
 to_stan_data <- function(data,
                          family,
                          id_col,
@@ -179,6 +180,7 @@ to_stan_data <- function(data,
 #'   id_levels, x_center_means, row_map, n_rows_data, design_spec,
 #'   fe_interaction_terms, fe_interaction_colnames.
 #' @keywords internal
+#' @noRd
 .to_stan_data_shared <- function(data, id_col, time_col, y_cols, x_cols,
                                   center_x = FALSE, fe_interactions = NULL,
                                   re_interactions = NULL, re_cols = character(0),
@@ -338,6 +340,7 @@ to_stan_data <- function(data,
 #' @param priors A \code{bvarnet_priors} object (original, unmodified).
 #' @return Named list ready for \code{CmdStanModel$sample()}.
 #' @keywords internal
+#' @noRd
 .to_stan_data_node <- function(shared, node, family, priors) {
   Y_node <- shared$Y[, node]
 

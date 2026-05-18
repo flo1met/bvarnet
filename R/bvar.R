@@ -199,6 +199,7 @@ bvar <- function(id_col,
 #' @param y_cols Character vector of outcome names.
 #' @return Named character vector.
 #' @keywords internal
+#' @noRd
 .parse_family <- function(family, y_cols) {
   valid <- c("bernoulli", "ordinal", "gaussian")
   p <- length(y_cols)
@@ -418,6 +419,7 @@ bvar <- function(id_col,
 
 #' Rename a per-node (p=1) Stan parameter name to full-model naming
 #' @keywords internal
+#' @noRd
 .rename_node_param <- function(name, j, family, n_fe_full) {
   if (grepl("^beta\\[", name)) {
     parts <- regmatches(name, regexec("^beta\\[(\\d+),(\\d+)\\]$", name))[[1]]
@@ -463,6 +465,7 @@ bvar <- function(id_col,
 
 #' Bind arrays along the third dimension (simple abind replacement)
 #' @keywords internal
+#' @noRd
 abind_simple <- function(...) {
   arrays <- list(...)
   if (length(arrays) == 1L && is.list(arrays[[1]]) && !is.array(arrays[[1]]))
