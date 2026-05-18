@@ -45,6 +45,8 @@ fit <- bvar(
   cores = 4,
   seed = 1337
 )
+#> Error:
+#> ! Stan model file "" not found.
 ```
 
 ## Model Output
