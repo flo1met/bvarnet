@@ -40,7 +40,13 @@ data {
     matrix[n_obs, n_re] Z; // design matrix random effects
 
     /// PRIORS: 1=normal, 2=t, 3=chauchy
-    // beta
+    // intercept (beta row 1)
+    int<lower=1> prior_intercept_fam;
+    real intercept_loc;
+    real<lower=0> intercept_scale;
+    real<lower=0> intercept_df;
+
+    // beta (slopes: beta rows 2..n_fe)
     int<lower=1> prior_beta_fam; 
     real beta_loc;
     real<lower=0> beta_scale;
@@ -74,7 +80,9 @@ transformed parameters {
 }
 model {
     /// varying priors
-    target += set_prior(to_vector(beta), prior_beta_fam, beta_loc, beta_scale, beta_df);
+    target += set_prior(to_vector(beta[1,]), prior_intercept_fam, intercept_loc, intercept_scale, intercept_df);
+    if (n_fe > 1)
+        target += set_prior(to_vector(beta[2:n_fe,]), prior_beta_fam, beta_loc, beta_scale, beta_df);
     target += set_prior(to_vector(phi), prior_phi_fam, phi_loc, phi_scale, phi_df);
 
     if (n_re > 0)

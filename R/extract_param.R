@@ -72,8 +72,8 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
 
   # Build filtered name lists for row/col mapping
   # Original order: (fe1,y1), (fe2,y1), ..., (fe_nfe,y1), (fe1,y2), ...
-  all_beta_indices <- expand.grid(fe = seq_len(length(nm$fe)),
-                                   node = seq_len(length(nm$y)))
+  all_beta_indices <- expand.grid(fe = seq_along(nm$fe),
+                                   node = seq_along(nm$y))
   keep_idx <- keep_beta_cols
   kept_fe <- all_beta_indices$fe[keep_idx]
   kept_node <- all_beta_indices$node[keep_idx]

@@ -90,8 +90,9 @@ to_stan_data <- function(data,
   if (family == "gaussian") {
     s_y <- mean(apply(Y, 2, sd, na.rm = TRUE))
     if (is.finite(s_y) && s_y > 0) {
-      if (priors$beta$is_default)  priors$beta$scale  <- priors$beta$scale  * s_y
-      if (priors$sigma$is_default) priors$sigma$scale <- priors$sigma$scale * s_y
+      if (priors$beta$is_default)      priors$beta$scale      <- priors$beta$scale      * s_y
+      if (priors$intercept$is_default) priors$intercept$scale <- priors$intercept$scale * s_y
+      if (priors$sigma$is_default)     priors$sigma$scale     <- priors$sigma$scale     * s_y
     }
   }
 
@@ -153,6 +154,13 @@ to_stan_data <- function(data,
     out$sigma_loc       <- priors$sigma$loc
     out$sigma_scale     <- priors$sigma$scale
     out$sigma_df        <- priors$sigma$df
+  }
+
+  if (family %in% c("gaussian", "bernoulli")) {
+    out$prior_intercept_fam <- priors$intercept$family_int
+    out$intercept_loc       <- priors$intercept$loc
+    out$intercept_scale     <- priors$intercept$scale
+    out$intercept_df        <- priors$intercept$df
   }
 
   return(out)
@@ -362,10 +370,9 @@ to_stan_data <- function(data,
   if (family == "gaussian") {
     s_y <- sd(Y_node, na.rm = TRUE)
     if (is.finite(s_y) && s_y > 0) {
-      if (node_priors$beta$is_default)
-        node_priors$beta$scale <- node_priors$beta$scale * s_y
-      if (node_priors$sigma$is_default)
-        node_priors$sigma$scale <- node_priors$sigma$scale * s_y
+      if (node_priors$beta$is_default)      node_priors$beta$scale      <- node_priors$beta$scale      * s_y
+      if (node_priors$intercept$is_default) node_priors$intercept$scale <- node_priors$intercept$scale * s_y
+      if (node_priors$sigma$is_default)     node_priors$sigma$scale     <- node_priors$sigma$scale     * s_y
     }
   }
 
@@ -403,6 +410,13 @@ to_stan_data <- function(data,
     out$sigma_loc  <- node_priors$sigma$loc
     out$sigma_scale <- node_priors$sigma$scale
     out$sigma_df   <- node_priors$sigma$df
+  }
+
+  if (family %in% c("gaussian", "bernoulli")) {
+    out$prior_intercept_fam <- node_priors$intercept$family_int
+    out$intercept_loc       <- node_priors$intercept$loc
+    out$intercept_scale     <- node_priors$intercept$scale
+    out$intercept_df        <- node_priors$intercept$df
   }
 
   if (family == "ordinal") {

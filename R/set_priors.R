@@ -116,7 +116,9 @@ print.bvarnet_prior <- function(x, ...) {
 #' - cauchy(loc, scale)
 #' For standart deviations and random effects, the prior is automatically converted to a half-prior (truncated at `loc`) in the Stan code, so the printed format reflects this.
 #'
-#' @param beta   Prior for fixed-effect regression coefficients.
+#' @param beta      Prior for fixed-effect regression coefficients (slopes).
+#' @param intercept Prior for the intercept. Only applies to gaussian and bernoulli models;
+#'   for ordinal models the intercept is absorbed into the kappa (threshold parameter).
 #' @param phi    Prior for lag coefficients.
 #' @param sd_u   Prior for random-effect standard deviations (half-prior).
 #' @param kappa  Prior for ordinal cut-points (ordinal models only).
@@ -125,18 +127,20 @@ print.bvarnet_prior <- function(x, ...) {
 #'
 #' @return A \code{bvarnet_priors} S3 object.
 #' @export
-set_priors <- function(beta  = NULL,
-                       phi   = NULL,
-                       sd_u  = NULL,
-                       kappa = NULL,
-                       sigma = NULL) {
+set_priors <- function(beta      = NULL,
+                       intercept = NULL,
+                       phi       = NULL,
+                       sd_u      = NULL,
+                       kappa     = NULL,
+                       sigma     = NULL) {
 
   defaults <- list(
-    beta  = .default_prior("normal", 0, 1),
-    phi   = .default_prior("normal", 0, 0.5),
-    sd_u  = .default_prior("normal", 0, 1),
-    kappa = .default_prior("normal", 0, 2),
-    sigma = .default_prior("normal", 0, 2.5)
+    beta      = .default_prior("normal", 0, 1),
+    intercept = .default_prior("normal", 0, 1),
+    phi       = .default_prior("normal", 0, 0.5),
+    sd_u      = .default_prior("normal", 0, 1),
+    kappa     = .default_prior("normal", 0, 2),
+    sigma     = .default_prior("normal", 0, 2.5)
   )
 
   resolve <- function(user, default) {
@@ -149,11 +153,12 @@ set_priors <- function(beta  = NULL,
 
   structure(
     list(
-      beta  = resolve(beta,  defaults$beta),
-      phi   = resolve(phi,   defaults$phi),
-      sd_u  = resolve(sd_u,  defaults$sd_u),
-      kappa = resolve(kappa, defaults$kappa),
-      sigma = resolve(sigma, defaults$sigma)
+      intercept = resolve(intercept, defaults$intercept),
+      beta      = resolve(beta,      defaults$beta),
+      phi       = resolve(phi,       defaults$phi),
+      sd_u      = resolve(sd_u,      defaults$sd_u),
+      kappa     = resolve(kappa,     defaults$kappa),
+      sigma     = resolve(sigma,     defaults$sigma)
     ),
     class = "bvarnet_priors"
   )
@@ -234,6 +239,7 @@ get_default_priors <- function(family = NULL, has_re = TRUE) {
 .ensure_prior_slots <- function(priors, family_vec) {
   # sd_u is always passed to Stan (even when n_re == 0)
   required <- c("beta", "phi", "sd_u")
+  if (any(family_vec %in% c("gaussian", "bernoulli"))) required <- c(required, "intercept")
   if (any(family_vec == "gaussian")) required <- c(required, "sigma")
   if (any(family_vec == "ordinal"))  required <- c(required, "kappa")
 
@@ -242,11 +248,12 @@ get_default_priors <- function(family = NULL, has_re = TRUE) {
 
   if (length(missing) > 0L) {
     defaults <- list(
-      beta  = .default_prior("normal", 0, 1),
-      phi   = .default_prior("normal", 0, 0.5),
-      sd_u  = .default_prior("normal", 0, 1),
-      kappa = .default_prior("normal", 0, 2),
-      sigma = .default_prior("normal", 0, 2.5)
+      beta      = .default_prior("normal", 0, 1),
+      intercept = .default_prior("normal", 0, 1),
+      phi       = .default_prior("normal", 0, 0.5),
+      sd_u      = .default_prior("normal", 0, 1),
+      kappa     = .default_prior("normal", 0, 2),
+      sigma     = .default_prior("normal", 0, 2.5)
     )
     for (nm in missing) priors[[nm]] <- defaults[[nm]]
     warning("Prior(s) missing from input but required by this model: ",
@@ -270,6 +277,7 @@ get_default_priors <- function(family = NULL, has_re = TRUE) {
 #' @keywords internal
 .prior_warnings <- function(priors, family_vec, n_re) {
   needed <- c("beta", "phi")
+  if (any(family_vec %in% c("gaussian", "bernoulli"))) needed <- c(needed, "intercept")
   if (n_re > 0L) needed <- c(needed, "sd_u")
   if (any(family_vec == "gaussian")) needed <- c(needed, "sigma")
   if (any(family_vec == "ordinal"))  needed <- c(needed, "kappa")

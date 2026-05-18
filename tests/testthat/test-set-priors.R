@@ -87,7 +87,7 @@ test_that("set_priors() returns a bvarnet_priors object", {
 })
 
 test_that("set_priors() has the correct names", {
-  expect_named(set_priors(), c("beta", "phi", "sd_u", "kappa", "sigma"))
+  expect_named(set_priors(), c("intercept", "beta", "phi", "sd_u", "kappa", "sigma"))
 })
 
 test_that("default beta is Normal(0, 1)", {
@@ -266,9 +266,9 @@ test_that("get_default_priors(has_re = FALSE) omits sd_u", {
   expect_true("phi"  %in% names(sp))
 })
 
-test_that("get_default_priors() with no args returns all five", {
+test_that("get_default_priors() with no args returns all six", {
   sp <- get_default_priors()
-  expect_named(sp, c("beta", "phi", "sd_u", "kappa", "sigma"))
+  expect_named(sp, c("intercept", "beta", "phi", "sd_u", "kappa", "sigma"))
 })
 
 
@@ -322,13 +322,13 @@ test_that(".ensure_prior_slots does nothing for complete priors", {
 test_that(".prior_warnings returns correct needed set for bernoulli without REs", {
   p <- set_priors()
   needed <- bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L)
-  expect_equal(needed, c("beta", "phi"))
+  expect_equal(needed, c("beta", "phi", "intercept"))
 })
 
 test_that(".prior_warnings returns correct needed set for gaussian with REs", {
   p <- set_priors()
   needed <- bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 2L)
-  expect_equal(needed, c("beta", "phi", "sd_u", "sigma"))
+  expect_equal(needed, c("beta", "phi", "intercept", "sd_u", "sigma"))
 })
 
 test_that(".prior_warnings returns correct needed set for ordinal", {
@@ -357,7 +357,7 @@ test_that(".prior_warnings messages about auto-filled defaults", {
   p <- set_priors(beta = prior("cauchy", 0, 2))
   expect_message(
     bvarnet:::.prior_warnings(p, c(y_1 = "gaussian"), n_re = 0L),
-    "Using default priors for: phi, sigma"
+    "Using default priors for: phi, intercept, sigma"
   )
 })
 
@@ -370,8 +370,9 @@ test_that(".prior_warnings does NOT message when all priors are defaults", {
 
 test_that(".prior_warnings does NOT message when all needed priors are user-set", {
   p <- set_priors(
-    beta = prior("cauchy", 0, 2),
-    phi  = prior("normal", 0, 0.3)
+    beta      = prior("cauchy", 0, 2),
+    intercept = prior("normal", 0, 1),
+    phi       = prior("normal", 0, 0.3)
   )
   expect_silent(
     bvarnet:::.prior_warnings(p, c(y_1 = "bernoulli"), n_re = 0L)

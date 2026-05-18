@@ -42,12 +42,13 @@ data(studentlife)
 
 ### Priors
 
-For a mixed-family model we specify priors for all parameter types that can appear. Here that means we need to specify priors for the following parameters: `phi` (temporal), `beta` (intercept / fixed effects), `kappa` (ordinal thresholds), and `sigma` (gaussian residual SD).
+For a mixed-family model we specify priors for all parameter types that can appear. Here that means we need to specify priors for the following parameters: `intercept`, `phi` (temporal), `beta` (fixed effects), `kappa` (ordinal thresholds), and `sigma` (gaussian residual SD).
 
 ```{r}
 priors <- set_priors(
-  phi   = prior(family = "normal", loc = 0, scale = 0.5),
-  beta  = prior(family = "normal", loc = 0, scale = 1),
+  intercept = prior(family = "normal", loc = 0, scale = 1),
+  phi = prior(family = "normal", loc = 0, scale = 0.5),
+  beta = prior(family = "normal", loc = 0, scale = 1),
   kappa = prior(family = "normal", loc = 0, scale = 1),
   sigma = prior(family = "normal", loc = 0, scale = 1)
 )

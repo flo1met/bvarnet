@@ -268,5 +268,5 @@ test_that("priors slot has correct default beta", {
 
 test_that("priors slot has all expected named entries", {
   obj <- make_mock_bvarnet()
-  expect_named(obj$priors, c("beta", "phi", "sd_u", "kappa", "sigma"))
+  expect_named(obj$priors, c("intercept", "beta", "phi", "sd_u", "kappa", "sigma"))
 })
