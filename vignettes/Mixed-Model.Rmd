@@ -7,10 +7,16 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
 
+has_cmdstan <- instantiate::stan_cmdstan_exists()
+```
 
-
-``` r
+```{r setup}
 library(bvarnet)
 library(qgraph)
 ```
@@ -23,28 +29,24 @@ variables in the network are measured on different scales.
 
 In this example we fit a mixed-family VAR(1) with three types of outcome:
 
-- **ordinal**: `anxious` and `calm` (5-point Likert items)
-- **binary**: `happyornot` (binarised daily average)
+- **ordinal**: `stress_level` (5-point Likert items)
+- **binary**: `happyornot_bin` (binarised daily average)
 - **gaussian**: `sleep_duration` (hours)
 
 ## Load Data
 Again, we start with loading the data
-
-``` r
+```{r}
 data(studentlife)
 ```
 
 
 ### Priors
 
-For a mixed-family model we specify priors for all parameter types that can
-appear. Here that means `phi` (temporal), `beta` (intercept / fixed effects),
-`kappa` (ordinal thresholds), and `sigma` (gaussian residual SD).
+For a mixed-family model we specify priors for all parameter types that can appear. Here that means we need to specify priors for the following parameters: `phi` (temporal), `beta` (intercept / fixed effects), `kappa` (ordinal thresholds), and `sigma` (gaussian residual SD).
 
-
-``` r
+```{r}
 priors <- set_priors(
-  phi   = prior(family = "normal", loc = 0, scale = 0.1),
+  phi   = prior(family = "normal", loc = 0, scale = 0.5),
   beta  = prior(family = "normal", loc = 0, scale = 1),
   kappa = prior(family = "normal", loc = 0, scale = 1),
   sigma = prior(family = "normal", loc = 0, scale = 1)
@@ -56,9 +58,7 @@ priors <- set_priors(
 We pass a named character vector to `family` so that each outcome gets the
 appropriate likelihood.
 
-
-``` r
-#potential bug: we were able to run with binary that were saved as numeric (and have decimals)
+```{r, eval = has_cmdstan, results='hide', message=FALSE}
 fit_mixed <- bvar(
   id_col   = "id",
   time_col = "day",
@@ -78,36 +78,23 @@ fit_mixed <- bvar(
   cores    = 4,
   seed     = 1337
 )
-#> Error in `.to_stan_data_node()`:
-#> ! Ordinal Y must contain integer values. Found non-integer entries.
 ```
 
 ### Results
 
-
-``` r
+```{r, eval = has_cmdstan}
 print(fit_mixed)
-#> Error:
-#> ! object 'fit_mixed' not found
 ```
 
-
-``` r
+```{r, eval = has_cmdstan}
 summary(fit_mixed)
-#> Error:
-#> ! object 'fit_mixed' not found
 ```
 
 The temporal network can be extracted and inspected as usual:
 
-
-``` r
+```{r, eval = has_cmdstan}
 nw_mat <- extract_network_matrix(fit_mixed)
-#> Error:
-#> ! object 'fit_mixed' not found
 qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-7](figure/unnamed-chunk-7-1.png)
-
-As every other model, the mixed model can be extended by random effects (`Vignette(Random-Effects)`), hypothesis tests can be performed (`Vignette(Hypothesis-Testing)`) and predictions can be made based on the model (`Vignette(Prediction)`).
+As every other model, the mixed model can be extended by random effects (`Vignette(Random-Effects)`), hypothesis tests can be performed (`Vignette(Hypothesis-Testing)`).
