@@ -64,10 +64,6 @@ bf_table(
       across all lags). When lag \\\times\\ covariate interactions are
       present, additional omnibus rows are included.
 
-  `"all"` skips `"intercepts"` for ordinal models, skips `"lag_fe"` when
-  no lag interactions exist, and — when `variable` is set — skips
-  `"intercepts"` and `"fe"`.
-
 - lag:
 
   Integer; which lag block to use (default 1). Applies to `"ar"` and
@@ -79,15 +75,8 @@ bf_table(
 
 - variable:
 
-  Character vector or `NULL` (default). One or more variable names —
-  either network variables (from `colnames(standata$Y)`) or covariates
-  (from `x_cols`, excluding `"Intercept"` and interaction columns). When
-  set, only effects involving these variables are included: network
-  variables filter phi rows (effects **from** the variable as lagged
-  predictor); covariate names filter fixed-effect rows and lag ×
-  covariate interaction rows (effects **of** that covariate). Both types
-  can be combined in a single call. Cannot be combined with
-  `type = "intercepts"`.
+  Character vector or `NULL` (default). One or more variable names. When
+  set, only effects involving these variables are included.
 
 - log_BF10:
 

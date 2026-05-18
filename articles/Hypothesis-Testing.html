@@ -128,7 +128,7 @@ they are</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  11.3 sec</span></span>
+<span><span class="co">#&gt; Total time:  11.4 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network Summary</span></span>
@@ -195,7 +195,7 @@ they are</p>
 <p>To estimate Bayes factors for a single parameter, or a set of
 parameters, we can use the <code><a href="../reference/bf_table.html">bf_table()</a></code> function. Bayes
 factors are computed via the <strong>Savage–Dickey density
-ratio</strong> (SDDR; Wagenmakers et al., 2010), which, for a point null
+ratio</strong> (SDDR), which, for a point null
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>0</mn></msub><mo>:</mo><mi>θ</mi><mo>=</mo><msub><mi>θ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">H_0 : \theta = \theta_0</annotation></semantics></math>
 nested in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>H</mi><mn>1</mn></msub><mo>:</mo><mi>θ</mi><mo>≠</mo><msub><mi>θ</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">H_1 : \theta \neq \theta_0</annotation></semantics></math>
@@ -282,9 +282,15 @@ call the <code>bf_table(fit)</code> function</p>
 <p>The table can be used to easily get a set of Bayes factors. If we
 have hypotheses concerning the temporal structure, we can call the
 <code>bf_table(fit)</code> function using the argument
-<code>type = "temporal"</code>. The following arguments are available
-for the <code>type</code> argument: “”</p>
-<p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow><mo>=</mo></msubsup><msup><mi>𝐌</mi><mi>T</mi></msup><msub><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\mathbf{x}_{it}^ = \mathbf{M}^T \mathbf{x}_{it}</annotation></semantics></math></p>
+<code>type = "temporal"</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">bf_temp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bf_table.html">bf_table</a></span><span class="op">(</span><span class="va">fit</span>, type <span class="op">=</span> <span class="st">"temporal"</span><span class="op">)</span></span>
+<span><span class="va">bf_temp</span></span>
+<span><span class="co">#&gt;               type predictor outcome BF10</span></span>
+<span><span class="co">#&gt; 1 Temporal (joint)   all_phi       —    0</span></span></code></pre></div>
+<p>The following arguments are available as filters for the
+<code>type</code> argument: “ar”, “cl”, “intercepts”, “fe”, “lag_fe”,
+and “temporal”.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

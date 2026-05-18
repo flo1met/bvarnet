@@ -105,9 +105,7 @@ covariate interactions are present, additional omnibus rows are
 included.</p></dd>
 
 
-</dl><p><code>"all"</code> skips <code>"intercepts"</code> for ordinal models, skips
-<code>"lag_fe"</code> when no lag interactions exist, and — when
-<code>variable</code> is set — skips <code>"intercepts"</code> and <code>"fe"</code>.</p></dd>
+</dl></dd>
 
 
 <dt id="arg-lag">lag<a class="anchor" aria-label="anchor" href="#arg-lag"></a></dt>
@@ -121,14 +119,8 @@ included.</p></dd>
 
 <dt id="arg-variable">variable<a class="anchor" aria-label="anchor" href="#arg-variable"></a></dt>
 <dd><p>Character vector or <code>NULL</code> (default).  One or more
-variable names — either network variables (from <code>colnames(standata$Y)</code>)
-or covariates (from <code>x_cols</code>, excluding <code>"Intercept"</code> and
-interaction columns).  When set, only effects involving these variables are
-included: network variables filter phi rows (effects <strong>from</strong> the variable
-as lagged predictor); covariate names filter fixed-effect rows and
-lag × covariate interaction rows (effects <strong>of</strong> that covariate).
-Both types can be combined in a single call.
-Cannot be combined with <code>type = "intercepts"</code>.</p></dd>
+variable names.  When set, only effects involving these variables are
+included.</p></dd>
 
 
 <dt id="arg-log-bf-">log_BF10<a class="anchor" aria-label="anchor" href="#arg-log-bf-"></a></dt>

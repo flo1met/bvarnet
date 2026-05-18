@@ -63,7 +63,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.3 sec
+#> Total time:  11.4 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary
@@ -131,9 +131,9 @@ To estimate Bayes factors for a single parameter, or a set of
 parameters, we can use the
 [`bf_table()`](https://flo1met.github.io/bvarnet/reference/bf_table.md)
 function. Bayes factors are computed via the **Savage–Dickey density
-ratio** (SDDR; Wagenmakers et al., 2010), which, for a point null
-$H_{0}:\theta = \theta_{0}$ nested in $H_{1}:\theta \neq \theta_{0}$
-with shared nuisance parameters, gives
+ratio** (SDDR), which, for a point null $H_{0}:\theta = \theta_{0}$
+nested in $H_{1}:\theta \neq \theta_{0}$ with shared nuisance
+parameters, gives
 
 $${BF}_{01}\; = \;\frac{p\left( \theta = \theta_{0} \mid y \right)}{p\left( \theta = \theta_{0} \right)},$$
 
@@ -223,7 +223,14 @@ bf_tab
 
 The table can be used to easily get a set of Bayes factors. If we have
 hypotheses concerning the temporal structure, we can call the
-`bf_table(fit)` function using the argument `type = "temporal"`. The
-following arguments are available for the `type` argument: “”
+`bf_table(fit)` function using the argument `type = "temporal"`.
 
-$\mathbf{x}_{it}^{=}\mathbf{M}^{T}\mathbf{x}_{it}$
+``` r
+bf_temp <- bf_table(fit, type = "temporal")
+bf_temp
+#>               type predictor outcome BF10
+#> 1 Temporal (joint)   all_phi       —    0
+```
+
+The following arguments are available as filters for the `type`
+argument: “ar”, “cl”, “intercepts”, “fe”, “lag_fe”, and “temporal”.
