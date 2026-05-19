@@ -89,7 +89,7 @@ print(fit_mixed)
 #>   phi    ~ Normal(0, 0.5)
 #>   sigma  ~ Half-Normal(0, 1)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  1.0 sec
+#> Total time:  0.9 sec
 #> ========================================
 ```
 

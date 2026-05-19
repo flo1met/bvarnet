@@ -72,7 +72,12 @@
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/bayesplot/" class="external-link">bayesplot</a></span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://mc-stan.org/bayesplot/" class="external-link">bayesplot</a></span><span class="op">)</span></span>
+<span><span class="co">#&gt; This is bayesplot version 1.15.0</span></span>
+<span><span class="co">#&gt; - Online documentation and vignettes at mc-stan.org/bayesplot</span></span>
+<span><span class="co">#&gt; - bayesplot theme set to bayesplot::theme_default()</span></span>
+<span><span class="co">#&gt;    * Does _not_ affect other ggplot2 plots</span></span>
+<span><span class="co">#&gt;    * See ?bayesplot_theme_set for details on theme setting</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
 </h2>
@@ -126,9 +131,7 @@ are used throughout.</p>
 <span>  chains   <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  cores    <span class="op">=</span> <span class="fl">4</span>,</span>
 <span>  seed     <span class="op">=</span> <span class="fl">1337</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; Error:</span></span>
-<span><span class="co">#&gt; ! Stan model file "" not found.</span></span></code></pre></div>
+<span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network fit</span></span>
@@ -136,12 +139,15 @@ are used throughout.</p>
 <span><span class="co">#&gt; Family:      ordinal</span></span>
 <span><span class="co">#&gt; Outcomes (p): 5 </span></span>
 <span><span class="co">#&gt; Lags (K):     1 </span></span>
-<span><span class="co">#&gt; Fixed eff.:   1 </span></span>
-<span><span class="co">#&gt; Observations: 111 </span></span>
+<span><span class="co">#&gt; Fixed eff.:   0 </span></span>
+<span><span class="co">#&gt; Observations: 147 </span></span>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
-<span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
-<span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  11.4 sec</span></span>
+<span><span class="co">#&gt; Divergences: 1  WARNING: check model/priors.</span></span>
+<span><span class="co">#&gt; Priors:</span></span>
+<span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
+<span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
+<span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
+<span><span class="co">#&gt; Total time:  13.2 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <hr>
 </div>
@@ -165,19 +171,19 @@ data frame with one row per parameter, alongside bulk-ESS and
 tail-ESS.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   variable      rhat  ess_bulk  ess_tail</span></span>
-<span><span class="co">#&gt; 1     lp__ 1.0003156  6045.914  9175.511</span></span>
-<span><span class="co">#&gt; 2 phi[1,1] 1.0003620 16772.266 12193.655</span></span>
-<span><span class="co">#&gt; 3 phi[2,1] 1.0000410 12852.768 11468.216</span></span>
-<span><span class="co">#&gt; 4 phi[3,1] 1.0001652 13704.433 12188.622</span></span>
-<span><span class="co">#&gt; 5 phi[4,1] 0.9999057 19347.832 13118.487</span></span>
-<span><span class="co">#&gt; 6 phi[5,1] 1.0002715 16984.342 12402.253</span></span></code></pre></div>
+<span><span class="co">#&gt;   variable      rhat ess_bulk  ess_tail</span></span>
+<span><span class="co">#&gt; 1     lp__ 1.0006264  5807.04  8763.894</span></span>
+<span><span class="co">#&gt; 2 phi[1,1] 1.0002434 19633.01 11959.170</span></span>
+<span><span class="co">#&gt; 3 phi[2,1] 0.9999424 16400.52 11459.448</span></span>
+<span><span class="co">#&gt; 4 phi[3,1] 0.9999472 19919.94 12271.959</span></span>
+<span><span class="co">#&gt; 5 phi[4,1] 1.0001548 29249.05 11530.322</span></span>
+<span><span class="co">#&gt; 6 phi[5,1] 1.0000761 18623.57 12379.016</span></span></code></pre></div>
 <p>A quick summary of the R-hat distribution across all parameters:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">rhat_vals</span> <span class="op">&lt;-</span> <span class="va">fit</span><span class="op">$</span><span class="va">convergence</span><span class="op">$</span><span class="va">rhat</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">rhat_vals</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
-<span><span class="co">#&gt;  0.9999  1.0001  1.0002  1.0002  1.0003  1.0007</span></span></code></pre></div>
+<span><span class="co">#&gt;  0.9999  1.0000  1.0001  1.0001  1.0002  1.0007</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -212,10 +218,10 @@ tail-ESS.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Bulk ESS — min:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ess_bulk</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    <span class="st">"  median:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">ess_bulk</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Bulk ESS — min: 6046   median: 16313</span></span>
+<span><span class="co">#&gt; Bulk ESS — min: 5807   median: 18210</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Tail ESS — min:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">ess_tail</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    <span class="st">"  median:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">ess_tail</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Tail ESS — min: 9176   median: 12179</span></span>
+<span><span class="co">#&gt; Tail ESS — min: 8764   median: 12304</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Parameters with bulk ESS &lt; 400:"</span>, <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">ess_bulk</span> <span class="op">&lt;</span> <span class="fl">400</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Parameters with bulk ESS &lt; 400: 0</span></span></code></pre></div>
 <hr>
@@ -265,10 +271,10 @@ stored in <code>fit$diagnostics</code>:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fit</span><span class="op">$</span><span class="va">diagnostics</span></span>
 <span><span class="co">#&gt;   num_divergent num_max_treedepth     ebfmi</span></span>
-<span><span class="co">#&gt; 1             1                 0 1.0091569</span></span>
-<span><span class="co">#&gt; 2             0                 0 0.9950769</span></span>
-<span><span class="co">#&gt; 3             0                 0 0.9159342</span></span>
-<span><span class="co">#&gt; 4             1                 0 0.9861207</span></span></code></pre></div>
+<span><span class="co">#&gt; 1             0                 0 0.8941142</span></span>
+<span><span class="co">#&gt; 2             0                 0 0.9862093</span></span>
+<span><span class="co">#&gt; 3             0                 0 0.9318894</span></span>
+<span><span class="co">#&gt; 4             1                 0 0.9390785</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="divergences">Divergences<a class="anchor" aria-label="anchor" href="#divergences"></a>
 </h3>

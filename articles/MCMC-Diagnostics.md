@@ -3,6 +3,11 @@
 ``` r
 library(bvarnet)
 library(bayesplot)
+#> This is bayesplot version 1.15.0
+#> - Online documentation and vignettes at mc-stan.org/bayesplot
+#> - bayesplot theme set to bayesplot::theme_default()
+#>    * Does _not_ affect other ggplot2 plots
+#>    * See ?bayesplot_theme_set for details on theme setting
 ```
 
 ## Introduction
@@ -62,8 +67,6 @@ fit <- bvar(
   cores    = 4,
   seed     = 1337
 )
-#> Error:
-#> ! Stan model file "" not found.
 ```
 
 ``` r
@@ -73,12 +76,15 @@ print(fit)
 #> Family:      ordinal
 #> Outcomes (p): 5 
 #> Lags (K):     1 
-#> Fixed eff.:   1 
-#> Observations: 111 
+#> Fixed eff.:   0 
+#> Observations: 147 
 #> Rhat max:    1.001
-#> Divergences: 2  WARNING: check model/priors.
-#> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.4 sec
+#> Divergences: 1  WARNING: check model/priors.
+#> Priors:
+#>   beta   ~ Normal(0, 1)  (default)
+#>   phi    ~ Normal(0, 0.5)
+#>   kappa  ~ Normal(0, 1)
+#> Total time:  13.2 sec
 #> ========================================
 ```
 
@@ -100,13 +106,13 @@ with one row per parameter, alongside bulk-ESS and tail-ESS.
 
 ``` r
 head(fit$convergence)
-#>   variable      rhat  ess_bulk  ess_tail
-#> 1     lp__ 1.0003156  6045.914  9175.511
-#> 2 phi[1,1] 1.0003620 16772.266 12193.655
-#> 3 phi[2,1] 1.0000410 12852.768 11468.216
-#> 4 phi[3,1] 1.0001652 13704.433 12188.622
-#> 5 phi[4,1] 0.9999057 19347.832 13118.487
-#> 6 phi[5,1] 1.0002715 16984.342 12402.253
+#>   variable      rhat ess_bulk  ess_tail
+#> 1     lp__ 1.0006264  5807.04  8763.894
+#> 2 phi[1,1] 1.0002434 19633.01 11959.170
+#> 3 phi[2,1] 0.9999424 16400.52 11459.448
+#> 4 phi[3,1] 0.9999472 19919.94 12271.959
+#> 5 phi[4,1] 1.0001548 29249.05 11530.322
+#> 6 phi[5,1] 1.0000761 18623.57 12379.016
 ```
 
 A quick summary of the R-hat distribution across all parameters:
@@ -115,7 +121,7 @@ A quick summary of the R-hat distribution across all parameters:
 rhat_vals <- fit$convergence$rhat
 summary(rhat_vals)
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  0.9999  1.0001  1.0002  1.0002  1.0003  1.0007
+#>  0.9999  1.0000  1.0001  1.0001  1.0002  1.0007
 ```
 
 ------------------------------------------------------------------------
@@ -137,10 +143,10 @@ ess_tail <- fit$convergence$ess_tail
 
 cat("Bulk ESS — min:", round(min(ess_bulk, na.rm = TRUE)),
     "  median:", round(median(ess_bulk, na.rm = TRUE)), "\n")
-#> Bulk ESS — min: 6046   median: 16313
+#> Bulk ESS — min: 5807   median: 18210
 cat("Tail ESS — min:", round(min(ess_tail, na.rm = TRUE)),
     "  median:", round(median(ess_tail, na.rm = TRUE)), "\n")
-#> Tail ESS — min: 9176   median: 12179
+#> Tail ESS — min: 8764   median: 12304
 cat("Parameters with bulk ESS < 400:", sum(ess_bulk < 400, na.rm = TRUE), "\n")
 #> Parameters with bulk ESS < 400: 0
 ```
@@ -205,10 +211,10 @@ in `fit$diagnostics`:
 ``` r
 fit$diagnostics
 #>   num_divergent num_max_treedepth     ebfmi
-#> 1             1                 0 1.0091569
-#> 2             0                 0 0.9950769
-#> 3             0                 0 0.9159342
-#> 4             1                 0 0.9861207
+#> 1             0                 0 0.8941142
+#> 2             0                 0 0.9862093
+#> 3             0                 0 0.9318894
+#> 4             1                 0 0.9390785
 ```
 
 ### Divergences

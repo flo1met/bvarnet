@@ -45,8 +45,6 @@ fit <- bvar(
   cores = 4,
   seed = 1337
 )
-#> Error:
-#> ! Stan model file "" not found.
 ```
 
 ## Model Output
@@ -65,7 +63,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.4 sec
+#> Total time:  11.7 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary

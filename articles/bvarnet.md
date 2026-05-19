@@ -143,7 +143,7 @@ print(fit)
 #>   beta   ~ Normal(0, 1)  (default)
 #>   phi    ~ Normal(0, 0.5)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  12.6 sec
+#> Total time:  12.3 sec
 #> ========================================
 ```
 
