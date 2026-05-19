@@ -1,0 +1,9 @@
+bibentry(
+  bibtype  = "Manual",
+  title    = "{bvarnet}: Bayesian Estimation of Dynamic VAR Models using STAN",
+  author   = person("Florian", "Metwaly",
+                    comment = c(ORCID = "0009-0001-8357-7870")),
+  year     = "2026",
+  note     = "R package version 1.0.0",
+  url      = "https://github.com/flo1met/bvarnet"
+)
