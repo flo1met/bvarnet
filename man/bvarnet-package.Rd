@@ -18,7 +18,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Florian Metwaly \email{f.j.metwaly@uva.nl} [copyright holder]
+\strong{Maintainer}: Florian Metwaly \email{f.j.metwaly@uva.nl} (\href{https://orcid.org/0009-0001-8357-7870}{ORCID}) [copyright holder]
 
 }
 \keyword{internal}
