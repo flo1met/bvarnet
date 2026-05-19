@@ -210,7 +210,7 @@ expected and can be safely ignored.</p>
 <span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
 <span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
 <span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
-<span><span class="co">#&gt; Total time:  12.3 sec</span></span>
+<span><span class="co">#&gt; Total time:  17.7 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <p>Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
@@ -316,7 +316,7 @@ inspect this using either the <code>extract_temporal(fit)</code>, or the
 <code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8"><div class="figcaption">plot of chunk unnamed-chunk-8</div>
+<img src="figure/plot-network-1.png" alt="plot of chunk plot-network"><div class="figcaption">plot of chunk plot-network</div>
 </div>
 <p>Lastly, if you want to perform hypothesis tests on your estimated
 parameters we refer you to the

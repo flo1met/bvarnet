@@ -162,7 +162,7 @@ outcome gets the appropriate likelihood.</p>
 <span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
 <span><span class="co">#&gt;   sigma  ~ Half-Normal(0, 1)</span></span>
 <span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
-<span><span class="co">#&gt; Total time:  0.9 sec</span></span>
+<span><span class="co">#&gt; Total time:  1.2 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
@@ -216,7 +216,7 @@ outcome gets the appropriate likelihood.</p>
 <code class="sourceCode R"><span><span class="va">nw_mat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/extract_network_matrix.html">extract_network_matrix</a></span><span class="op">(</span><span class="va">fit_mixed</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/pkg/qgraph/man/qgraph.html" class="external-link">qgraph</a></span><span class="op">(</span><span class="va">nw_mat</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-7-1.png" alt="plot of chunk unnamed-chunk-7"><div class="figcaption">plot of chunk unnamed-chunk-7</div>
+<img src="figure/plot-network-mixed-1.png" alt="plot of chunk plot-network-mixed"><div class="figcaption">plot of chunk plot-network-mixed</div>
 </div>
 <p>As every other model, the mixed model can be extended by random
 effects (<code>Vignette(Random-Effects)</code>), hypothesis tests can be

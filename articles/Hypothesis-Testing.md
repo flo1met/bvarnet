@@ -63,7 +63,7 @@ print(fit)
 #> Rhat max:    1.001
 #> Divergences: 2  WARNING: check model/priors.
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  11.7 sec
+#> Total time:  16.2 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary

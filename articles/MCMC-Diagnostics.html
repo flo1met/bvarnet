@@ -147,7 +147,7 @@ are used throughout.</p>
 <span><span class="co">#&gt;   beta   ~ Normal(0, 1)  (default)</span></span>
 <span><span class="co">#&gt;   phi    ~ Normal(0, 0.5)</span></span>
 <span><span class="co">#&gt;   kappa  ~ Normal(0, 1)</span></span>
-<span><span class="co">#&gt; Total time:  13.2 sec</span></span>
+<span><span class="co">#&gt; Total time:  20.2 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <hr>
 </div>
@@ -241,7 +241,7 @@ chains that stay separated indicate sampling problems.</p>
 <span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">phi_pars</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Trace plots — first six lag coefficients (phi)"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-8-1.png" alt="plot of chunk unnamed-chunk-8"><div class="figcaption">plot of chunk unnamed-chunk-8</div>
+<img src="figure/trace-phi-1.png" alt="plot of chunk trace-phi"><div class="figcaption">plot of chunk trace-phi</div>
 </div>
 <p>Complementary <strong>density overlay</strong> plots show whether
 chain-specific posteriors are consistent:</p>
@@ -249,7 +249,7 @@ chain-specific posteriors are consistent:</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-distributions.html" class="external-link">mcmc_dens_overlay</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">phi_pars</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Per-chain posterior densities — phi"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-9-1.png" alt="plot of chunk unnamed-chunk-9"><div class="figcaption">plot of chunk unnamed-chunk-9</div>
+<img src="figure/density-phi-1.png" alt="plot of chunk density-phi"><div class="figcaption">plot of chunk density-phi</div>
 </div>
 <p>We can do this for any sampled parameter, for example the threshold
 parameter kappa:</p>
@@ -259,7 +259,7 @@ parameter kappa:</p>
 <span><span class="fu"><a href="https://mc-stan.org/bayesplot/reference/MCMC-traces.html" class="external-link">mcmc_trace</a></span><span class="op">(</span><span class="va">fit</span><span class="op">$</span><span class="va">draws</span>, pars <span class="op">=</span> <span class="va">kappa_pars</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Trace plots — first four cutpoints (kappa)"</span><span class="op">)</span></span></code></pre></div>
 <div class="float">
-<img src="figure/unnamed-chunk-10-1.png" alt="plot of chunk unnamed-chunk-10"><div class="figcaption">plot of chunk unnamed-chunk-10</div>
+<img src="figure/trace-kappa-1.png" alt="plot of chunk trace-kappa"><div class="figcaption">plot of chunk trace-kappa</div>
 </div>
 <hr>
 </div>

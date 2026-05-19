@@ -84,7 +84,7 @@ print(fit)
 #>   beta   ~ Normal(0, 1)  (default)
 #>   phi    ~ Normal(0, 0.5)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  13.2 sec
+#> Total time:  20.2 sec
 #> ========================================
 ```
 
@@ -171,9 +171,9 @@ mcmc_trace(fit$draws, pars = phi_pars) +
   ggplot2::labs(title = "Trace plots — first six lag coefficients (phi)")
 ```
 
-![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
+![plot of chunk trace-phi](figure/trace-phi-1.png)
 
-plot of chunk unnamed-chunk-8
+plot of chunk trace-phi
 
 Complementary **density overlay** plots show whether chain-specific
 posteriors are consistent:
@@ -183,9 +183,9 @@ mcmc_dens_overlay(fit$draws, pars = phi_pars) +
   ggplot2::labs(title = "Per-chain posterior densities — phi")
 ```
 
-![plot of chunk unnamed-chunk-9](figure/unnamed-chunk-9-1.png)
+![plot of chunk density-phi](figure/density-phi-1.png)
 
-plot of chunk unnamed-chunk-9
+plot of chunk density-phi
 
 We can do this for any sampled parameter, for example the threshold
 parameter kappa:
@@ -197,9 +197,9 @@ mcmc_trace(fit$draws, pars = kappa_pars) +
   ggplot2::labs(title = "Trace plots — first four cutpoints (kappa)")
 ```
 
-![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10-1.png)
+![plot of chunk trace-kappa](figure/trace-kappa-1.png)
 
-plot of chunk unnamed-chunk-10
+plot of chunk trace-kappa
 
 ------------------------------------------------------------------------
 

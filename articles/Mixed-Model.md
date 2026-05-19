@@ -89,7 +89,7 @@ print(fit_mixed)
 #>   phi    ~ Normal(0, 0.5)
 #>   sigma  ~ Half-Normal(0, 1)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  0.9 sec
+#> Total time:  1.2 sec
 #> ========================================
 ```
 
@@ -149,9 +149,9 @@ nw_mat <- extract_network_matrix(fit_mixed)
 qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-7](figure/unnamed-chunk-7-1.png)
+![plot of chunk plot-network-mixed](figure/plot-network-mixed-1.png)
 
-plot of chunk unnamed-chunk-7
+plot of chunk plot-network-mixed
 
 As every other model, the mixed model can be extended by random effects
 (`Vignette(Random-Effects)`), hypothesis tests can be performed
