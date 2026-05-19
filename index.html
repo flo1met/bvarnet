@@ -65,12 +65,12 @@
 <div class="section level2">
 <h2 id="bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan">Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN<a class="anchor" aria-label="anchor" href="#bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan"></a>
 </h2>
-<p>The <a href="https://flo1met.github.io/bvarnet/">bvarnet</a> package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints. Further, we provide functionality to conduct hypothesis test and perform predictions.</p>
+<p>The <a href="https://flo1met.github.io/bvarnet/">bvarnet</a> package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints. Further, we provide functionality to conduct hypothesis test.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of <a href="https://flo1met.github.io/bvarnet/">bvarnet</a> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a> with:</p>
+<p>You can install the development version of <code>bvarnet</code> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a> with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
@@ -86,6 +86,7 @@
 <h2 id="feature-requests-and-contributions">Feature Requests and Contributions<a class="anchor" aria-label="anchor" href="#feature-requests-and-contributions"></a>
 </h2>
 <ul>
+<li>Predictions</li>
 <li>Cross-sectional Networks</li>
 <li>Correlated Random Effects</li>
 <li>Hierarchical Prior Distributions</li>
@@ -95,7 +96,7 @@
 <div class="section level2">
 <h2 id="roadmap">Roadmap<a class="anchor" aria-label="anchor" href="#roadmap"></a>
 </h2>
-<p><a href="https://flo1met.github.io/bvarnet/">bvarnet</a> is actively being developed. While the core functionality is stable, we have several exciting features planned for future releases. For a granular look at our progress, known bugs, and feature requests, please visit our <a href="https://github.com/username/packagename/issues" class="external-link">Issue Tracker</a>.</p>
+<p><code>bvarnet</code> is actively being developed. While the core functionality is stable, we have several features planned for future releases. For bug reports or feature request, please visit our <a href="https://github.com/flo1met/bvarnet/issues" class="external-link">Issue Tracker</a>.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">
