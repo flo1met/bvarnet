@@ -1,10 +1,3 @@
-// Gaussian (continuous, identity link) model
-// See dev/model_development_plan.md §3 for specification & rationale
-//
-// TODO:
-// - reduce_sum parallelisation
-// - correlated random effects
-
 functions {
     real set_prior(vector x, int fam, real loc, real scale, real df) {
         if (fam == 1) return normal_lpdf(x | loc, scale);

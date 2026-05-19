@@ -1,11 +1,3 @@
-#how to handle interaction effects?
-# TODO: Interaction effects
-# TODO: set up to write it like formula
-# TODO: make centering predictors option
-
-
-# dont remove first row, but set lags to 0?
-
 #' Build a Stan data list from a long-format data frame
 #'
 #' Internal function called by \code{bvar()}. Constructs the list passed to

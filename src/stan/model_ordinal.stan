@@ -1,13 +1,3 @@
-// Adjacent-category ordinal model
-// Reduces to binary logistic regression when C = 2
-// See dev/model_development_plan.md §2 for specification & rationale
-//
-// TODO:
-// - per-node varying C (ragged cutpoints)
-// - dummy-coded ordinal lags
-// - reduce_sum parallelisation (§2.3)
-// - correlated random effects
-
 functions {
     real set_prior(vector x, int fam, real loc, real scale, real df) {
         if (fam == 1) return normal_lpdf(x | loc, scale);

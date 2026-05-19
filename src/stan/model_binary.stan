@@ -1,9 +1,3 @@
-// TODO:
-// - missing data skipping of lags (handle inside missing data handling R function) - DONE
-// - different priors - DONE
-// - correlated random effects
-// - Loop/Array optimisation
-
 functions {
     real set_prior(vector x, int fam, real loc, real scale, real df) {
         if (fam == 1) return normal_lpdf(x | loc, scale);

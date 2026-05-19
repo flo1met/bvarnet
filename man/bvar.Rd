@@ -108,3 +108,21 @@ A \code{bvarnet} object (a named list) with slots:
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 }
+\examples{
+\dontrun{
+# Run bvar on studentlife data
+data(studentlife, package = "bvarnet")
+fit <- bvar(
+  id_col = "id",
+  time_col = "time",
+  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+  re_temporal = TRUE,
+  K = 1,
+  data = studentlife,
+  family = "ordinal",
+  priors = set_priors(),
+  seed = 1337)
+
+summary(fit)
+}
+}
