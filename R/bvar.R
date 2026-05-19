@@ -310,9 +310,7 @@ bvar <- function(id_col,
 .combine_nodewise_fits <- function(fits, family_vec, shared, priors,
                                    priors_needed, iter, chains) {
   p <- length(family_vec)
-  y_cols <- names(family_vec)
   n_fe_full <- shared$n_fe   # includes Intercept
-  PK <- shared$p * shared$K
 
   # --- a) Combined draws array ---
   draw_chunks <- vector("list", p)

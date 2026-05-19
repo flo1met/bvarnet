@@ -306,9 +306,6 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @keywords internal
 #' @noRd
 .compute_sddr_mvn <- function(draws_mat, prior_list, param_types, null_vec) {
-  d <- ncol(draws_mat)
-  S <- nrow(draws_mat)
-
   mu_hat    <- colMeans(draws_mat)
   Sigma_hat <- stats::cov(draws_mat)
 
