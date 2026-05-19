@@ -16,5 +16,5 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Florian Metwaly <f.j.metwaly@uva.nl> \[copyright
-holder\]
+**Maintainer**: Florian Metwaly <f.j.metwaly@uva.nl>
+([ORCID](https://orcid.org/0009-0001-8357-7870)) \[copyright holder\]

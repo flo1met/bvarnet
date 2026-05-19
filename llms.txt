@@ -24,10 +24,10 @@ remotes::install_github("flo1met/bvarnet")
 ## Getting Started
 
 The best place to start learning how to use this package to estimate
-Bayesian (multilevel) Vector Autoregression is the \[Getting Started
-Vignette\]{<https://flo1met.github.io/bvarnet/articles/bvarnet.html>}.
-This vignette covers the basic model syntax, how to specify priors and
-how to extract the relevant parameters.
+Bayesian (multilevel) Vector Autoregression is the [Getting Started
+Vignette](https://flo1met.github.io/bvarnet/articles/bvarnet.html). This
+vignette covers the basic model syntax, how to specify priors and how to
+extract the relevant parameters.
 
 ## Feature Requests and Contributions
 
