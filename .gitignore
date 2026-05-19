@@ -4,6 +4,10 @@
 .httr-oauth
 .DS_Store
 .quarto
+src/symbols.rds
+src/*.so
+src/*.dylib
+src/*.history
 
 src/stan/**
 !src/stan/**/*.*
