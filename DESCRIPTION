@@ -20,9 +20,9 @@ Imports:
     mvtnorm,
     posterior
 Suggests:
+    cmdstanr,
     bayesplot,
     knitr,
-    openesm,
     qgraph,
     rmarkdown,
     testthat (>= 3.0.0)

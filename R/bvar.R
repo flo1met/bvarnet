@@ -53,6 +53,24 @@
 #'   \code{priors}. If \code{save_data = TRUE}, also includes
 #'   \code{data_used} (the cleaned estimation data frame).
 #'
+#' @examples 
+#' \dontrun{
+#' # Run bvar on studentlife data
+#' data(studentlife, package = "bvarnet")
+#' fit <- bvar(
+#'   id_col = "id",
+#'   time_col = "time",
+#'   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
+#'   re_temporal = TRUE,
+#'   K = 1,
+#'   data = studentlife,
+#'   family = "ordinal",
+#'   priors = set_priors(),
+#'   seed = 1337)
+#'
+#' summary(fit)
+#' }
+
 #' @export
 bvar <- function(id_col,
                  time_col,
