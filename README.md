@@ -10,11 +10,11 @@
 ## Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN
 
 The `{bvarnet}` package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints.
-Further, we provide functionality to conduct hypothesis test and perform predictions.
+Further, we provide functionality to conduct hypothesis test.
 
 ## Installation
 
-You can install the development version of `{bvarnet}` from [GitHub](https://github.com/flo1met/bvarnet) with:
+You can install the development version of `bvarnet` from [GitHub](https://github.com/flo1met/bvarnet) with:
 
 ``` r
 if(!requireNamespace("remotes")) {
@@ -30,6 +30,7 @@ This vignette covers the basic model syntax, how to specify priors and how to ex
 
 ## Feature Requests and Contributions
 
+- Predictions
 - Cross-sectional Networks
 - Correlated Random Effects
 - Hierarchical Prior Distributions
@@ -37,5 +38,5 @@ This vignette covers the basic model syntax, how to specify priors and how to ex
 
 ## Roadmap
 
-`{bvarnet}` is actively being developed. While the core functionality is stable, we have several exciting features planned for future releases. For a granular look at our progress, known bugs, and feature requests, please visit our [Issue Tracker](https://github.com/username/packagename/issues).
+`bvarnet` is actively being developed. While the core functionality is stable, we have several features planned for future releases. For bug reports or feature request, please visit our [Issue Tracker](https://github.com/flo1met/bvarnet/issues).
 
