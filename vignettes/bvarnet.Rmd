@@ -130,7 +130,7 @@ print(fit)
 #>   beta   ~ Normal(0, 1)  (default)
 #>   phi    ~ Normal(0, 0.5)
 #>   kappa  ~ Normal(0, 1)
-#> Total time:  12.3 sec
+#> Total time:  17.7 sec
 #> ========================================
 ```
 
@@ -234,6 +234,6 @@ nw_mat <- extract_network_matrix(fit)
 qgraph(nw_mat)
 ```
 
-![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png)
+![plot of chunk plot-network](figure/plot-network-1.png)
 
 Lastly, if you want to perform hypothesis tests on your estimated parameters we refer you to the `Vignette(Hypothesis-Testing)`.

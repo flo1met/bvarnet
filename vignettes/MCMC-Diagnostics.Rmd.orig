@@ -126,7 +126,7 @@ A **trace plot** shows the sampled value of a parameter at each iteration for ev
 
 To investigate the trace plots, we can use the `mcmc_trace()` from the `bayesplot` package.
 
-```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
+```{r trace-phi, eval = has_cmdstan && has_bayesplot, message = FALSE}
 phi_pars <- grep("^phi", dimnames(fit$draws)[[3]], value = TRUE)[1:6] # select some lag-coefficient parameters
 
 mcmc_trace(fit$draws, pars = phi_pars) +
@@ -135,14 +135,14 @@ mcmc_trace(fit$draws, pars = phi_pars) +
 
 Complementary **density overlay** plots show whether chain-specific posteriors are consistent:
 
-```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
+```{r density-phi, eval = has_cmdstan && has_bayesplot, message = FALSE}
 mcmc_dens_overlay(fit$draws, pars = phi_pars) +
   ggplot2::labs(title = "Per-chain posterior densities — phi")
 ```
 
 We can do this for any sampled parameter, for example the threshold parameter kappa:
 
-```{r, eval = has_cmdstan && has_bayesplot, message = FALSE}
+```{r trace-kappa, eval = has_cmdstan && has_bayesplot, message = FALSE}
 kappa_pars <- grep("^kappa", dimnames(fit$draws)[[3]], value = TRUE)[1:4]
 
 mcmc_trace(fit$draws, pars = kappa_pars) +

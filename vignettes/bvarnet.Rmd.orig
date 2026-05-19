@@ -141,7 +141,7 @@ params
 
 If we are interested in the temporal network structure, we can inspect this using either the `extract_temporal(fit)`, or the `extract_network_matrix(fit)` functions. Here we will use the `extract_network_matrix(fit)` to plot the network:
 
-```{r, eval = has_cmdstan}
+```{r plot-network, eval = has_cmdstan}
 nw_mat <- extract_network_matrix(fit)
 qgraph(nw_mat)
 ```

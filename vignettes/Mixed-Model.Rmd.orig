@@ -93,7 +93,7 @@ summary(fit_mixed)
 
 The temporal network can be extracted and inspected as usual:
 
-```{r, eval = has_cmdstan}
+```{r plot-network-mixed, eval = has_cmdstan}
 nw_mat <- extract_network_matrix(fit_mixed)
 qgraph(nw_mat)
 ```
