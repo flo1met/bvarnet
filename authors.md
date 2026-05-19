@@ -8,16 +8,16 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/flo1met/bvarnet/blob/main/DESCRIPTION)
+[`inst/CITATION`](https://github.com/flo1met/bvarnet/blob/main/inst/CITATION)
 
 Metwaly F (2026). *bvarnet: Bayesian Estimation of Dynamic VAR Models
 using STAN*. R package version 1.0.0,
-<https://flo1met.github.io/bvarnet/>.
+<https://github.com/flo1met/bvarnet>.
 
     @Manual{,
-      title = {bvarnet: Bayesian Estimation of Dynamic VAR Models using STAN},
+      title = {{bvarnet}: Bayesian Estimation of Dynamic VAR Models using STAN},
       author = {Florian Metwaly},
       year = {2026},
       note = {R package version 1.0.0},
-      url = {https://flo1met.github.io/bvarnet/},
+      url = {https://github.com/flo1met/bvarnet},
     }
