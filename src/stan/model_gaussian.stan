@@ -88,7 +88,7 @@ transformed parameters {
    // random effects precomputation (non-centered)
    array[p] matrix[J, n_re] u;
    for (node in 1:p)
-        u[node] = z_u[node] .* rep_matrix(sd_u[node,], J);
+        u[node] = diag_post_multiply(z_u[node], sd_u[node,]');
 }
 model {
     /// priors

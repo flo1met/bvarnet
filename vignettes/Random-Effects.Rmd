@@ -72,7 +72,7 @@ print(fit)
 #> Rhat max:    1.002
 #> Divergences: 0
 #> Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), sd_u ~ Half-Normal(0, 1), kappa ~ Normal(0, 2) (all defaults)
-#> Total time:  64.7 sec
+#> Total time:  42.9 sec
 #> ========================================
 summary(fit)
 #> BVAR Network Summary
@@ -82,55 +82,55 @@ summary(fit)
 #> 
 #> --- Autoregressive ---
 #>  predictor         outcome      mean   median q5     q95   rhat  ess_bulk  ess_tail 
-#>  lag1_anxious      anxious      -0.147 -0.145 -0.552 0.246 1.001 14144.797 10285.229
-#>  lag1_calm         calm         -0.164 -0.163 -0.510 0.179 1.000 11041.313 11301.026
-#>  lag1_conventional conventional  0.100  0.100 -0.328 0.523 1.000 14948.680 11292.342
-#>  lag1_critical     critical      0.021  0.043 -0.478 0.450 1.000  7627.365  9737.259
-#>  lag1_dependable   dependable    0.433  0.432  0.077 0.798 1.001 12392.768 11687.742
+#>  lag1_anxious      anxious      -0.150 -0.147 -0.553 0.242 1.000 12127.960 11495.325
+#>  lag1_calm         calm         -0.164 -0.165 -0.518 0.187 1.001  9331.043 10426.126
+#>  lag1_conventional conventional  0.097  0.096 -0.326 0.518 1.000  9984.664 10959.196
+#>  lag1_critical     critical      0.020  0.043 -0.475 0.453 1.001  6178.876  9401.899
+#>  lag1_dependable   dependable    0.434  0.434  0.075 0.793 1.000 11031.359 11762.321
 #> 
 #> 
 #> --- Cross-lagged ---
-#>  predictor         outcome      mean   median q5     q95   rhat ess_bulk  ess_tail 
-#>  lag1_calm         anxious      -0.055 -0.054 -0.416 0.300 1    11921.220 11122.966
-#>  lag1_conventional anxious      -0.151 -0.150 -0.570 0.265 1    12262.803 11589.538
-#>  lag1_critical     anxious       0.423  0.429 -0.001 0.833 1     9948.882  9928.583
-#>  lag1_dependable   anxious      -0.030 -0.029 -0.377 0.316 1    11970.579 10997.386
-#>  lag1_anxious      calm          0.009  0.006 -0.367 0.390 1    14091.704 11395.360
-#>  lag1_conventional calm          0.109  0.108 -0.277 0.498 1    13148.537 11706.244
-#>  lag1_critical     calm         -0.126 -0.125 -0.462 0.209 1    14628.540 11751.291
-#>  lag1_dependable   calm          0.173  0.172 -0.146 0.497 1    13038.248 12165.331
-#>  lag1_anxious      conventional -0.176 -0.174 -0.599 0.244 1    14940.034 12389.111
-#>  lag1_calm         conventional  0.002  0.004 -0.377 0.379 1    12654.900 10321.554
+#>  predictor         outcome      mean   median q5     q95   rhat  ess_bulk  ess_tail 
+#>  lag1_calm         anxious      -0.060 -0.058 -0.421 0.300 1.000  9860.096 10454.267
+#>  lag1_conventional anxious      -0.147 -0.143 -0.580 0.265 1.000 10649.275 11114.092
+#>  lag1_critical     anxious       0.429  0.432 -0.003 0.842 1.000  7860.406  9727.691
+#>  lag1_dependable   anxious      -0.029 -0.028 -0.380 0.316 1.000  8579.806 10701.049
+#>  lag1_anxious      calm          0.009  0.007 -0.358 0.385 1.000 10943.302 10812.556
+#>  lag1_conventional calm          0.114  0.113 -0.269 0.504 1.000  9787.858  9782.278
+#>  lag1_critical     calm         -0.123 -0.125 -0.461 0.215 1.001 11641.220 11337.815
+#>  lag1_dependable   calm          0.171  0.170 -0.147 0.497 1.000 10875.083 11537.899
+#>  lag1_anxious      conventional -0.176 -0.178 -0.590 0.243 1.000 11803.823 11360.979
+#>  lag1_calm         conventional  0.004  0.004 -0.377 0.380 1.001  8710.923  9393.587
 #> 
 #> ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.
 #> 
 #> --- Random Effect SD ---
-#>  predictor    outcome      mean  median q5    q95   rhat  ess_bulk ess_tail 
-#>  anxious      Intercept    1.466 1.441  0.975 2.049 1.001 5771.638  8999.489
-#>  calm         Intercept    1.177 1.159  0.779 1.648 1.001 6702.738  9353.987
-#>  conventional Intercept    1.126 1.105  0.730 1.595 1.000 7457.640 10383.186
-#>  critical     Intercept    1.357 1.326  0.863 1.952 1.001 6335.629  9610.739
-#>  dependable   Intercept    0.959 0.937  0.577 1.415 1.000 5733.278  9413.112
-#>  anxious      lag1_anxious 0.201 0.167  0.015 0.506 1.000 7103.922  7853.716
-#>  calm         lag1_anxious 0.160 0.129  0.012 0.416 1.000 7432.433  7148.949
-#>  conventional lag1_anxious 0.251 0.210  0.019 0.616 1.000 6548.701  7779.383
-#>  critical     lag1_anxious 0.299 0.258  0.026 0.711 1.001 6084.399  7761.607
-#>  dependable   lag1_anxious 0.297 0.242  0.021 0.766 1.000 5121.613  6943.454
+#>  predictor    outcome      mean  median q5    q95   rhat  ess_bulk ess_tail
+#>  anxious      Intercept    1.465 1.444  0.978 2.028 1.002 5265.490 7743.781
+#>  calm         Intercept    1.178 1.155  0.780 1.658 1.001 5785.705 8819.844
+#>  conventional Intercept    1.127 1.106  0.737 1.590 1.001 6009.031 7327.977
+#>  critical     Intercept    1.363 1.336  0.858 1.974 1.001 4875.025 8113.773
+#>  dependable   Intercept    0.966 0.944  0.583 1.422 1.000 5336.862 8154.476
+#>  anxious      lag1_anxious 0.202 0.169  0.016 0.503 1.001 5809.229 6993.924
+#>  calm         lag1_anxious 0.161 0.129  0.012 0.419 1.001 6742.384 6608.842
+#>  conventional lag1_anxious 0.254 0.212  0.019 0.633 1.000 5586.614 6996.407
+#>  critical     lag1_anxious 0.299 0.256  0.023 0.726 1.000 4817.791 6684.910
+#>  dependable   lag1_anxious 0.299 0.240  0.023 0.768 1.002 4628.541 7090.355
 #> 
 #> ... 20 more rows. Use extract_random_effects(fit) for full output.
 #> 
 #> --- Threshold ---
-#>  predictor               outcome mean   median q5     q95    rhat ess_bulk  ess_tail 
-#>  kappa(anxious, c1)      —       -2.101 -2.088 -2.896 -1.368 1     6916.424  9765.659
-#>  kappa(calm, c1)         —       -2.218 -2.181 -3.134 -1.428 1     7725.885 10490.939
-#>  kappa(conventional, c1) —       -2.032 -1.994 -2.893 -1.289 1     9459.150 10938.668
-#>  kappa(critical, c1)     —       -0.265 -0.262 -0.894  0.354 1     6852.727  8909.718
-#>  kappa(dependable, c1)   —       -2.502 -2.467 -3.532 -1.586 1     8625.055  8684.235
-#>  kappa(anxious, c2)      —        0.443  0.444 -0.191  1.071 1     7571.908 11243.181
-#>  kappa(calm, c2)         —       -1.501 -1.494 -2.162 -0.872 1    10199.428 10299.144
-#>  kappa(conventional, c2) —       -1.255 -1.247 -1.859 -0.676 1    11832.378 12090.803
-#>  kappa(critical, c2)     —        1.164  1.154  0.548  1.816 1     7963.996 10452.848
-#>  kappa(dependable, c2)   —       -1.242 -1.232 -1.848 -0.666 1    10986.504 11362.741
+#>  predictor               outcome mean   median q5     q95    rhat  ess_bulk  ess_tail 
+#>  kappa(anxious, c1)      —       -2.099 -2.074 -2.909 -1.371 1.000  5356.457  8025.435
+#>  kappa(calm, c1)         —       -2.226 -2.189 -3.144 -1.437 1.001  7422.138 10360.114
+#>  kappa(conventional, c1) —       -2.035 -2.006 -2.892 -1.284 1.000  6615.821  9820.399
+#>  kappa(critical, c1)     —       -0.265 -0.259 -0.890  0.333 1.000  5610.687  7665.892
+#>  kappa(dependable, c1)   —       -2.505 -2.469 -3.507 -1.609 1.000  8289.672  9571.903
+#>  kappa(anxious, c2)      —        0.446  0.444 -0.186  1.079 1.001  6012.700  9350.799
+#>  kappa(calm, c2)         —       -1.506 -1.497 -2.166 -0.891 1.000  8043.093  9262.475
+#>  kappa(conventional, c2) —       -1.258 -1.252 -1.867 -0.678 1.000  8082.262 10988.755
+#>  kappa(critical, c2)     —        1.169  1.157  0.561  1.821 1.000  6447.810  9636.228
+#>  kappa(dependable, c2)   —       -1.241 -1.230 -1.852 -0.665 1.000 11358.657 12787.251
 #> 
 #> ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.
 #> 
@@ -146,36 +146,36 @@ Additionally to the `extract_*` functions that we already described in `Vignette
 ``` r
 re <- extract_random_effects(fit)
 re
-#>                type    predictor           outcome      mean    median          q5       q95     rhat ess_bulk  ess_tail
-#> 1  Random Effect SD      anxious         Intercept 1.4658813 1.4405375 0.974907417 2.0494664 1.000511 5771.638  8999.489
-#> 2  Random Effect SD         calm         Intercept 1.1768493 1.1586542 0.779077144 1.6483890 1.000520 6702.738  9353.987
-#> 3  Random Effect SD conventional         Intercept 1.1263609 1.1046796 0.729782739 1.5952215 1.000058 7457.640 10383.186
-#> 4  Random Effect SD     critical         Intercept 1.3569946 1.3259133 0.863404840 1.9516987 1.000630 6335.629  9610.739
-#> 5  Random Effect SD   dependable         Intercept 0.9587509 0.9369383 0.577423646 1.4146214 1.000467 5733.278  9413.112
-#> 6  Random Effect SD      anxious      lag1_anxious 0.2014235 0.1670989 0.015447781 0.5063193 1.000359 7103.922  7853.716
-#> 7  Random Effect SD         calm      lag1_anxious 0.1599548 0.1290305 0.012097991 0.4159594 1.000280 7432.433  7148.949
-#> 8  Random Effect SD conventional      lag1_anxious 0.2510272 0.2100882 0.019368192 0.6161868 1.000499 6548.701  7779.383
-#> 9  Random Effect SD     critical      lag1_anxious 0.2985005 0.2584240 0.026466864 0.7112709 1.000631 6084.399  7761.607
-#> 10 Random Effect SD   dependable      lag1_anxious 0.2966100 0.2420921 0.020789221 0.7656729 1.000356 5121.613  6943.454
-#> 11 Random Effect SD      anxious         lag1_calm 0.1400964 0.1116320 0.010623852 0.3702453 1.000092 8388.615  8389.123
-#> 12 Random Effect SD         calm         lag1_calm 0.1717285 0.1456824 0.014364122 0.4220376 1.000588 5932.985  7207.692
-#> 13 Random Effect SD conventional         lag1_calm 0.1616909 0.1303977 0.012481142 0.4176642 1.000347 6438.309  7672.721
-#> 14 Random Effect SD     critical         lag1_calm 0.1378683 0.1082645 0.009859052 0.3682334 1.000254 8913.645  8443.741
-#> 15 Random Effect SD   dependable         lag1_calm 0.1977470 0.1628938 0.015441451 0.5053782 1.001017 5239.681  7090.355
-#> 16 Random Effect SD      anxious lag1_conventional 0.1962377 0.1649739 0.015909338 0.4803717 1.000489 6342.986  7313.237
-#> 17 Random Effect SD         calm lag1_conventional 0.1351080 0.1074978 0.008974315 0.3566013 1.000528 7260.226  7255.846
-#> 18 Random Effect SD conventional lag1_conventional 0.1897339 0.1571840 0.014196576 0.4806879 1.000518 6041.512  7858.500
-#> 19 Random Effect SD     critical lag1_conventional 0.2396792 0.2018236 0.017498089 0.5958192 1.000120 6233.629  8242.834
-#> 20 Random Effect SD   dependable lag1_conventional 0.2494178 0.2068788 0.018816474 0.6267372 1.000221 4653.808  6644.290
-#> 21 Random Effect SD      anxious     lag1_critical 0.3101418 0.2717926 0.025833968 0.7256860 1.000891 5482.684  7204.193
-#> 22 Random Effect SD         calm     lag1_critical 0.1664858 0.1323557 0.011989979 0.4384806 1.000182 8193.372  8237.181
-#> 23 Random Effect SD conventional     lag1_critical 0.2696374 0.2321138 0.023865145 0.6409327 1.000172 6659.391  7381.395
-#> 24 Random Effect SD     critical     lag1_critical 0.4338374 0.4035013 0.050755481 0.9331531 1.000605 4276.709  5323.753
-#> 25 Random Effect SD   dependable     lag1_critical 0.2796911 0.2270858 0.021128453 0.7212001 1.000758 6098.635  8119.354
-#> 26 Random Effect SD      anxious   lag1_dependable 0.1942395 0.1655554 0.016816816 0.4720359 1.000271 6012.751  7057.398
-#> 27 Random Effect SD         calm   lag1_dependable 0.1319020 0.1083331 0.009981044 0.3357622 1.000104 6782.349  6758.308
-#> 28 Random Effect SD conventional   lag1_dependable 0.1473785 0.1175822 0.010304257 0.3863459 1.000707 7119.038  6843.407
-#> 29 Random Effect SD     critical   lag1_dependable 0.1564366 0.1250607 0.011192005 0.4120482 1.000184 7757.491  8173.588
-#> 30 Random Effect SD   dependable   lag1_dependable 0.2361776 0.1949235 0.018555265 0.5932606 1.000534 4333.254  6605.437
+#>                type    predictor           outcome      mean    median          q5       q95      rhat ess_bulk ess_tail
+#> 1  Random Effect SD      anxious         Intercept 1.4652817 1.4439362 0.977649331 2.0282597 1.0015907 5265.490 7743.781
+#> 2  Random Effect SD         calm         Intercept 1.1783653 1.1549465 0.779576993 1.6583403 1.0009675 5785.705 8819.844
+#> 3  Random Effect SD conventional         Intercept 1.1268582 1.1063721 0.736724058 1.5901623 1.0006901 6009.031 7327.977
+#> 4  Random Effect SD     critical         Intercept 1.3634879 1.3362195 0.857573136 1.9744304 1.0006644 4875.025 8113.773
+#> 5  Random Effect SD   dependable         Intercept 0.9660984 0.9443749 0.582831873 1.4222424 1.0004303 5336.862 8154.476
+#> 6  Random Effect SD      anxious      lag1_anxious 0.2020052 0.1685053 0.016233745 0.5032068 1.0006659 5809.229 6993.924
+#> 7  Random Effect SD         calm      lag1_anxious 0.1609254 0.1289984 0.012195480 0.4193622 1.0011414 6742.384 6608.842
+#> 8  Random Effect SD conventional      lag1_anxious 0.2538834 0.2116468 0.019302953 0.6331248 1.0003903 5586.614 6996.407
+#> 9  Random Effect SD     critical      lag1_anxious 0.2986767 0.2556347 0.022967897 0.7264043 1.0003753 4817.791 6684.910
+#> 10 Random Effect SD   dependable      lag1_anxious 0.2987636 0.2399345 0.023133795 0.7682914 1.0021471 4628.541 7090.355
+#> 11 Random Effect SD      anxious         lag1_calm 0.1394255 0.1112678 0.010881843 0.3615685 1.0002288 6431.470 6540.138
+#> 12 Random Effect SD         calm         lag1_calm 0.1711120 0.1428554 0.013783058 0.4292299 1.0004208 4667.061 6146.463
+#> 13 Random Effect SD conventional         lag1_calm 0.1648274 0.1344180 0.013319257 0.4176716 1.0006599 5273.898 7165.568
+#> 14 Random Effect SD     critical         lag1_calm 0.1421269 0.1124673 0.010267661 0.3735351 1.0001253 7205.369 7004.134
+#> 15 Random Effect SD   dependable         lag1_calm 0.1983639 0.1632243 0.015700375 0.5037090 1.0003510 4551.673 5418.571
+#> 16 Random Effect SD      anxious lag1_conventional 0.1951214 0.1662170 0.016230538 0.4777358 1.0002119 5611.433 7220.911
+#> 17 Random Effect SD         calm lag1_conventional 0.1382549 0.1102174 0.010239865 0.3621581 1.0015230 6263.953 6290.534
+#> 18 Random Effect SD conventional lag1_conventional 0.1890291 0.1529822 0.014335658 0.4863923 1.0003510 5346.015 6306.486
+#> 19 Random Effect SD     critical lag1_conventional 0.2409120 0.2021247 0.019716436 0.5921124 1.0004442 4726.675 5829.030
+#> 20 Random Effect SD   dependable lag1_conventional 0.2495825 0.2088717 0.020474920 0.6229940 1.0006090 4476.032 7940.819
+#> 21 Random Effect SD      anxious     lag1_critical 0.3066851 0.2681832 0.027216169 0.7317527 1.0005179 4969.800 6305.771
+#> 22 Random Effect SD         calm     lag1_critical 0.1681908 0.1354386 0.012202660 0.4435305 1.0004330 7164.754 7388.659
+#> 23 Random Effect SD conventional     lag1_critical 0.2692275 0.2309014 0.020660210 0.6603602 1.0001849 5570.973 5814.862
+#> 24 Random Effect SD     critical     lag1_critical 0.4391420 0.4077634 0.053331996 0.9286383 1.0005797 3702.812 3961.537
+#> 25 Random Effect SD   dependable     lag1_critical 0.2822168 0.2289254 0.021953689 0.7283563 0.9999966 5497.042 7410.768
+#> 26 Random Effect SD      anxious   lag1_dependable 0.1979930 0.1712029 0.017472326 0.4800424 1.0009843 4905.884 7042.269
+#> 27 Random Effect SD         calm   lag1_dependable 0.1325212 0.1072447 0.009313681 0.3400509 1.0007978 5465.635 5488.219
+#> 28 Random Effect SD conventional   lag1_dependable 0.1451051 0.1148876 0.010273553 0.3802055 1.0003109 6261.696 6855.308
+#> 29 Random Effect SD     critical   lag1_dependable 0.1577871 0.1263587 0.011028128 0.4126913 1.0001326 6949.019 6812.282
+#> 30 Random Effect SD   dependable   lag1_dependable 0.2270672 0.1850662 0.017049599 0.5886999 1.0005338 4024.393 6203.294
 ```
 
