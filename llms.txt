@@ -7,11 +7,17 @@ Auto Regressive (VAR) models for binary, ordinal and continuous outcome
 variables. Missing data is handled through listwise deletion and a
 skip-lag mechanism, which skips the estimation of the temporal structure
 when there is a gap between two timepoints. Further, we provide
-functionality to conduct hypothesis test.
+functionality to conduct hypothesis tests.
 
 ## Installation
 
-You can install the development version of `bvarnet` from
+You can install the latest version from CRAN using:
+
+``` r
+install.packages("bvarnet")
+```
+
+Or you can install the development version of `bvarnet` from
 [GitHub](https://github.com/flo1met/bvarnet) with:
 
 ``` r

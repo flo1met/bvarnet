@@ -65,13 +65,16 @@
 <div class="section level2">
 <h2 id="bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan">Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN<a class="anchor" aria-label="anchor" href="#bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan"></a>
 </h2>
-<p>The <code>bvarnet</code> package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints. Further, we provide functionality to conduct hypothesis test.</p>
+<p>The <code>bvarnet</code> package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints. Further, we provide functionality to conduct hypothesis tests.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>You can install the development version of <code>bvarnet</code> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a> with:</p>
+<p>You can install the latest version from CRAN using:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"bvarnet"</span><span class="op">)</span></span></code></pre></div>
+<p>Or you can install the development version of <code>bvarnet</code> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a> with:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
@@ -102,6 +105,7 @@
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
+<li><a href="https://cloud.r-project.org/package=bvarnet" class="external-link">View on CRAN</a></li>
 <li><a href="https://github.com/flo1met/bvarnet/" class="external-link">Browse source code</a></li>
 <li><a href="https://github.com/flo1met/bvarnet/issues" class="external-link">Report a bug</a></li>
 </ul>
