@@ -16,13 +16,14 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Additional_repositories:
     https://mc-stan.org/r-packages/
+    https://stan-dev.r-universe.dev
 Imports: 
+    cmdstanr,
     instantiate,
     logspline,
     mvtnorm,
     posterior
 Suggests:
-    cmdstanr,
     bayesplot,
     knitr,
     qgraph,

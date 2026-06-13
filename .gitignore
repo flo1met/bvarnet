@@ -9,6 +9,8 @@ src/*.so
 src/*.dylib
 src/*.history
 
+.vscode
+
 src/stan/**
 !src/stan/**/*.*
 src/stan/**/*.exe
