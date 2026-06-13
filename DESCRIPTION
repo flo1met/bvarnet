@@ -1,6 +1,6 @@
 Package: bvarnet
 Title: Bayesian Estimation of Dynamic VAR Models using STAN
-Version: 1.0.0.9000
+Version: 1.0.0
 Authors@R: person("Florian", "Metwaly", , "f.j.metwaly@uva.nl", role = c("aut", "cre", "cph"), comment = c(ORCID = "0009-0001-8357-7870"))
 Author: Florian Metwaly [aut, cre, cph]
     (<https://orcid.org/0009-0001-8357-7870>)
@@ -16,14 +16,13 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Additional_repositories:
     https://mc-stan.org/r-packages/
-    https://stan-dev.r-universe.dev
 Imports: 
-    cmdstanr,
     instantiate,
     logspline,
     mvtnorm,
     posterior
 Suggests:
+    cmdstanr,
     bayesplot,
     knitr,
     qgraph,

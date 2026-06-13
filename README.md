@@ -14,7 +14,22 @@ Further, we provide functionality to conduct hypothesis test.
 
 ## Installation
 
-You can install the development version of `bvarnet` from [GitHub](https://github.com/flo1met/bvarnet) with:
+To install `bvarnet` from CRAN, you need to have [CmdStanR](https://mc-stan.org/cmdstanr/index.html) installed which is not available on CRAN. To do this, make sure you have [RTools](https://cran.r-project.org/bin/windows/Rtools/) (Windows) or [Xcode](https://developer.apple.com/xcode/) (Mac) installed and the run the following code
+
+```r
+install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+cmdstanr::check_cmdstan_toolchain(fix = TRUE)
+cmdstanr::install_cmdstan(cores = 2)
+```
+
+If you run into any problems, you can look at the [Getting started with CmdStanR](https://mc-stan.org/cmdstanr/articles/cmdstanr.html) guide.
+
+After setting up cmdstanr you can install the newest version of the package from CRAN:
+```r
+install.packages("bvarnet", type = "source")
+```
+
+Or you can install the development version of `bvarnet` from [GitHub](https://github.com/flo1met/bvarnet) with:
 
 ``` r
 if(!requireNamespace("remotes")) {
