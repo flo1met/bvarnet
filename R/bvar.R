@@ -130,6 +130,7 @@ bvar <- function(id_col,
                        gaussian  = "model_gaussian",
                        stop("Unknown family: ", family)
   )
+  .check_compiled_model(model_name)
   stanmodel <- instantiate::stan_package_model(name = model_name, package = "bvarnet")
 
   standata <- to_stan_data(data = data,
@@ -281,6 +282,7 @@ bvar <- function(id_col,
       ordinal   = "model_ordinal",
       gaussian  = "model_gaussian"
     )
+    .check_compiled_model(model_name)
     stanmodel <- instantiate::stan_package_model(
       name = model_name, package = "bvarnet"
     )
