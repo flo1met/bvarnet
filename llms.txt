@@ -1,6 +1,6 @@
 # bvarnet
 
-## Bayesian Estimation of Multilevel Vector Autoregressive Networks using STAN
+## Bayesian Estimation of Multilevel Vector Autoregressive Networks using `STAN`
 
 The `bvarnet` package allows user to estimate Bayesian multilevel Vector
 Auto Regressive (VAR) models for binary, ordinal and continuous outcome
