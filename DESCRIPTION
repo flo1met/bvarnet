@@ -1,6 +1,6 @@
 Package: bvarnet
 Title: Bayesian Estimation of Dynamic VAR Models using STAN
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: person("Florian", "Metwaly", , "f.j.metwaly@uva.nl", role = c("aut", "cre", "cph"), comment = c(ORCID = "0009-0001-8357-7870"))
 Author: Florian Metwaly [aut, cre, cph]
     (<https://orcid.org/0009-0001-8357-7870>)
