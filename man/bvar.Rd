@@ -27,7 +27,8 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE
+  save_data = FALSE,
+  save_fit = FALSE
 )
 }
 \arguments{
@@ -97,16 +98,50 @@ hierarchical logistic models) but increases computation. Default
 listwise-deleted) estimation data in the \code{data_used} slot of the
 returned object for reproducibility and downstream analyses.
 Default \code{FALSE}.}
+
+\item{save_fit}{Logical. If \code{TRUE}, retain the live cmdstanr fit object
+in the \code{stanfit} slot of the returned object instead of discarding it.
+This enables calling cmdstanr methods such as \code{$log_prob()},
+\code{$grad_log_prob()}, \code{$unconstrain_variables()}, and
+\code{$unconstrain_draws()} (see Details). Default \code{FALSE}, which keeps
+memory usage lean. For a homogeneous (single-family) model the slot holds one
+\code{CmdStanMCMC} object; for a mixed-family model it holds a list of
+per-node \code{CmdStanMCMC} objects. Requires the \pkg{cmdstanr} package.}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
 \code{priors}. If \code{save_data = TRUE}, also includes
-\code{data_used} (the cleaned estimation data frame).
+\code{data_used} (the cleaned estimation data frame). If
+\code{save_fit = TRUE}, also includes \code{stanfit} (the retained cmdstanr
+fit object, or a list of per-node fits for mixed families).
 }
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
+}
+\details{
+\strong{Retaining the fit for \code{$log_prob()}.}
+The package ships precompiled Stan executables (via \pkg{instantiate}) that do
+not expose cmdstanr's standalone model methods. When \code{save_fit = TRUE},
+\code{bvar()} recompiles the model from its bundled \code{.stan} source with
+\code{compile_model_methods = TRUE} (a one-time compilation that needs a C++
+toolchain) and stores the resulting fit in the \code{stanfit} slot. You can
+then evaluate the model log density at arbitrary parameter values on the
+\strong{unconstrained} scale, with no separate \code{$init_model_methods()}
+call required:
+\preformatted{
+fit <- bvar(..., save_fit = TRUE)
+sf  <- fit$stanfit
+ud  <- sf$unconstrain_draws(format = "draws_matrix")
+sf$log_prob(unconstrained_variables = ud[1, ], jacobian = TRUE)
+sf$grad_log_prob(unconstrained_variables = ud[1, ], jacobian = TRUE)
+}
+For mixed-family models \code{fit$stanfit} is a list of per-node fits, so call
+these methods on each node, e.g. \code{fit$stanfit[[j]]$log_prob(...)}. Note
+that cmdstanr fits reference output CSV files on disk: \code{$log_prob()} works
+within the same R session, but to persist the fit use
+\code{sf$save_object(file)} rather than a bare \code{saveRDS()}.
 }
 \examples{
 \dontrun{

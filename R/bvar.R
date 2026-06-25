@@ -46,12 +46,45 @@
 #'   listwise-deleted) estimation data in the \code{data_used} slot of the
 #'   returned object for reproducibility and downstream analyses.
 #'   Default \code{FALSE}.
+#' @param save_fit Logical. If \code{TRUE}, retain the live cmdstanr fit object
+#'   in the \code{stanfit} slot of the returned object instead of discarding it.
+#'   This enables calling cmdstanr methods such as \code{$log_prob()},
+#'   \code{$grad_log_prob()}, \code{$unconstrain_variables()}, and
+#'   \code{$unconstrain_draws()} (see Details). Default \code{FALSE}, which keeps
+#'   memory usage lean. For a homogeneous (single-family) model the slot holds one
+#'   \code{CmdStanMCMC} object; for a mixed-family model it holds a list of
+#'   per-node \code{CmdStanMCMC} objects. Requires the \pkg{cmdstanr} package.
+#'
+#' @details
+#' \strong{Retaining the fit for \code{$log_prob()}.}
+#' The package ships precompiled Stan executables (via \pkg{instantiate}) that do
+#' not expose cmdstanr's standalone model methods. When \code{save_fit = TRUE},
+#' \code{bvar()} recompiles the model from its bundled \code{.stan} source with
+#' \code{compile_model_methods = TRUE} (a one-time compilation that needs a C++
+#' toolchain) and stores the resulting fit in the \code{stanfit} slot. You can
+#' then evaluate the model log density at arbitrary parameter values on the
+#' \strong{unconstrained} scale, with no separate \code{$init_model_methods()}
+#' call required:
+#' \preformatted{
+#' fit <- bvar(..., save_fit = TRUE)
+#' sf  <- fit$stanfit
+#' ud  <- sf$unconstrain_draws(format = "draws_matrix")
+#' sf$log_prob(unconstrained_variables = ud[1, ], jacobian = TRUE)
+#' sf$grad_log_prob(unconstrained_variables = ud[1, ], jacobian = TRUE)
+#' }
+#' For mixed-family models \code{fit$stanfit} is a list of per-node fits, so call
+#' these methods on each node, e.g. \code{fit$stanfit[[j]]$log_prob(...)}. Note
+#' that cmdstanr fits reference output CSV files on disk: \code{$log_prob()} works
+#' within the same R session, but to persist the fit use
+#' \code{sf$save_object(file)} rather than a bare \code{saveRDS()}.
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
 #'   \code{priors}. If \code{save_data = TRUE}, also includes
-#'   \code{data_used} (the cleaned estimation data frame).
+#'   \code{data_used} (the cleaned estimation data frame). If
+#'   \code{save_fit = TRUE}, also includes \code{stanfit} (the retained cmdstanr
+#'   fit object, or a list of per-node fits for mixed families).
 #'
 #' @examples 
 #' \dontrun{
@@ -94,7 +127,8 @@ bvar <- function(id_col,
                  seed = NULL,
                  adapt_delta = NULL,
                  max_treedepth = NULL,
-                 save_data = FALSE
+                 save_data = FALSE,
+                 save_fit = FALSE
 
   ) {
 
@@ -118,7 +152,7 @@ bvar <- function(id_col,
       data = data, family_vec = family_vec, priors = priors,
       iter = iter, warmup = warmup, chains = chains, cores = cores,
       seed = seed, adapt_delta = adapt_delta, max_treedepth = max_treedepth,
-      save_data = save_data
+      save_data = save_data, save_fit = save_fit
     ))
   }
 
@@ -131,7 +165,11 @@ bvar <- function(id_col,
                        stop("Unknown family: ", family)
   )
   .check_compiled_model(model_name)
-  stanmodel <- instantiate::stan_package_model(name = model_name, package = "bvarnet")
+  stanmodel <- if (isTRUE(save_fit)) {
+    .stan_model_with_methods(model_name)
+  } else {
+    instantiate::stan_package_model(name = model_name, package = "bvarnet")
+  }
 
   standata <- to_stan_data(data = data,
                             family = family,
@@ -199,11 +237,47 @@ bvar <- function(id_col,
       standata      = standata,
       priors        = priors,
       priors_needed = priors_needed,
-      data_used     = standata$data_used
+      data_used     = standata$data_used,
+      stanfit       = if (isTRUE(save_fit)) stanfit else NULL
     ),
     class = "bvarnet"
   )
   out
+}
+
+
+# ---- .stan_model_with_methods() — recompile a bundled model with log_prob ----
+
+#' Build a cmdstanr model exposing standalone methods (log_prob, grad_log_prob)
+#'
+#' The package ships precompiled Stan executables (via instantiate) that do not
+#' expose cmdstanr's standalone model methods, and cmdstanr refuses to attach
+#' them to a pre-compiled executable. When \code{save_fit = TRUE}, we recompile
+#' the model from its bundled \code{.stan} source with
+#' \code{compile_model_methods = TRUE} into a temporary directory (leaving the
+#' installed executable untouched). The resulting fit can call \code{$log_prob()},
+#' \code{$grad_log_prob()}, \code{$unconstrain_variables()}, etc. directly,
+#' without a separate \code{$init_model_methods()} call.
+#'
+#' @param model_name Character. One of \code{"model_binary"},
+#'   \code{"model_ordinal"}, \code{"model_gaussian"}.
+#' @return A \code{CmdStanModel} compiled with model methods enabled.
+#' @keywords internal
+#' @noRd
+.stan_model_with_methods <- function(model_name) {
+  if (!requireNamespace("cmdstanr", quietly = TRUE)) {
+    stop("save_fit = TRUE requires the 'cmdstanr' package to recompile the ",
+         "model with log_prob() support. Install it from ",
+         "https://mc-stan.org/r-packages/.", call. = FALSE)
+  }
+  base_model <- instantiate::stan_package_model(name = model_name,
+                                                package = "bvarnet")
+  src      <- base_model$stan_file()
+  dest_dir <- file.path(tempdir(), paste0("bvarnet_methods_", model_name))
+  dir.create(dest_dir, showWarnings = FALSE, recursive = TRUE)
+  dest <- file.path(dest_dir, basename(src))
+  file.copy(src, dest, overwrite = TRUE)
+  cmdstanr::cmdstan_model(dest, compile_model_methods = TRUE)
 }
 
 
@@ -258,7 +332,7 @@ bvar <- function(id_col,
                            data, family_vec, priors,
                            iter, warmup, chains, cores,
                            seed, adapt_delta, max_treedepth,
-                           save_data = FALSE) {
+                           save_data = FALSE, save_fit = FALSE) {
   p <- length(y_cols)
 
   # --- Shared matrices (D3) ---
@@ -283,9 +357,11 @@ bvar <- function(id_col,
       gaussian  = "model_gaussian"
     )
     .check_compiled_model(model_name)
-    stanmodel <- instantiate::stan_package_model(
-      name = model_name, package = "bvarnet"
-    )
+    stanmodel <- if (isTRUE(save_fit)) {
+      .stan_model_with_methods(model_name)
+    } else {
+      instantiate::stan_package_model(name = model_name, package = "bvarnet")
+    }
     sd_node <- .to_stan_data_node(shared, j, fam_j, priors)
 
     fits[[j]] <- stanmodel$sample(
@@ -302,7 +378,7 @@ bvar <- function(id_col,
 
   # --- Combine into bvarnet object ---
   .combine_nodewise_fits(fits, family_vec, shared, priors, priors_needed,
-                         iter, chains)
+                         iter, chains, save_fit = save_fit)
 }
 
 
@@ -310,7 +386,8 @@ bvar <- function(id_col,
 
 #' @keywords internal
 .combine_nodewise_fits <- function(fits, family_vec, shared, priors,
-                                   priors_needed, iter, chains) {
+                                   priors_needed, iter, chains,
+                                   save_fit = FALSE) {
   p <- length(family_vec)
   n_fe_full <- shared$n_fe   # includes Intercept
 
@@ -426,7 +503,8 @@ bvar <- function(id_col,
       standata         = standata_full,
       priors           = priors,
       priors_needed    = priors_needed,
-      data_used        = shared$data_used
+      data_used        = shared$data_used,
+      stanfit          = if (isTRUE(save_fit)) fits else NULL
     ),
     class = "bvarnet"
   )
