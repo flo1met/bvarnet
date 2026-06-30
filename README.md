@@ -1,5 +1,5 @@
 
-# bvarnet <img src="man/figures/logo.png" align="right" height="150" alt="" />
+# bvarnet <img src="man/figures/logo.png" align="right" height="170" alt="" />
 
 
 <!-- badges: start -->
