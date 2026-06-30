@@ -1,5 +1,6 @@
 
-# bvarnet
+# bvarnet <img src="man/figures/logo.png" align="right" height="139" alt="" />
+
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/flo1met/bvarnet/actions/workflows/R-CMD-check.yml/badge.svg)](https://github.com/flo1met/bvarnet/actions/workflows/R-CMD-check.yml)
