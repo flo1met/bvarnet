@@ -1,5 +1,5 @@
 
-# bvarnet <img src="man/figures/logo.png" align="right" height="170" alt="" />
+# bvarnet <a href="https://flo1met.github.io/bvarnet/"><img src="man/figures/logo.png" align="right" height="170" alt="bvarnet website" />
 
 
 <!-- badges: start -->
