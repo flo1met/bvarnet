@@ -59,7 +59,7 @@
 #' data(studentlife, package = "bvarnet")
 #' fit <- bvar(
 #'   id_col = "id",
-#'   time_col = "time",
+#'   time_col = "day",
 #'   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
 #'   re_temporal = TRUE,
 #'   K = 1,
