@@ -348,9 +348,23 @@ jobs:
               otool -L "$f"
               otool -L "$f" | grep -qi tbb || { echo "::error::no tbb dependency found in $f"; exit 1; }
             else
+              # Bare ldd is EXPECTED to report libtbb as "not found" here: the exe's
+              # baked rpath points at the BUILD runner's ~/.cmdstan (absent on a user
+              # machine), and the client resolves TBB via a transient LD_LIBRARY_PATH
+              # set around $sample() -- the successful fit in the previous step is the
+              # functional proof. Verified on real CI 2026-07-02: treating bare-ldd
+              # "libtbb not found" as an error fails a perfectly healthy cache.
               ldd "$f" || true
-              if ldd "$f" | grep -qi "not found"; then
-                echo "::error::unresolved dependency in $f"; exit 1
+              other=$(ldd "$f" | grep -i "not found" | grep -vi libtbb || true)
+              if [ -n "$other" ]; then
+                echo "::error::unresolved non-TBB dependency in $f:"; echo "$other"; exit 1
+              fi
+              # With the bundled dir on LD_LIBRARY_PATH, EVERYTHING must resolve --
+              # proving the shipped lib/tbb actually satisfies the dependency.
+              if LD_LIBRARY_PATH="$cache_dir/lib/tbb" ldd "$f" | grep -qi "not found"; then
+                echo "::error::bundled lib/tbb does not satisfy $f:"
+                LD_LIBRARY_PATH="$cache_dir/lib/tbb" ldd "$f"
+                exit 1
               fi
             fi
           done
