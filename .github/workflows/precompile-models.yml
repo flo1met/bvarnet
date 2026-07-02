@@ -90,7 +90,13 @@ jobs:
           make_local <- file.path(cmdstan_dir, "make", "local")
           cat(
             "CXXFLAGS += -static-libgcc -static-libstdc++\n",
-            "LDFLAGS += -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread\n",
+            # -Wl,-Bstatic is STATEFUL: it forces every -lNAME that follows on the
+            # link line to resolve to a static archive, until -Wl,-Bdynamic reverts
+            # it. Without the revert here, CmdStan's own later `-ltbb` (TBB is
+            # deliberately kept dynamic and bundled separately -- see OQ8) also gets
+            # forced into static-only lookup and fails with "cannot find -ltbb"
+            # since no static TBB archive exists. Verified on real Windows CI.
+            "LDFLAGS += -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic\n",
             file = make_local, append = TRUE
           )
           cat("--- ", make_local, " ---\n", sep = "")
