@@ -68,8 +68,16 @@ jobs:
       - name: Install CmdStan (pinned version)
         shell: Rscript {0}
         run: |
-          cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
-          cmdstanr::install_cmdstan(version = Sys.getenv("CMDSTAN_VERSION"), cores = 2, quiet = TRUE)
+          # check_cmdstan_toolchain()/install_cmdstan()'s built-in `check_toolchain`
+          # pre-flight relies on a static R-version -> Rtools-version compatibility
+          # table that can lag behind a newly released R (seen in practice: R 4.6.1
+          # rejected as "Rtools44 not found" even though r-lib/actions/setup-r@v2
+          # installs a matching Rtools automatically). CmdStan >= 2.35 needs no
+          # special Windows toolchain configuration anyway (per cmdstanr's own docs),
+          # so skip the table lookup and let the actual compile inside
+          # install_cmdstan() be the real, authoritative test of the toolchain.
+          cmdstanr::install_cmdstan(version = Sys.getenv("CMDSTAN_VERSION"), cores = 2,
+                                    quiet = TRUE, check_toolchain = FALSE)
 
       # Static-link the MinGW C++ runtime so the model
       # exes carry no libstdc++-6/libgcc_s_seh-1/libwinpthread-1 dependency.
