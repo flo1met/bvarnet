@@ -38,10 +38,17 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { os: macos-14,       platform: macos-arm64 }
-          - { os: macos-13,       platform: macos-x86_64 }
-          - { os: ubuntu-20.04,   platform: linux-x86_64 } 
-          - { os: windows-latest, platform: windows-x86_64 }
+          - { os: macos-14,        platform: macos-arm64 }
+          # macos-13 (Intel) was fully deprecated/removed by GitHub; macos-14/15/26 and
+          # macos-latest are Apple Silicon (arm64) only now -- Intel x86_64 macOS runners
+          # are a separate label. Verified 2026-07-02.
+          - { os: macos-15-intel,  platform: macos-x86_64 }
+          # ubuntu-20.04 was fully deprecated/removed by GitHub; ubuntu-22.04 is the oldest
+          # still-supported image, which RAISES the glibc floor from 2.31 to ~2.35 versus the
+          # OQ3 rationale in dev/precompiled_model_download_plan.md. Still comfortably covers
+          # the target audience (Posit Cloud/Colab/Binder); revisit if that changes.
+          - { os: ubuntu-22.04,    platform: linux-x86_64 }
+          - { os: windows-latest,  platform: windows-x86_64 }
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -198,8 +205,8 @@ jobs:
       matrix:
         config:
           - { os: macos-14 }
-          - { os: macos-13 }
-          - { os: ubuntu-latest }   # newer glibc than the 20.04 build floor -> proves forward travel
+          - { os: macos-15-intel }  # macos-13 (Intel) deprecated/removed by GitHub; see build matrix
+          - { os: ubuntu-latest }   # newer glibc than the 22.04 build floor -> proves forward travel
           - { os: windows-latest }
     runs-on: ${{ matrix.config.os }}
     env:
