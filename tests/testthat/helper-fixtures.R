@@ -145,6 +145,14 @@ make_test_df <- function(N = 5, T_obs = 20, p = 2, q = 0,
   df
 }
 
+#' Create a fresh temp directory for a test (caller unlinks it, e.g. via
+#' `on.exit(unlink(dir, recursive = TRUE, force = TRUE), add = TRUE)`).
+bvarnet_test_tempdir <- function() {
+  dir <- tempfile("bvarnet_test_")
+  dir.create(dir)
+  dir
+}
+
 #' Build a mock bvarnet object without running Stan
 #'
 #' Returns a minimal bvarnet list with a synthetic 3D draws array, a matching

@@ -53,7 +53,11 @@
 #'   \code{priors}. If \code{save_data = TRUE}, also includes
 #'   \code{data_used} (the cleaned estimation data frame).
 #'
-#' @examples 
+#' @seealso \code{\link{bvarnet_setup_models}}, which must be run once before
+#'   the first \code{bvar()} call to set up the required Stan models (either
+#'   by downloading precompiled binaries or compiling them locally).
+#'
+#' @examples
 #' \dontrun{
 #' # Run bvar on studentlife data
 #' data(studentlife, package = "bvarnet")
@@ -124,14 +128,9 @@ bvar <- function(id_col,
 
   # --- existing joint path (homogeneous family) ---
   family <- unname(family_vec[1])  # scalar for backward compat
-  model_name <- switch(family,
-                       bernoulli = "model_binary",
-                       ordinal   = "model_ordinal",
-                       gaussian  = "model_gaussian",
-                       stop("Unknown family: ", family)
-  )
-  .check_compiled_model(model_name)
-  stanmodel <- instantiate::stan_package_model(name = model_name, package = "bvarnet")
+  model_name <- .bvarnet_model_for_family(family)
+  resolved <- .bvarnet_stan_model(model_name)
+  stanmodel <- resolved$model
 
   standata <- to_stan_data(data = data,
                             family = family,
@@ -154,21 +153,30 @@ bvar <- function(id_col,
   # Prior warnings (uses actual n_re from built design)
   priors_needed <- .prior_warnings(priors, family_vec, standata$n_re)
 
-  stanfit <- stanmodel$sample(data = standata[!names(standata) %in%
-                                      c("fe_interaction_terms",
-                                        "fe_interaction_colnames",
-                                        "id_levels",
-                                        "x_center_means",
-                                        "time_obs",
-                                        "data_used",
-                                        "design_spec")],
-                              seed = seed,
-                              iter_warmup = warmup,
-                              iter_sampling = iter,
-                              chains = chains,
-                              parallel_chains = cores,
-                              adapt_delta = adapt_delta,
-                              max_treedepth = max_treedepth)
+  sample_call <- function() {
+    stanmodel$sample(data = standata[!names(standata) %in%
+                                  c("fe_interaction_terms",
+                                    "fe_interaction_colnames",
+                                    "id_levels",
+                                    "x_center_means",
+                                    "time_obs",
+                                    "data_used",
+                                    "design_spec")],
+                      seed = seed,
+                      iter_warmup = warmup,
+                      iter_sampling = iter,
+                      chains = chains,
+                      parallel_chains = cores,
+                      adapt_delta = adapt_delta,
+                      max_treedepth = max_treedepth)
+  }
+  # Cache-resolved models need the bundled TBB findable at $sample() time
+  # install-tree models keep cmdstanr's own resolution untouched.
+  stanfit <- if (!is.null(resolved$cache_dir)) {
+    .bvarnet_with_libpath(file.path(resolved$cache_dir, "lib", "tbb"), sample_call())
+  } else {
+    sample_call()
+  }
 
   # Extract everything from CmdStanMCMC into plain base-R objects, then discard
   # the fit object (CSV refs, compiled binary, lazy draws) to keep memory lean.
@@ -176,7 +184,7 @@ bvar <- function(id_col,
   draws       <- unclass(raw_draws)         # strip draws_array class; dimnames preserved
   attr(draws, "class") <- NULL              # ensure it is a plain array
 
-  # Compute convergence diagnostics from posterior draws (lightweight).
+  # Compute convergence diagnostics from posterior draws
   conv_tbl    <- posterior::summarise_draws(raw_draws,
                    posterior::rhat, posterior::ess_bulk, posterior::ess_tail)
   convergence <- as.data.frame(conv_tbl)
@@ -273,31 +281,36 @@ bvar <- function(id_col,
   # Prior warnings (uses actual n_re from built design)
   priors_needed <- .prior_warnings(priors, family_vec, shared$n_re)
 
-  # --- Fit each node ---
-  fits <- vector("list", p)
-  for (j in seq_len(p)) {
-    fam_j      <- family_vec[j]
-    model_name <- switch(fam_j,
-      bernoulli = "model_binary",
-      ordinal   = "model_ordinal",
-      gaussian  = "model_gaussian"
-    )
-    .check_compiled_model(model_name)
-    stanmodel <- instantiate::stan_package_model(
-      name = model_name, package = "bvarnet"
-    )
-    sd_node <- .to_stan_data_node(shared, j, fam_j, priors)
+  # --- Resolve each node's model up front (Section C1) ---
+  resolved <- lapply(family_vec, function(fam_j) {
+    .bvarnet_stan_model(.bvarnet_model_for_family(fam_j))
+  })
+  # All cache-resolved models share one cache dir (keyed by package version +
+  # source hash), so at most one distinct lib/tbb needs wrapping around the
+  # whole loop rather than per iteration (many $sample() calls happen here).
+  cache_dir <- Find(Negate(is.null), lapply(resolved, `[[`, "cache_dir"))
 
-    fits[[j]] <- stanmodel$sample(
-      data            = sd_node,
-      seed            = seed,
-      iter_warmup     = warmup,
-      iter_sampling   = iter,
-      chains          = chains,
-      parallel_chains = min(cores, chains),
-      adapt_delta     = adapt_delta,
-      max_treedepth   = max_treedepth
-    )
+  run_sampling <- function() {
+    out <- vector("list", p)
+    for (j in seq_len(p)) {
+      sd_node <- .to_stan_data_node(shared, j, family_vec[j], priors)
+      out[[j]] <- resolved[[j]]$model$sample(
+        data            = sd_node,
+        seed            = seed,
+        iter_warmup     = warmup,
+        iter_sampling   = iter,
+        chains          = chains,
+        parallel_chains = min(cores, chains),
+        adapt_delta     = adapt_delta,
+        max_treedepth   = max_treedepth
+      )
+    }
+    out
+  }
+  fits <- if (!is.null(cache_dir)) {
+    .bvarnet_with_libpath(file.path(cache_dir, "lib", "tbb"), run_sampling())
+  } else {
+    run_sampling()
   }
 
   # --- Combine into bvarnet object ---

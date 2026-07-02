@@ -14,7 +14,26 @@ Further, we provide functionality to conduct hypothesis test.
 
 ## Installation
 
-To install `bvarnet` from CRAN, you need to have [CmdStanR](https://mc-stan.org/cmdstanr/index.html) installed which is not available on CRAN. To do this, make sure you have [RTools](https://cran.r-project.org/bin/windows/Rtools/) (Windows) or [Xcode](https://developer.apple.com/xcode/) (Mac) installed and the run the following code
+`bvar()` fits its models with Stan, so it needs a compiled `Stan` executable for each of the three outcome families. Installing is a **two-step flow**, and works the same way whether or not you
+have a C++ toolchain:
+
+```r
+# Step 1: install bvarnet from CRAN
+install.packages("bvarnet")
+
+# Step 2: set up the Stan models
+bvarnet::bvarnet_setup_models()
+```
+
+`bvarnet_setup_models()` offers to either **download precompiled model binaries** for your platform (*recommended*) or **compile them locally** if you already have a working CmdStan installation. You only need to set this up once; re-run it only after updating `bvarnet` to a new version.
+
+### No toolchain? (most users, recommended)
+
+Just run `bvarnet::bvarnet_setup_models()` and choose the download option when prompted. This fetches a small, platform-specific set of precompiled Stan executables.
+
+### Have a C++ toolchain? (advanced)
+
+For this option you need to have [RTools](https://cran.r-project.org/bin/windows/Rtools/) (Windows) or [Xcode](https://developer.apple.com/xcode/) (Mac) installed. Further, you need to have cmdstanr installed and the C++ toolchain set up. If you don't have CmdStan yet, after installing RTools/Xcode install it using:
 
 ```r
 install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
@@ -22,20 +41,25 @@ cmdstanr::check_cmdstan_toolchain(fix = TRUE)
 cmdstanr::install_cmdstan(cores = 2)
 ```
 
-If you run into any problems, you can look at the [Getting started with CmdStanR](https://mc-stan.org/cmdstanr/articles/cmdstanr.html) guide.
+If you run into any problems, see the
+[Getting started with CmdStanR](https://mc-stan.org/cmdstanr/articles/cmdstanr.html) guide.
 
-After setting up cmdstanr you can install the newest version of the package from CRAN:
-```r
-install.packages("bvarnet", type = "source")
-```
+Then you can use `bvarnet::bvarnet_setup_models()` to compile the models locally. 
 
-Or you can install the development version of `bvarnet` from [GitHub](https://github.com/flo1met/bvarnet) with:
+Alternatively, `install.packages("bvarnet", type = "source")` compiles the models at install time (requires CmdStan to already be set up). This works equivalent to the two-step flow above, just compiled into the package's install tree instead of a user cache directory.
+
+
+
+### Development version
+
+You can install the development version of `bvarnet` from [GitHub](https://github.com/flo1met/bvarnet). If you use the development version, you will have to compile the models yourself!
 
 ``` r
-if(!requireNamespace("remotes")) {
+if (!requireNamespace("remotes")) {
   install.packages("remotes")
 }
 remotes::install_github("flo1met/bvarnet")
+bvarnet::bvarnet_setup_models()
 ```
 
 ## Getting Started

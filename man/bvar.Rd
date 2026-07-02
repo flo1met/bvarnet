@@ -114,7 +114,7 @@ The \code{bvar} function estimates the posterior distribution of the specified B
 data(studentlife, package = "bvarnet")
 fit <- bvar(
   id_col = "id",
-  time_col = "time",
+  time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   re_temporal = TRUE,
   K = 1,
@@ -125,4 +125,9 @@ fit <- bvar(
 
 summary(fit)
 }
+}
+\seealso{
+\code{\link{bvarnet_setup_models}}, which must be run once before
+the first \code{bvar()} call to set up the required Stan models (either
+by downloading precompiled binaries or compiling them locally).
 }

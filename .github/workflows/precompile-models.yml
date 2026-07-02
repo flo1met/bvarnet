@@ -1,0 +1,279 @@
+name: precompile-models
+
+# Build & publish precompiled Stan model binaries for the toolchain-free download
+# fallback.
+#
+# Triggers on a published GitHub Release (the normal path: tag a release, this
+# builds + attaches assets automatically) and on workflow_dispatch for manual
+# rebuilds/testing. The workflow itself is safe to have in the repo at any time --
+# it only takes real action (uploading release assets) when it actually runs.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build for (e.g. v1.0.1). Defaults to the current ref.'
+        required: false
+        type: string
+
+permissions:
+  contents: write   # required to upload assets to a release (softprops/action-gh-release)
+
+env:
+  # Pinned CmdStan version for every platform in this build.
+  CMDSTAN_VERSION: "2.39.0"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # BUILD: install CmdStan, install bvarnet from source (which compiles the
+  # three models via src/install.libs.R -> instantiate::stan_package_compile(),
+  # the exact same path a real from-source user goes through), then assemble
+  # the platform asset (models + .stan + runtime stub + bundled TBB + SHA256SUMS).
+  # ---------------------------------------------------------------------------
+  build:
+    name: build (${{ matrix.config.platform }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { os: macos-14,       platform: macos-arm64 }
+          - { os: macos-13,       platform: macos-x86_64 }
+          - { os: ubuntu-20.04,   platform: linux-x86_64 } 
+          - { os: windows-latest, platform: windows-x86_64 }
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+          extra-repositories: 'https://mc-stan.org/r-packages/'
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::cmdstanr, any::digest, any::jsonlite
+          needs: install
+
+      - name: Cache CmdStan
+        uses: actions/cache@v4
+        with:
+          path: ~/.cmdstan
+          key: ${{ runner.os }}-${{ matrix.config.platform }}-cmdstan-${{ env.CMDSTAN_VERSION }}
+
+      - name: Install CmdStan (pinned version)
+        shell: Rscript {0}
+        run: |
+          cmdstanr::check_cmdstan_toolchain(fix = TRUE, quiet = TRUE)
+          cmdstanr::install_cmdstan(version = Sys.getenv("CMDSTAN_VERSION"), cores = 2, quiet = TRUE)
+
+      # Static-link the MinGW C++ runtime so the model
+      # exes carry no libstdc++-6/libgcc_s_seh-1/libwinpthread-1 dependency.
+      # TBB stays dynamic (bundled instead, in assemble-model-asset.R).
+      - name: Static-link the MinGW C++ runtime (Windows only)
+        if: runner.os == 'Windows'
+        shell: Rscript {0}
+        run: |
+          cmdstan_dir <- cmdstanr::cmdstan_path()
+          make_local <- file.path(cmdstan_dir, "make", "local")
+          cat(
+            "CXXFLAGS += -static-libgcc -static-libstdc++\n",
+            "LDFLAGS += -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread\n",
+            file = make_local, append = TRUE
+          )
+          cat("--- ", make_local, " ---\n", sep = "")
+          cat(readLines(make_local), sep = "\n")
+
+      # This is the SAME path a `install.packages(pkg, type = "source")` user
+      # goes through: src/install.libs.R copies src/stan/ -> bin/stan/ and calls
+      # instantiate::stan_package_compile(), which compiles all three models.
+      - name: Install bvarnet from source (compiles the three Stan models)
+        shell: Rscript {0}
+        run: |
+          install.packages(".", repos = NULL, type = "source", INSTALL_opts = "--no-multiarch")
+
+      - name: Assemble platform asset
+        shell: Rscript {0}
+        run: |
+          source(".github/scripts/assemble-model-asset.R")
+          assemble_model_asset(
+            platform        = "${{ matrix.config.platform }}",
+            cmdstan_version = Sys.getenv("CMDSTAN_VERSION"),
+            out_dir         = "asset-out"
+          )
+
+      - name: Assert MinGW C++ runtime is static-linked (Windows only)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          Rscript .github/scripts/check-windows-static-link.R asset-out/staging/model_*.exe
+
+      - name: Upload platform artifact (consumed by the manifest job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-asset-${{ matrix.config.platform }}
+          path: |
+            asset-out/*.tar.gz
+            asset-out/asset-info.json
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # MANIFEST: aggregate every platform's asset-info.json into the per-version
+  # manifest.json, asserting all platforms agree on source_hash/version/cmdstan_version,
+  # then publish everything as release assets. Only runs to completion when triggered
+  # by an actual release publish or an explicit workflow_dispatch with a real tag --
+  # it does not create releases itself (never delete/mutate one either).
+  # ---------------------------------------------------------------------------
+  manifest:
+    name: build manifest + publish release assets
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::jsonlite, any::digest
+          needs: install
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: model-asset-*
+          path: artifacts
+
+      - name: Build manifest.json
+        shell: Rscript {0}
+        run: |
+          source(".github/scripts/build-manifest.R")
+          build_manifest(artifacts_dir = "artifacts", out_file = "manifest.json")
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.event.release.tag_name }}
+          # Manual workflow_dispatch runs (e.g. a throwaway citest-<sha> tag) are ALWAYS
+          # published as a pre-release, so a test run never becomes the repo's "Latest"
+          # release. Real release-publish triggers leave this at the default (false),
+          # matching a normal full release.
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          files: |
+            artifacts/**/*.tar.gz
+            manifest.json
+
+  # ---------------------------------------------------------------------------
+  # DOWNLOAD-TEST: a *separate* job (hence a fresh VM) that pretends to be a
+  # toolchain-free user. It installs ONLY the cmdstanr R package -- never
+  # install_cmdstan() -- so there is no ~/.cmdstan and the baked-rpath confound
+  # cannot mask a missing bundled lib. GitHub-hosted runners are clean by
+  # default; keeping this off the build job is what guarantees cleanliness.
+  # ---------------------------------------------------------------------------
+  download-test:
+    name: download-test (${{ matrix.config.os }})
+    needs: manifest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { os: macos-14 }
+          - { os: macos-13 }
+          - { os: ubuntu-latest }   # newer glibc than the 20.04 build floor -> proves forward travel
+          - { os: windows-latest }
+    runs-on: ${{ matrix.config.os }}
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      BVARNET_ALLOW_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+          extra-repositories: 'https://mc-stan.org/r-packages/'
+
+      - name: Guard -- runner must have NO CmdStan (clean-user invariant)
+        shell: Rscript {0}
+        run: |
+          # If ~/.cmdstan exists here the test is worthless: a stale rpath could
+          # resolve TBB and hide a bundling bug. Fail rather than pass falsely.
+          if (dir.exists(path.expand("~/.cmdstan"))) {
+            stop("~/.cmdstan present -- this job must run on a clean runner; never call install_cmdstan() here")
+          }
+          if (requireNamespace("cmdstanr", quietly = TRUE)) {
+            p <- tryCatch(cmdstanr::cmdstan_path(), error = function(e) "")
+            if (nzchar(p)) stop("cmdstan_path() is already set -- runner is not clean")
+          }
+          cat("clean-user invariant OK\n")
+
+      - name: Install the cmdstanr R package ONLY (no CmdStan)
+        shell: Rscript {0}
+        run: |
+          install.packages("cmdstanr",
+            repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+          # local package so bvarnet_setup_models()/bvar() are available:
+          install.packages(".", repos = NULL, type = "source")
+
+      # On Windows, strip Rtools/mingw from PATH so a co-located tbb.dll is the
+      # ONLY way TBB can resolve -- proves discovery is co-location, not ambient
+      # PATH. Harmless belt-and-suspenders on top of the
+      # build-job static-link assertion.
+      - name: De-mingw PATH (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          clean=$(echo "$PATH" | tr ':' '\n' | grep -viE 'rtools|mingw|msys' | paste -sd ':' -)
+          echo "PATH=$clean" >> "$GITHUB_ENV"
+
+      - name: Download + run end-to-end (the real client path)
+        shell: Rscript {0}
+        run: |
+          ok <- bvarnet::bvarnet_setup_models(method = "download", ask = FALSE)
+          if (!isTRUE(ok)) stop("bvarnet_setup_models(method = 'download') did not succeed")
+
+          data <- data.frame(
+            id = rep(1:3, each = 20), t = rep(1:20, 3),
+            y_1 = rnorm(60), y_2 = rnorm(60), x_1 = rnorm(60)
+          )
+          fit <- bvarnet::bvar(
+            id_col = "id", time_col = "t", y_cols = c("y_1", "y_2"), x_cols = "x_1",
+            data = data, family = "gaussian", K = 1,
+            iter = 50, warmup = 50, chains = 1, cores = 1, seed = 1
+          )
+          stopifnot(inherits(fit, "bvarnet"))
+          cat("download-test: real fit succeeded, draws dim:",
+              paste(dim(fit$draws), collapse = "x"), "\n")
+
+      - name: Native-dependency assertion -- no unresolved TBB, no MinGW leak on Windows
+        shell: bash
+        run: |
+          set -e
+          cache_dir=$(Rscript -e 'cat(bvarnet::bvarnet_model_cache_dir())')
+          echo "cache dir: $cache_dir"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            for f in "$cache_dir"/model_*; do
+              [ -f "$f" ] || continue
+              otool -L "$f" | grep -i tbb || { echo "::error::no tbb dependency found in $f"; exit 1; }
+              if otool -L "$f" | grep -qi "not found"; then
+                echo "::error::unresolved dependency in $f"; otool -L "$f"; exit 1
+              fi
+            done
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            for f in "$cache_dir"/model_*; do
+              [ -f "$f" ] || continue
+              ldd "$f" | grep -qi "not found" && { echo "::error::unresolved dependency in $f"; ldd "$f"; exit 1; }
+            done
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            shopt -s nullglob
+            for f in "$cache_dir"/model_*.exe; do
+              Rscript .github/scripts/check-windows-static-link.R "$f"
+              [ -f "$(dirname "$f")/tbb.dll" ] || { echo "::error::tbb.dll not co-located beside $f"; exit 1; }
+            done
+          fi
