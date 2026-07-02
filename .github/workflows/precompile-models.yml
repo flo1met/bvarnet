@@ -13,8 +13,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to build for (e.g. v1.0.1). Defaults to the current ref.'
-        required: false
+        # Required: the manifest job publishes release assets to this tag, and the
+        # download-test job fetches from it (via BVARNET_MODELS_TAG). An empty tag
+        # would make the release step fall back to a branch ref and fail.
+        description: 'Existing tag to build for and attach assets to (e.g. citest-<sha> or v1.0.1).'
+        required: true
         type: string
 
 permissions:
@@ -83,8 +86,16 @@ jobs:
           # special Windows toolchain configuration anyway (per cmdstanr's own docs),
           # so skip the table lookup and let the actual compile inside
           # install_cmdstan() be the real, authoritative test of the toolchain.
-          cmdstanr::install_cmdstan(version = Sys.getenv("CMDSTAN_VERSION"), cores = 2,
-                                    quiet = TRUE, check_toolchain = FALSE)
+          # Skip entirely on an actions/cache hit (install_cmdstan warns-and-aborts
+          # on an existing dir rather than reusing it cleanly).
+          target <- path.expand(file.path("~", ".cmdstan",
+                                          paste0("cmdstan-", Sys.getenv("CMDSTAN_VERSION"))))
+          if (dir.exists(target)) {
+            cat("CmdStan already present (cache hit):", target, "\n")
+          } else {
+            cmdstanr::install_cmdstan(version = Sys.getenv("CMDSTAN_VERSION"), cores = 2,
+                                      quiet = TRUE, check_toolchain = FALSE)
+          }
 
       # Static-link the MinGW C++ runtime so the model
       # exes carry no libstdc++-6/libgcc_s_seh-1/libwinpthread-1 dependency.
@@ -95,7 +106,13 @@ jobs:
         run: |
           cmdstan_dir <- cmdstanr::cmdstan_path()
           make_local <- file.path(cmdstan_dir, "make", "local")
-          cat(
+          # Idempotency marker: ~/.cmdstan is restored by actions/cache, so without
+          # this guard the flags would be re-appended (duplicated) on every cached run.
+          marker <- "# bvarnet-static-mingw"
+          already <- file.exists(make_local) &&
+            any(grepl(marker, readLines(make_local), fixed = TRUE))
+          if (!already) cat(
+            marker, "\n",
             "CXXFLAGS += -static-libgcc -static-libstdc++\n",
             # -Wl,-Bstatic is STATEFUL: it forces every -lNAME that follows on the
             # link line to resolve to a static archive, until -Wl,-Bdynamic reverts
@@ -104,7 +121,7 @@ jobs:
             # forced into static-only lookup and fails with "cannot find -ltbb"
             # since no static TBB archive exists. Verified on real Windows CI.
             "LDFLAGS += -static-libgcc -static-libstdc++ -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic\n",
-            file = make_local, append = TRUE
+            file = make_local, append = TRUE, sep = ""
           )
           cat("--- ", make_local, " ---\n", sep = "")
           cat(readLines(make_local), sep = "\n")
@@ -116,6 +133,9 @@ jobs:
         shell: Rscript {0}
         run: |
           install.packages(".", repos = NULL, type = "source", INSTALL_opts = "--no-multiarch")
+          # install.packages() only WARNS on failure; assert hard so a compile/link
+          # error fails THIS step, not the assemble step downstream.
+          stopifnot(requireNamespace("bvarnet", quietly = TRUE))
 
       - name: Assemble platform asset
         shell: Rscript {0}
@@ -161,16 +181,19 @@ jobs:
         with:
           use-public-rspm: true
 
-      # `packages:` (not `extra-packages:`) is deliberate here: extra-packages is ADDITIVE to the
-      # action's default `packages: "deps::., any::sessioninfo"`, which would still scan bvarnet's
-      # own DESCRIPTION -- pulling in `Suggests: cmdstanr` (Additional_repositories: mc-stan.org).
-      # This job never loads bvarnet itself (build-manifest.R only uses jsonlite/digest/base R),
-      # and its setup-r@v2 step above doesn't configure the mc-stan repo, so that scan fails with
-      # "Can't find package called cmdstanr". Overriding `packages:` skips the local-package scan
-      # entirely.
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          packages: any::jsonlite, any::digest, any::sessioninfo
+      # Deliberately NOT r-lib/actions/setup-r-dependencies@v2 here. That action insists on
+      # resolving the checked-out package's own DESCRIPTION dependency tree -- first via its
+      # default `packages: "deps::."` (overridable), then AGAIN in its internal "Check if
+      # package needs pandoc" step (`pak::pkg_deps(".")`, NOT overridable). Both trip over
+      # bvarnet's `Suggests: cmdstanr` (Additional_repositories: mc-stan.org), which this job's
+      # setup-r step doesn't configure -- and shouldn't: build-manifest.R only needs
+      # jsonlite + digest + base R, never bvarnet itself. A plain install.packages() (binaries
+      # via RSPM from setup-r's use-public-rspm) avoids the whole class of problem.
+      - name: Install jsonlite + digest
+        shell: Rscript {0}
+        run: |
+          install.packages(c("jsonlite", "digest"))
+          stopifnot(requireNamespace("jsonlite"), requireNamespace("digest"))
 
       - uses: actions/download-artifact@v4
         with:
@@ -218,8 +241,16 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       BVARNET_ALLOW_DOWNLOAD: "true"
+      # Test-only seam (R/download_models.R): the client normally fetches from the
+      # v<packageVersion> tag, but CI test runs publish to a throwaway tag like
+      # citest-<sha>. Without this override every download-test leg would 404 on
+      # the (deliberately nonexistent) v<version> release and fail. For a real
+      # release-publish trigger the tag IS v<version>, so this is then a no-op.
+      BVARNET_MODELS_TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name || github.ref }}
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -240,24 +271,46 @@ jobs:
           }
           cat("clean-user invariant OK\n")
 
-      - name: Install the cmdstanr R package ONLY (no CmdStan)
+      - name: Install bvarnet + the cmdstanr R package ONLY (no CmdStan)
         shell: Rscript {0}
         run: |
-          install.packages("cmdstanr",
-            repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
-          # local package so bvarnet_setup_models()/bvar() are available:
+          # install.packages(".", repos = NULL) does NOT pull in dependencies, and a
+          # clean runner has none of bvarnet's Imports -- so install them first via
+          # remotes::install_deps() (setup-r already configured RSPM + mc-stan repos).
+          # Installing bvarnet from source WITHOUT CmdStan is exactly the CRAN-binary
+          # scenario: src/install.libs.R skips model compilation when CmdStan is
+          # absent, which is the whole premise of the download fallback.
+          install.packages("remotes")
+          remotes::install_deps(".")   # Depends/Imports/LinkingTo only, not Suggests
+          install.packages("cmdstanr") # mc-stan repo configured via extra-repositories
           install.packages(".", repos = NULL, type = "source")
+          # install.packages() only WARNS on a failed install (see the implementation
+          # doc's pitfall list) -- assert hard so a failure surfaces here, not two
+          # steps later as a confusing "no package called bvarnet".
+          stopifnot(
+            requireNamespace("bvarnet", quietly = TRUE),
+            requireNamespace("cmdstanr", quietly = TRUE)
+          )
+          cat("installed bvarnet", as.character(packageVersion("bvarnet")),
+              "with cmdstanr", as.character(packageVersion("cmdstanr")), "\n")
 
       # On Windows, strip Rtools/mingw from PATH so a co-located tbb.dll is the
       # ONLY way TBB can resolve -- proves discovery is co-location, not ambient
-      # PATH. Harmless belt-and-suspenders on top of the
-      # build-job static-link assertion.
+      # PATH. Harmless belt-and-suspenders on top of the build-job static-link
+      # assertion. MUST be pwsh, not bash: Git Bash exposes PATH in POSIX format
+      # (/c/R/bin:/c/...), and writing that into GITHUB_ENV would replace the
+      # Windows-format PATH (C:\R\bin;C:\...) for every later step, making even
+      # Rscript unfindable. ORIG_PATH is saved so the post-fit assertion step can
+      # get objdump (in the stripped Rtools dir) back.
       - name: De-mingw PATH (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          clean=$(echo "$PATH" | tr ':' '\n' | grep -viE 'rtools|mingw|msys' | paste -sd ':' -)
-          echo "PATH=$clean" >> "$GITHUB_ENV"
+          "ORIG_PATH=$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $clean = ($env:PATH -split ';' | Where-Object { $_ -notmatch 'rtools|mingw|msys' }) -join ';'
+          "PATH=$clean" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "stripped PATH entries:"
+          $env:PATH -split ';' | Where-Object { $_ -match 'rtools|mingw|msys' } | Write-Host
 
       - name: Download + run end-to-end (the real client path)
         shell: Rscript {0}
@@ -278,29 +331,48 @@ jobs:
           cat("download-test: real fit succeeded, draws dim:",
               paste(dim(fit$draws), collapse = "x"), "\n")
 
-      - name: Native-dependency assertion -- no unresolved TBB, no MinGW leak on Windows
+      # Iterate the three exe names EXPLICITLY -- a bare model_* glob would also
+      # match the co-staged model_*.stan sources, and otool/ldd on a text file
+      # errors, turning a healthy cache into a false failure.
+      - name: Native-dependency assertion (macOS/Linux) -- no unresolved TBB
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -e
           cache_dir=$(Rscript -e 'cat(bvarnet::bvarnet_model_cache_dir())')
           echo "cache dir: $cache_dir"
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            for f in "$cache_dir"/model_*; do
-              [ -f "$f" ] || continue
-              otool -L "$f" | grep -i tbb || { echo "::error::no tbb dependency found in $f"; exit 1; }
-              if otool -L "$f" | grep -qi "not found"; then
-                echo "::error::unresolved dependency in $f"; otool -L "$f"; exit 1
+          for name in model_gaussian model_binary model_ordinal; do
+            f="$cache_dir/$name"
+            [ -f "$f" ] || { echo "::error::$f missing from cache"; exit 1; }
+            if [ "${{ runner.os }}" = "macOS" ]; then
+              otool -L "$f"
+              otool -L "$f" | grep -qi tbb || { echo "::error::no tbb dependency found in $f"; exit 1; }
+            else
+              ldd "$f" || true
+              if ldd "$f" | grep -qi "not found"; then
+                echo "::error::unresolved dependency in $f"; exit 1
               fi
-            done
-          elif [ "${{ runner.os }}" = "Linux" ]; then
-            for f in "$cache_dir"/model_*; do
-              [ -f "$f" ] || continue
-              ldd "$f" | grep -qi "not found" && { echo "::error::unresolved dependency in $f"; ldd "$f"; exit 1; }
-            done
-          elif [ "${{ runner.os }}" = "Windows" ]; then
-            shopt -s nullglob
-            for f in "$cache_dir"/model_*.exe; do
-              Rscript .github/scripts/check-windows-static-link.R "$f"
-              [ -f "$(dirname "$f")/tbb.dll" ] || { echo "::error::tbb.dll not co-located beside $f"; exit 1; }
-            done
-          fi
+            fi
+          done
+
+      # Separate pwsh step for Windows: the fit above ran with the de-mingw'd PATH
+      # (that was the point), but the static-link check needs objdump, which lives
+      # in the stripped Rtools dir -- so restore ORIG_PATH for this inspection-only
+      # step. The fit itself has already proven co-location works.
+      - name: Native-dependency assertion (Windows) -- no MinGW leak, tbb.dll co-located
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = $env:ORIG_PATH
+          $cache = Rscript -e 'cat(bvarnet::bvarnet_model_cache_dir())'
+          Write-Host "cache dir: $cache"
+          foreach ($name in @('model_gaussian', 'model_binary', 'model_ordinal')) {
+            $exe = Join-Path $cache "$name.exe"
+            if (-not (Test-Path $exe)) { Write-Error "$exe missing from cache"; exit 1 }
+            Rscript .github/scripts/check-windows-static-link.R $exe
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          if (-not (Test-Path (Join-Path $cache 'tbb.dll'))) {
+            Write-Error "tbb.dll not co-located beside the model exes in $cache"; exit 1
+          }
+          Write-Host "OK: static-link clean + tbb.dll co-located"
