@@ -1,10 +1,17 @@
 ## Precompiled Stan model download.
 ##
-## `BVARNET_MODELS_BASE_URL` is a TEST-ONLY seam:
-## it lets tests/humans point the client at a local server or a throwaway release
-## instead of the real one. Every safety check (SHA-256, source_hash) still applies
-## when it is set; only the HTTPS requirement is relaxed, since the seam is only ever
-## used for http://localhost during local testing.
+## Two TEST-ONLY seams (never user-facing knobs):
+## - `BVARNET_MODELS_BASE_URL` lets tests/humans point the client at a local server
+##   instead of the real GitHub release host. Only the HTTPS requirement is relaxed
+##   when it is set, since the seam is only ever used for http://localhost.
+## - `BVARNET_MODELS_TAG` overrides the release-tag path segment (default
+##   `v<packageVersion>`), so CI can test against a throwaway pre-release tag like
+##   `citest-<sha>` without ever creating a real `v<version>` release. Without this,
+##   the "test on a pre-release tag" flow is impossible: GitHub serves assets at
+##   releases/download/<tag>/..., and the client would otherwise always look under
+##   the v<version> tag, which deliberately must not exist before the real release.
+## Every safety check (SHA-256 of the asset, source_hash vs the installed .stan
+## sources) applies unconditionally regardless of either seam.
 
 ## ---- constants ----
 
@@ -49,9 +56,17 @@
   invisible(TRUE)
 }
 
+#' Release-tag path segment of the download URL. Defaults to `v<version>` (the
+#' documented release-tag rule); `BVARNET_MODELS_TAG` is the test-only override
+#' that lets CI fetch from a throwaway pre-release tag (see file header).
+#' @noRd
+.bvarnet_release_tag <- function(version = as.character(utils::packageVersion("bvarnet"))) {
+  Sys.getenv("BVARNET_MODELS_TAG", unset = paste0("v", version))
+}
+
 #' @noRd
 .bvarnet_manifest_url <- function(version = as.character(utils::packageVersion("bvarnet"))) {
-  paste0(.bvarnet_models_base_url(), "/v", version, "/manifest.json")
+  paste0(.bvarnet_models_base_url(), "/", .bvarnet_release_tag(version), "/manifest.json")
 }
 
 #' Fetch the per-version manifest.
@@ -437,7 +452,7 @@
   }
   asset_name <- entry$asset
   asset_sha  <- entry$sha256
-  asset_url  <- paste0(.bvarnet_models_base_url(), "/v", version, "/", asset_name)
+  asset_url  <- paste0(.bvarnet_models_base_url(), "/", .bvarnet_release_tag(version), "/", asset_name)
   .bvarnet_assert_https(asset_url)
 
   if (!.bvarnet_consent_download(asset_name, ask = ask)) {

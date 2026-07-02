@@ -34,6 +34,21 @@ test_that(".bvarnet_manifest_url() defaults to utils::packageVersion", {
   expect_equal(url, .bvarnet_manifest_url(as.character(utils::packageVersion("bvarnet"))))
 })
 
+test_that("BVARNET_MODELS_TAG overrides the release-tag path segment (CI pre-release seam)", {
+  old <- Sys.getenv("BVARNET_MODELS_TAG", unset = NA)
+  on.exit(if (is.na(old)) Sys.unsetenv("BVARNET_MODELS_TAG")
+          else Sys.setenv(BVARNET_MODELS_TAG = old), add = TRUE)
+
+  Sys.unsetenv("BVARNET_MODELS_TAG")
+  expect_equal(.bvarnet_release_tag("1.0.1"), "v1.0.1")
+  expect_match(.bvarnet_manifest_url("1.0.1"), "/v1\\.0\\.1/manifest\\.json$")
+
+  Sys.setenv(BVARNET_MODELS_TAG = "citest-abc1234")
+  expect_equal(.bvarnet_release_tag("1.0.1"), "citest-abc1234")
+  expect_match(.bvarnet_manifest_url("1.0.1"), "/citest-abc1234/manifest\\.json$")
+  expect_false(grepl("v1\\.0\\.1", .bvarnet_manifest_url("1.0.1")))
+})
+
 test_that(".bvarnet_models_base_url() honours the BVARNET_MODELS_BASE_URL test seam", {
   old <- Sys.getenv("BVARNET_MODELS_BASE_URL", unset = NA)
   on.exit(if (is.na(old)) Sys.unsetenv("BVARNET_MODELS_BASE_URL")
