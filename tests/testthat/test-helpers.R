@@ -337,3 +337,125 @@ test_that("print.bvarnet() backward compat: old objects without priors_needed st
   expect_true(any(grepl("beta", out)))
   expect_true(any(grepl("sigma", out)))
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# .check_sampler_dots() — bvar(...) passthrough to CmdStanR's $sample()
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that(".check_sampler_dots() returns an empty list when no dots are given", {
+  expect_identical(.check_sampler_dots(), list())
+})
+
+test_that(".check_sampler_dots() passes through genuine sampler arguments", {
+  expect_identical(
+    .check_sampler_dots(refresh = 0, init = 2, thin = 5),
+    list(refresh = 0, init = 2, thin = 5)
+  )
+})
+
+test_that(".check_sampler_dots() preserves NULL values without dropping names", {
+  dots <- .check_sampler_dots(init = NULL)
+  expect_named(dots, "init")
+  expect_null(dots$init)
+})
+
+test_that(".check_sampler_dots() rejects sampler args bvar() sets itself", {
+  expect_error(.check_sampler_dots(iter_warmup = 100), "use bvar\\(warmup = ")
+  expect_error(.check_sampler_dots(iter_sampling = 100), "use bvar\\(iter = ")
+  expect_error(.check_sampler_dots(parallel_chains = 4), "use bvar\\(cores = ")
+})
+
+test_that(".check_sampler_dots() rejects CmdStanR's deprecated aliases", {
+  # $sample() resolves these by overwriting the modern argument, which would
+  # silently override the value bvar() supplied.
+  expect_error(.check_sampler_dots(num_warmup = 100), "use bvar\\(warmup = ")
+  expect_error(.check_sampler_dots(num_samples = 100), "use bvar\\(iter = ")
+  expect_error(.check_sampler_dots(num_chains = 2), "use bvar\\(chains = ")
+  expect_error(.check_sampler_dots(num_cores = 2), "use bvar\\(cores = ")
+  expect_error(.check_sampler_dots(cores = 2), "use bvar\\(cores = ")
+  expect_error(.check_sampler_dots(max_depth = 12), "use bvar\\(max_treedepth = ")
+})
+
+test_that(".check_sampler_dots() reports every reserved argument it found", {
+  err <- expect_error(
+    .check_sampler_dots(iter_warmup = 1, parallel_chains = 2, refresh = 0)
+  )
+  expect_match(conditionMessage(err), "iter_warmup")
+  expect_match(conditionMessage(err), "parallel_chains")
+  expect_no_match(conditionMessage(err), "refresh")
+})
+
+test_that(".check_sampler_dots() requires all dots to be named", {
+  expect_error(.check_sampler_dots(5), "must be named")
+  expect_error(.check_sampler_dots(refresh = 0, 5), "must be named")
+})
+
+test_that(".check_sampler_dots() rejects duplicated argument names", {
+  expect_error(.check_sampler_dots(refresh = 0, refresh = 1), "Duplicated")
+})
+
+test_that("every reserved name is a real CmdStanR $sample() argument", {
+  skip_if_not_installed("cmdstanr")
+  sample_args <- names(formals(
+    getFromNamespace("CmdStanModel", "cmdstanr")$public_methods$sample
+  ))
+  expect_length(setdiff(names(.bvarnet_reserved_sampler_args), sample_args), 0L)
+})
+
+test_that(".check_sampler_dots() rejects abbreviations that partial-match a deprecated alias", {
+  skip_if_not_installed("cmdstanr")
+  # $sample() has no '...', so do.call() partial-matches any dot name that
+  # isn't an exact formal name against the formals bvar() hasn't already
+  # claimed by exact name (e.g. 'num_warm' -> 'num_warmup'). Left unchecked,
+  # this silently overrides the value bvar() set for 'warmup'.
+  expect_error(.check_sampler_dots(num_warm = 50), "use bvar\\(warmup = ")
+  expect_error(.check_sampler_dots(num_sam = 50), "use bvar\\(iter = ")
+  expect_error(.check_sampler_dots(num_ch = 2), "use bvar\\(chains = ")
+  expect_error(.check_sampler_dots(core = 2), "use bvar\\(cores = ")
+  expect_error(.check_sampler_dots(max_de = 8), "use bvar\\(max_treedepth = ")
+})
+
+test_that(".check_sampler_dots() still allows genuine abbreviations of non-reserved args", {
+  skip_if_not_installed("cmdstanr")
+  # 'ref' uniquely abbreviates the passthrough-only formal 'refresh', not any
+  # reserved name, so it must not be rejected.
+  expect_identical(.check_sampler_dots(ref = 0), list(ref = 0))
+})
+
+test_that(".check_sampler_dots() degrades to exact-name matching without cmdstanr", {
+  testthat::local_mocked_bindings(
+    .bvarnet_sample_partial_pool = function() character(0)
+  )
+  # No partial-match pool available: exact reserved/alias names are still
+  # rejected, but an abbreviation can no longer be resolved and silently
+  # passes the guard (it will fail later at do.call(), same as before this
+  # fix existed).
+  expect_error(.check_sampler_dots(num_warmup = 50), "use bvar\\(warmup = ")
+  expect_identical(.check_sampler_dots(num_warm = 50), list(num_warm = 50))
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# .bvarnet_node_dots() — keeps per-node $sample() output files distinct
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that(".bvarnet_node_dots() is a no-op when output_basename isn't set", {
+  dots <- list(refresh = 0, thin = 2)
+  expect_identical(.bvarnet_node_dots(dots, 1), dots)
+  expect_identical(.bvarnet_node_dots(list(), 3), list())
+})
+
+test_that(".bvarnet_node_dots() suffixes output_basename with the node index", {
+  dots <- list(output_basename = "myfit", refresh = 0)
+  expect_identical(
+    .bvarnet_node_dots(dots, 2),
+    list(output_basename = "myfit_node2", refresh = 0)
+  )
+})
+
+test_that(".bvarnet_node_dots() gives every node a distinct output_basename", {
+  dots <- list(output_basename = "myfit")
+  suffixed <- lapply(1:3, function(j) .bvarnet_node_dots(dots, j)$output_basename)
+  expect_length(unique(unlist(suffixed)), 3L)
+})

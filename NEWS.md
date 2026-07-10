@@ -3,6 +3,8 @@
 * Minor bug and documentation fixes.
 * Introduce toolchain free installation via `bvarnet_setup_models()`.
 * Change default CI to 95% and introduce argument to vary CI width.
+* `bvar()` gains `...`, forwarding additional arguments (e.g. `init`, `refresh`,
+  `thin`, `step_size`) to CmdStanR's `$sample()` method. 
 
 # bvarnet 1.0.1
 

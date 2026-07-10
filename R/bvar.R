@@ -46,6 +46,15 @@
 #'   listwise-deleted) estimation data in the \code{data_used} slot of the
 #'   returned object for reproducibility and downstream analyses.
 #'   Default \code{FALSE}.
+#' @param ... Additional named arguments forwarded to the CmdStanR
+#'   \code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},
+#'   \code{step_size}, or \code{show_messages}. See
+#'   \code{?cmdstanr::"model-method-sample"} for the full list. Arguments that
+#'   \code{bvar()} sets itself (\code{data}, \code{seed}, \code{iter_warmup},
+#'   \code{iter_sampling}, \code{chains}, \code{parallel_chains},
+#'   \code{adapt_delta}, \code{max_treedepth}, and CmdStanR's deprecated
+#'   aliases for them) are rejected with an error; use the corresponding
+#'   \code{bvar()} argument instead. 
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
@@ -98,9 +107,12 @@ bvar <- function(id_col,
                  seed = NULL,
                  adapt_delta = NULL,
                  max_treedepth = NULL,
-                 save_data = FALSE
+                 save_data = FALSE,
+                 ...
 
   ) {
+
+  dots <- .check_sampler_dots(...)
 
   family_vec <- .parse_family(family, y_cols)
   is_mixed   <- length(unique(family_vec)) > 1L
@@ -122,7 +134,7 @@ bvar <- function(id_col,
       data = data, family_vec = family_vec, priors = priors,
       iter = iter, warmup = warmup, chains = chains, cores = cores,
       seed = seed, adapt_delta = adapt_delta, max_treedepth = max_treedepth,
-      save_data = save_data
+      save_data = save_data, dots = dots
     ))
   }
 
@@ -154,7 +166,8 @@ bvar <- function(id_col,
   priors_needed <- .prior_warnings(priors, family_vec, standata$n_re)
 
   sample_call <- function() {
-    stanmodel$sample(data = standata[!names(standata) %in%
+    do.call(stanmodel$sample, c(
+      list(data = standata[!names(standata) %in%
                                   c("fe_interaction_terms",
                                     "fe_interaction_colnames",
                                     "id_levels",
@@ -162,13 +175,15 @@ bvar <- function(id_col,
                                     "time_obs",
                                     "data_used",
                                     "design_spec")],
-                      seed = seed,
-                      iter_warmup = warmup,
-                      iter_sampling = iter,
-                      chains = chains,
-                      parallel_chains = cores,
-                      adapt_delta = adapt_delta,
-                      max_treedepth = max_treedepth)
+           seed = seed,
+           iter_warmup = warmup,
+           iter_sampling = iter,
+           chains = chains,
+           parallel_chains = cores,
+           adapt_delta = adapt_delta,
+           max_treedepth = max_treedepth),
+      dots
+    ))
   }
   # Cache-resolved models need the bundled TBB findable at $sample() time
   # install-tree models keep cmdstanr's own resolution untouched.
@@ -266,7 +281,7 @@ bvar <- function(id_col,
                            data, family_vec, priors,
                            iter, warmup, chains, cores,
                            seed, adapt_delta, max_treedepth,
-                           save_data = FALSE) {
+                           save_data = FALSE, dots = list()) {
   p <- length(y_cols)
 
   # --- Shared matrices (D3) ---
@@ -294,16 +309,20 @@ bvar <- function(id_col,
     out <- vector("list", p)
     for (j in seq_len(p)) {
       sd_node <- .to_stan_data_node(shared, j, family_vec[j], priors)
-      out[[j]] <- resolved[[j]]$model$sample(
-        data            = sd_node,
-        seed            = seed,
-        iter_warmup     = warmup,
-        iter_sampling   = iter,
-        chains          = chains,
-        parallel_chains = min(cores, chains),
-        adapt_delta     = adapt_delta,
-        max_treedepth   = max_treedepth
-      )
+      node_dots <- .bvarnet_node_dots(dots, j)
+      out[[j]] <- do.call(resolved[[j]]$model$sample, c(
+        list(
+          data            = sd_node,
+          seed            = seed,
+          iter_warmup     = warmup,
+          iter_sampling   = iter,
+          chains          = chains,
+          parallel_chains = min(cores, chains),
+          adapt_delta     = adapt_delta,
+          max_treedepth   = max_treedepth
+        ),
+        node_dots
+      ))
     }
     out
   }

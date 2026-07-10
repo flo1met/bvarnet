@@ -27,7 +27,8 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE
+  save_data = FALSE,
+  ...
 )
 }
 \arguments{
@@ -97,6 +98,17 @@ hierarchical logistic models) but increases computation. Default
 listwise-deleted) estimation data in the \code{data_used} slot of the
 returned object for reproducibility and downstream analyses.
 Default \code{FALSE}.}
+
+\item{...}{Additional named arguments forwarded to the CmdStanR
+\code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},
+\code{step_size}, or \code{show_messages}. See
+\code{?cmdstanr::"model-method-sample"} for the full list. Arguments that
+\code{bvar()} sets itself (\code{data}, \code{seed}, \code{iter_warmup},
+\code{iter_sampling}, \code{chains}, \code{parallel_chains},
+\code{adapt_delta}, \code{max_treedepth}, and CmdStanR's deprecated
+aliases for them) are rejected with an error; use the corresponding
+\code{bvar()} argument instead. In the mixed-family case these are
+applied to every per-node fit.}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
