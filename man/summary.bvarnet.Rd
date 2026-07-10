@@ -4,7 +4,7 @@
 \alias{summary.bvarnet}
 \title{Summary method for bvarnet objects}
 \usage{
-\method{summary}{bvarnet}(object, bayes_factor = FALSE, null_value = 0, ...)
+\method{summary}{bvarnet}(object, bayes_factor = FALSE, null_value = 0, ..., ci_level = 0.95)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{\link{bvar}}.}
@@ -16,6 +16,10 @@ columns. Default \code{FALSE}.}
 Default 0.}
 
 \item{...}{Ignored.}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in \code{ci_lower} and
+\code{ci_upper}. Default \code{0.95}. Must be supplied by name.}
 }
 \value{
 An object of class \code{"summary.bvarnet"} (a list) with elements:
@@ -27,6 +31,7 @@ An object of class \code{"summary.bvarnet"} (a list) with elements:
 \item{n}{Number of observations.}
 \item{rhat_max}{Maximum Rhat across all parameters.}
 \item{n_divergences}{Total divergent transitions.}
+\item{ci_level}{Credible-interval mass used for the table.}
 }
 }
 \description{

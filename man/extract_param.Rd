@@ -4,7 +4,13 @@
 \alias{extract_param}
 \title{Extract labelled parameter summaries from a fitted bvarnet model}
 \usage{
-extract_param(object, bayes_factor = FALSE, null_value = 0, type = NULL)
+extract_param(
+  object,
+  bayes_factor = FALSE,
+  null_value = 0,
+  type = NULL,
+  ci_level = 0.95
+)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{bvar()}.}
@@ -21,15 +27,19 @@ rows matching the given type(s) are returned.  Valid values are:
 \code{"Intercept"}, \code{"Fixed Effect"}, \code{"Autoregressive"},
 \code{"Cross-lagged"}, \code{"Random Effect SD"}, \code{"Residual SD"},
 \code{"Threshold"}.}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in \code{ci_lower} and
+\code{ci_upper}.  Default \code{0.95}.}
 }
 \value{
 A data frame with columns: \code{type}, \code{predictor},
-\code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-\code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
-\code{BF01}, \code{BF10}.
+\code{outcome}, \code{mean}, \code{median}, \code{ci_lower},
+\code{ci_upper}, \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and
+optionally \code{BF01}, \code{BF10}.
 }
 \description{
 Returns a single flat data frame with posterior summaries (mean, median,
-5th/95th percentiles) and convergence diagnostics (Rhat, ESS) for all
-model parameters.
+and an equal-tailed credible interval) and convergence diagnostics
+(Rhat, ESS) for all model parameters.
 }

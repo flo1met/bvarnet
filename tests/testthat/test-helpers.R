@@ -75,7 +75,7 @@ test_that("build_summary_table returns correct data frame structure", {
   expect_s3_class(tab, "data.frame")
   expect_equal(nrow(tab), 2 * 3)  # nr * nc
   expect_true(all(c("type", "predictor", "outcome",
-                     "mean", "median", "q5", "q95") %in% names(tab)))
+                     "mean", "median", "ci_lower", "ci_upper") %in% names(tab)))
 })
 
 
@@ -101,13 +101,55 @@ test_that("build_summary_table predictor × outcome layout is correct", {
 })
 
 
-test_that("build_summary_table q5 <= median <= q95", {
+test_that("build_summary_table ci_lower <= median <= ci_upper", {
   set.seed(501)
   draws <- matrix(rnorm(500 * 4), nrow = 500, ncol = 4)
   tab <- bvarnet:::build_summary_table(draws, c("a", "b"), c("c", "d"), "T")
 
-  expect_true(all(tab$q5 <= tab$median))
-  expect_true(all(tab$median <= tab$q95))
+  expect_true(all(tab$ci_lower <= tab$median))
+  expect_true(all(tab$median <= tab$ci_upper))
+})
+
+
+test_that("build_summary_table defaults to a 95% equal-tailed interval", {
+  set.seed(502)
+  draws <- matrix(rnorm(2000 * 4), nrow = 2000, ncol = 4)
+  tab <- bvarnet:::build_summary_table(draws, c("a", "b"), c("c", "d"), "T")
+
+  expect_equal(tab$ci_lower,
+               unname(apply(draws, 2, stats::quantile, probs = 0.025)))
+  expect_equal(tab$ci_upper,
+               unname(apply(draws, 2, stats::quantile, probs = 0.975)))
+})
+
+
+test_that("build_summary_table honours ci_level", {
+  set.seed(503)
+  draws <- matrix(rnorm(2000 * 4), nrow = 2000, ncol = 4)
+  tab90 <- bvarnet:::build_summary_table(draws, c("a", "b"), c("c", "d"), "T",
+                                         ci_level = 0.90)
+
+  expect_equal(tab90$ci_lower,
+               unname(apply(draws, 2, stats::quantile, probs = 0.05)))
+  expect_equal(tab90$ci_upper,
+               unname(apply(draws, 2, stats::quantile, probs = 0.95)))
+
+  # Narrower level nests inside the default 95% interval
+  tab95 <- bvarnet:::build_summary_table(draws, c("a", "b"), c("c", "d"), "T")
+  expect_true(all(tab90$ci_lower >= tab95$ci_lower))
+  expect_true(all(tab90$ci_upper <= tab95$ci_upper))
+})
+
+
+test_that(".ci_probs rejects invalid credible-interval levels", {
+  expect_equal(bvarnet:::.ci_probs(0.95), c(0.025, 0.975))
+  expect_equal(bvarnet:::.ci_probs(0.90), c(0.05, 0.95))
+
+  for (bad in list(0, 1, -0.1, 1.5, NA_real_, NaN, Inf, "0.95", c(0.9, 0.95)))
+    expect_error(bvarnet:::.ci_probs(bad), "strictly between 0 and 1")
+
+  # Error message names the calling argument
+  expect_error(bvarnet:::.ci_probs(2, "ci_width"), "`ci_width`")
 })
 
 

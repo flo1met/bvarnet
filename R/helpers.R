@@ -42,30 +42,75 @@ get_param_names <- function(sd) {
 }
 
 
+## ---- credible-interval level -> quantile probabilities ----
+## Validates ci_level and returns the equal-tailed lower/upper probabilities.
+#' @keywords internal
+#' @noRd
+.ci_probs <- function(ci_level, arg_name = "ci_level") {
+  if (!is.numeric(ci_level) || length(ci_level) != 1L || !is.finite(ci_level) ||
+      ci_level <= 0 || ci_level >= 1)
+    stop(sprintf(
+      "`%s` must be a single number strictly between 0 and 1 (e.g. 0.95 for a 95%% credible interval).",
+      arg_name
+    ), call. = FALSE)
+  alpha <- (1 - ci_level) / 2
+  c(alpha, 1 - alpha)
+}
+
+
+## ---- core mean/median/CI computation from a draws matrix ----
+## Shared by build_summary_table() and extract_param()'s manual beta/kappa
+## blocks. The two CI bounds share one probs vector so they're computed in a
+## single quantile() pass; median is kept as a separate stats::median() call
+## since quantile(probs=0.5) is not bit-identical to median() for even n.
+#' @keywords internal
+#' @noRd
+.summarize_draws <- function(draws, probs) {
+  q <- apply(draws, 2L, stats::quantile, probs = c(probs[1L], probs[2L]))
+  list(
+    mean     = as.numeric(colMeans(draws)),
+    median   = as.numeric(apply(draws, 2L, stats::median)),
+    ci_lower = as.numeric(q[1L, ]),
+    ci_upper = as.numeric(q[2L, ])
+  )
+}
+
+
+## ---- join convergence diagnostics (rhat/ess_bulk/ess_tail) onto a table ----
+#' @keywords internal
+#' @noRd
+.join_convergence <- function(tab, stan_colnames, convergence) {
+  idx <- match(stan_colnames, convergence$variable)
+  tab$rhat     <- convergence$rhat[idx]
+  tab$ess_bulk <- convergence$ess_bulk[idx]
+  tab$ess_tail <- convergence$ess_tail[idx]
+  tab
+}
+
+
 ## ---- build a labelled data.frame from a draws matrix ----
 ## draws: iterations x parameters matrix (from extract_draws)
 ## row_names / col_names map to the [row, col] Stan indices
 ## column order in draws must follow row-major: (1,1), (2,1), ..., (nr,1), (1,2), ...
 #' @keywords internal
-build_summary_table <- function(draws, row_names, col_names, type) {
+build_summary_table <- function(draws, row_names, col_names, type,
+                                ci_level = 0.95, probs = NULL) {
   nr   <- length(row_names)
   nc   <- length(col_names)
   ncol_draws <- ncol(draws)
   stopifnot(ncol_draws == nr * nc)
 
-  d_mean   <- colMeans(draws)
-  d_median <- apply(draws, 2, stats::median)
-  d_q5     <- apply(draws, 2, stats::quantile, probs = 0.05)
-  d_q95    <- apply(draws, 2, stats::quantile, probs = 0.95)
+  if (is.null(probs)) probs <- .ci_probs(ci_level)
+  s <- .summarize_draws(draws, probs)
 
   data.frame(
     type      = rep(type, nr * nc),
     predictor = rep(row_names, times = nc),
     outcome   = rep(col_names, each  = nr),
-    mean      = as.numeric(d_mean),
-    median    = as.numeric(d_median),
-    q5        = as.numeric(d_q5),
-    q95       = as.numeric(d_q95),
+    mean      = s$mean,
+    median    = s$median,
+    ci_lower  = s$ci_lower,
+    ci_upper  = s$ci_upper,
     stringsAsFactors = FALSE
   )
 }

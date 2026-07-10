@@ -10,6 +10,9 @@
 #' @param null_value Numeric scalar; null hypothesis value for BF computation.
 #'   Default 0.
 #' @param ... Ignored.
+#' @param ci_level Numeric scalar strictly between 0 and 1; the mass of the
+#'   equal-tailed credible interval reported in \code{ci_lower} and
+#'   \code{ci_upper}. Default \code{0.95}. Must be supplied by name.
 #'
 #' @return An object of class \code{"summary.bvarnet"} (a list) with elements:
 #'   \describe{
@@ -20,15 +23,18 @@
 #'     \item{n}{Number of observations.}
 #'     \item{rhat_max}{Maximum Rhat across all parameters.}
 #'     \item{n_divergences}{Total divergent transitions.}
+#'     \item{ci_level}{Credible-interval mass used for the table.}
 #'   }
 #'
 #' @export
-summary.bvarnet <- function(object, bayes_factor = FALSE, null_value = 0, ...) {
+summary.bvarnet <- function(object, bayes_factor = FALSE, null_value = 0, ...,
+                            ci_level = 0.95) {
   stopifnot(inherits(object, "bvarnet"))
 
   tab <- extract_param(object,
                         bayes_factor = bayes_factor,
-                        null_value   = null_value)
+                        null_value   = null_value,
+                        ci_level     = ci_level)
 
   sd   <- object$standata
   conv <- object$convergence
@@ -47,7 +53,8 @@ summary.bvarnet <- function(object, bayes_factor = FALSE, null_value = 0, ...) {
       K             = sd$K,
       n             = sd$n_obs,
       rhat_max      = rhat_max,
-      n_divergences = n_div
+      n_divergences = n_div,
+      ci_level      = ci_level
     ),
     class = "summary.bvarnet"
   )
@@ -76,8 +83,10 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
               .format_family(x$family), x$p, x$K, x$n))
   cat(sprintf("Rhat max: %.3f | Divergences: %d\n",
               x$rhat_max, x$n_divergences))
+  if (!is.null(x$ci_level))
+    cat(sprintf("Credible interval: %g%% (equal-tailed)\n", 100 * x$ci_level))
 
-  if (x$rhat_max > 1.01)
+  if (!is.na(x$rhat_max) && x$rhat_max > 1.01)
     cat("  WARNING: Rhat > 1.01 \u2014 chains may not have converged.\n")
   if (x$n_divergences > 0)
     cat("  WARNING: divergent transitions detected \u2014 check model/priors.\n")
@@ -86,7 +95,7 @@ print.summary.bvarnet <- function(x, digits = 3, max_rows = 10, ...) {
 
   # Determine which columns to print
   display_cols <- c("predictor", "outcome", "mean", "median",
-                    "q5", "q95", "rhat", "ess_bulk", "ess_tail")
+                    "ci_lower", "ci_upper", "rhat", "ess_bulk", "ess_tail")
   if ("BF10" %in% names(tab))
     display_cols <- c(display_cols, "BF10")
   display_cols <- intersect(display_cols, names(tab))

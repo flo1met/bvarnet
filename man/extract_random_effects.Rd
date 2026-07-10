@@ -4,7 +4,11 @@
 \alias{extract_random_effects}
 \title{Extract random-effect summaries}
 \usage{
-extract_random_effects(object, what = c("sd", "mean_u", "draws_u"))
+extract_random_effects(
+  object,
+  what = c("sd", "mean_u", "draws_u"),
+  ci_level = 0.95
+)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{\link{bvar}}.}
@@ -18,6 +22,10 @@ posterior means of subject-level effects.}
 \item{\code{"draws_u"}}{4D array \code{[draw, node, subject, re]}
 of full posterior draws.}
 }}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in \code{ci_lower} and
+\code{ci_upper}. Default \code{0.95}. Only used when \code{what = "sd"}.}
 }
 \value{
 Depends on \code{what}; see above.

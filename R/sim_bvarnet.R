@@ -539,6 +539,22 @@ assemble_long_df <- function(Y, X_cov, N, T_obs, p, q) {
 # compare_to_truth() — compare fitted parameters to generating truth
 # ──────────────────────────────────────────────────────────────────────────────
 
+#' @keywords internal
+#' @noRd
+.compare_row <- function(par_label, node, true_val, d, alpha_lo, alpha_hi, par_name) {
+  data.frame(
+    parameter  = par_label,
+    node       = node,
+    true_value = true_val,
+    post_mean  = mean(d),
+    post_sd    = sd(d),
+    ci_lower   = unname(quantile(d, alpha_lo)),
+    ci_upper   = unname(quantile(d, alpha_hi)),
+    .stan_name = par_name,
+    stringsAsFactors = FALSE
+  )
+}
+
 #' Compare fitted model parameters to simulation truth
 #'
 #' Extracts posterior summaries from a fitted \code{bvarnet} object and
@@ -546,7 +562,9 @@ assemble_long_df <- function(Y, X_cov, N, T_obs, p, q) {
 #'
 #' @param fit A fitted \code{bvarnet} object (output from \code{bvar()}).
 #' @param truth The \code{truth} component from \code{sim_var()} output.
-#' @param ci_width Numeric. Width of the credible interval (default 0.90).
+#' @param ci_width Numeric scalar strictly between 0 and 1. Mass of the
+#'   equal-tailed credible interval used for \code{ci_lower}, \code{ci_upper},
+#'   and the \code{covered} indicator (default 0.95).
 #' @param bayes_factor Logical; if \code{TRUE}, compute Savage-Dickey BFs for
 #'   beta and phi parameters and append \code{BF01}, \code{BF10}, and
 #'   \code{bf_correct} columns.  \code{bf_correct} is \code{TRUE} when BF01 > 1
@@ -560,12 +578,13 @@ assemble_long_df <- function(Y, X_cov, N, T_obs, p, q) {
 #'   BF01, BF10, bf_correct.
 #'
 #' @export
-compare_to_truth <- function(fit, truth, ci_width = 0.90,
+compare_to_truth <- function(fit, truth, ci_width = 0.95,
                              bayes_factor = FALSE, null_value = 0) {
   stopifnot(inherits(fit, "bvarnet"))
 
-  alpha_lo <- (1 - ci_width) / 2
-  alpha_hi <- 1 - alpha_lo
+  probs    <- .ci_probs(ci_width, "ci_width")
+  alpha_lo <- probs[1L]
+  alpha_hi <- probs[2L]
   p <- truth$p
   family_vec <- truth$family
   if (length(family_vec) == 1L)
@@ -603,16 +622,9 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
         par_label <- paste0("gamma_", gamma_idx)
       }
 
-      results[[length(results) + 1L]] <- data.frame(
-        parameter  = par_label,
-        node       = node,
-        true_value = true_val,
-        post_mean  = mean(d),
-        post_sd    = sd(d),
-        ci_lower   = unname(quantile(d, alpha_lo)),
-        ci_upper   = unname(quantile(d, alpha_hi)),
-        .stan_name = par_name,
-        stringsAsFactors = FALSE
+      results[[length(results) + 1L]] <- .compare_row(
+        par_label = par_label, node = node, true_val = true_val,
+        d = d, alpha_lo = alpha_lo, alpha_hi = alpha_hi, par_name = par_name
       )
     }
   }
@@ -626,16 +638,9 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
       d <- draws_phi[, par_name]
       true_val <- truth$Phi[lag_idx, node]
 
-      results[[length(results) + 1L]] <- data.frame(
-        parameter  = "phi",
-        node       = node,
-        true_value = true_val,
-        post_mean  = mean(d),
-        post_sd    = sd(d),
-        ci_lower   = unname(quantile(d, alpha_lo)),
-        ci_upper   = unname(quantile(d, alpha_hi)),
-        .stan_name = par_name,
-        stringsAsFactors = FALSE
+      results[[length(results) + 1L]] <- .compare_row(
+        par_label = "phi", node = node, true_val = true_val,
+        d = d, alpha_lo = alpha_lo, alpha_hi = alpha_hi, par_name = par_name
       )
     }
   }
@@ -648,16 +653,9 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
       par_name <- paste0("sigma[", node, "]")
       d <- draws_sigma[, par_name]
 
-      results[[length(results) + 1L]] <- data.frame(
-        parameter  = "sigma",
-        node       = node,
-        true_value = truth$sigma[node],
-        post_mean  = mean(d),
-        post_sd    = sd(d),
-        ci_lower   = unname(quantile(d, alpha_lo)),
-        ci_upper   = unname(quantile(d, alpha_hi)),
-        .stan_name = par_name,
-        stringsAsFactors = FALSE
+      results[[length(results) + 1L]] <- .compare_row(
+        par_label = "sigma", node = node, true_val = truth$sigma[node],
+        d = d, alpha_lo = alpha_lo, alpha_hi = alpha_hi, par_name = par_name
       )
     }
   }
@@ -672,16 +670,9 @@ compare_to_truth <- function(fit, truth, ci_width = 0.90,
         par_name <- paste0("kappa[", node, ",", k, "]")
         d <- draws_kappa[, par_name]
 
-        results[[length(results) + 1L]] <- data.frame(
-          parameter  = "kappa",
-          node       = node,
-          true_value = truth$kappa[[node]][k],
-          post_mean  = mean(d),
-          post_sd    = sd(d),
-          ci_lower   = unname(quantile(d, alpha_lo)),
-          ci_upper   = unname(quantile(d, alpha_hi)),
-          .stan_name = par_name,
-          stringsAsFactors = FALSE
+        results[[length(results) + 1L]] <- .compare_row(
+          par_label = "kappa", node = node, true_val = truth$kappa[[node]][k],
+          d = d, alpha_lo = alpha_lo, alpha_hi = alpha_hi, par_name = par_name
         )
       }
     }
