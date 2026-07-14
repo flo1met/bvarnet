@@ -107,19 +107,35 @@ Default \code{FALSE}.}
 \code{iter_sampling}, \code{chains}, \code{parallel_chains},
 \code{adapt_delta}, \code{max_treedepth}, and CmdStanR's deprecated
 aliases for them) are rejected with an error; use the corresponding
-\code{bvar()} argument instead. In the mixed-family case these are
-applied to every per-node fit.}
+\code{bvar()} argument instead.}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-\code{priors}. If \code{save_data = TRUE}, also includes
-\code{data_used} (the cleaned estimation data frame).
+\code{priors}, \code{priors_effective}. If \code{save_data = TRUE}, also
+includes \code{data_used} (the cleaned estimation data frame).
 }
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 }
+\section{Requested versus effective priors}{
+
+\code{priors} holds the priors as you specified them. \code{priors_effective}
+holds the priors Stan actually sampled under: one \code{bvarnet_priors}
+object per outcome. The two differ for Gaussian outcomes left at their
+default priors, where \code{intercept}, \code{beta} and \code{sigma} scales
+are multiplied by the outcome SD so that unit-scale defaults stay weakly
+informative on the raw data scale. User-supplied priors are never rescaled.
+
+Bayes factors (\code{\link{bf_table}}) divide by \code{priors_effective},
+as the Savage-Dickey density ratio requires. Note that the joint path
+(\code{family} a single value) scales every outcome by the mean SD across
+outcomes, whereas the nodewise path (mixed \code{family}) scales each outcome
+by its own SD, so the same data can imply slightly different effective priors
+depending on which path runs.
+}
+
 \examples{
 \dontrun{
 # Run bvar on studentlife data

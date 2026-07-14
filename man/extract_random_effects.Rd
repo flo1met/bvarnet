@@ -35,3 +35,15 @@ Returns random-effect standard deviations (group-level variance),
 subject-level posterior means, or the full posterior draws of the
 subject-level random effects \code{u}.
 }
+\section{Array layout}{
+
+The \code{"mean_u"} and \code{"draws_u"} arrays are indexed
+\code{[node, subject, re]} (with a leading \code{draw} dimension for
+\code{"draws_u"}), matching the Stan declaration
+\code{array[p] matrix[J, n_re] u}. \code{node} is named after the outcome
+columns, \code{subject} after the subject index \code{1..J}, and \code{re}
+after the random-effect design columns. Elements are placed by parsing the
+\code{u[node, subject, re]} indices from the draws, so the layout is the same
+whether the model was fitted through the joint or the nodewise path.
+}
+

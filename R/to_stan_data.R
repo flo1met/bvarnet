@@ -1,3 +1,32 @@
+#' Apply the data-dependent default-prior scaling
+#'
+#' Gaussian outcomes are modelled on their raw scale, so the unit-scale default
+#' priors on \code{beta}, \code{intercept} and \code{sigma} are widened by the
+#' outcome SD. User-supplied priors are taken at face value and never rescaled.
+#'
+#' This is the single definition of the scaling rule. Both \code{to_stan_data()}
+#' and \code{.to_stan_data_node()} call it, and the result is the *effective*
+#' prior that Stan actually samples under — the one \code{savage_dickey()} must
+#' use as the Savage-Dickey denominator.
+#'
+#' @param priors A \code{bvarnet_priors} object.
+#' @param family Character scalar.
+#' @param s_y Numeric scalar. The outcome SD to scale by.
+#'
+#' @return A \code{bvarnet_priors} object, scaled where applicable.
+#' @keywords internal
+#' @noRd
+.scale_default_priors <- function(priors, family, s_y) {
+  if (family != "gaussian" || !is.finite(s_y) || s_y <= 0) return(priors)
+
+  for (par in c("beta", "intercept", "sigma"))
+    if (isTRUE(priors[[par]]$is_default))
+      priors[[par]]$scale <- priors[[par]]$scale * s_y
+
+  priors
+}
+
+
 #' Build a Stan data list from a long-format data frame
 #'
 #' Internal function called by \code{bvar()}. Constructs the list passed to
@@ -79,15 +108,10 @@ to_stan_data <- function(data,
     }
   }
 
-  ## Data-dependent scaling for Gaussian
-  if (family == "gaussian") {
-    s_y <- mean(apply(Y, 2, sd, na.rm = TRUE))
-    if (is.finite(s_y) && s_y > 0) {
-      if (priors$beta$is_default)      priors$beta$scale      <- priors$beta$scale      * s_y
-      if (priors$intercept$is_default) priors$intercept$scale <- priors$intercept$scale * s_y
-      if (priors$sigma$is_default)     priors$sigma$scale     <- priors$sigma$scale     * s_y
-    }
-  }
+  ## Data-dependent scaling for Gaussian. The joint path shares one s_y across
+  ## all outcomes; .to_stan_data_node() scales per node.
+  priors <- .scale_default_priors(priors, family,
+                                  s_y = mean(apply(Y, 2, sd, na.rm = TRUE)))
 
   ## Rebuild Z from the (possibly stripped) X
   Z <- build_Z(X, shared$B, re_cols = re_cols, re_temporal = re_temporal)
@@ -155,6 +179,11 @@ to_stan_data <- function(data,
     out$intercept_scale     <- priors$intercept$scale
     out$intercept_df        <- priors$intercept$df
   }
+
+  # An attribute, not a list element: bvar() filters standata by name before
+  # $sample(), but .bvar_nodewise() passes its node data list through
+  # unfiltered, and cmdstanr serialises names() only.
+  attr(out, "priors_effective") <- priors
 
   return(out)
 }
@@ -361,15 +390,7 @@ to_stan_data <- function(data,
                                        shared$design_spec$re_interactions)
 
   # Per-node Gaussian prior scaling (D3)
-  node_priors <- priors
-  if (family == "gaussian") {
-    s_y <- sd(Y_node, na.rm = TRUE)
-    if (is.finite(s_y) && s_y > 0) {
-      if (node_priors$beta$is_default)      node_priors$beta$scale      <- node_priors$beta$scale      * s_y
-      if (node_priors$intercept$is_default) node_priors$intercept$scale <- node_priors$intercept$scale * s_y
-      if (node_priors$sigma$is_default)     node_priors$sigma$scale     <- node_priors$sigma$scale     * s_y
-    }
-  }
+  node_priors <- .scale_default_priors(priors, family, s_y = sd(Y_node, na.rm = TRUE))
 
   # Abused K: Stan sees p=1, so K_node = p_full * K_orig to keep B correct
   K_node <- shared$p * shared$K
@@ -421,6 +442,9 @@ to_stan_data <- function(data,
     out$kappa_scale <- node_priors$kappa$scale
     out$kappa_df   <- node_priors$kappa$df
   }
+
+  # See to_stan_data(): carried as an attribute so it never reaches Stan's JSON.
+  attr(out, "priors_effective") <- node_priors
 
   out
 }

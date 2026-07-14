@@ -62,7 +62,7 @@
 .bvarnet_sample_partial_pool <- function() {
   if (!requireNamespace("cmdstanr", quietly = TRUE)) return(character(0))
   sample_method <- tryCatch(
-    getFromNamespace("CmdStanModel", "cmdstanr")$public_methods$sample,
+    utils::getFromNamespace("CmdStanModel", "cmdstanr")$public_methods$sample,
     error = function(e) NULL
   )
   if (is.null(sample_method)) return(character(0))
@@ -251,6 +251,39 @@ build_summary_table <- function(draws, row_names, col_names, type,
 }
 
 
+## ---- random-effect SD summary table (sd_u) ----
+## Labels rows by parsing the [node, re] indices out of the Stan names rather
+## than by column position. sd_u is declared matrix[p, n_re], so the joint path
+## emits it node-fastest while .combine_nodewise_fits() binds node-slowest;
+## only a name-based mapping is correct for both.
+#' @keywords internal
+#' @noRd
+.sd_u_summary_table <- function(object, probs) {
+  nm       <- get_param_names(object$standata)
+  draws_sd <- extract_draws(object, "sd_u")
+  cn       <- colnames(draws_sd)
+
+  ix <- .stan_indices(cn)   # columns: node, re
+  if (ncol(ix) != 2L)
+    stop("Expected two indices in 'sd_u[...]' parameter names.", call. = FALSE)
+
+  s   <- .summarize_draws(draws_sd, probs)
+  tab <- data.frame(
+    type      = "Random Effect SD",
+    predictor = nm$y[ix[, 1L]],
+    outcome   = nm$re[ix[, 2L]],
+    mean      = s$mean,
+    median    = s$median,
+    ci_lower  = s$ci_lower,
+    ci_upper  = s$ci_upper,
+    stringsAsFactors = FALSE
+  )
+  tab <- .join_convergence(tab, cn, object$convergence)
+  rownames(tab) <- NULL
+  tab
+}
+
+
 ## ---- extract posterior draws as a matrix (Stan column names preserved) ----
 #' Extract raw posterior draws for a single parameter block
 #'
@@ -294,9 +327,10 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
 #' \code{[draw, node, subject, re]} matching the Stan declaration
 #' \code{array[p] matrix[J, n_re] u}.
 #'
-#' CmdStan flattens \code{array[p] matrix[J, n_re] u} as
-#' \code{u[node, subject, re]} in column-major order within each array
-#' element, i.e. \code{u[1,1,1], u[1,1,2], ..., u[1,J,n_re], u[2,1,1], ...}.
+#' Columns are located by parsing the \code{[node, subject, re]} indices out of
+#' the Stan parameter names, never by position: CmdStan flattens every index
+#' column-major with the first index fastest (\code{u[1,1,1], u[2,1,1],
+#' u[1,2,1], ...}), while \code{.combine_nodewise_fits()} binds node-outer.
 #'
 #' @param object A \code{bvarnet} object.
 #' @return A 4D array with dimensions
@@ -332,24 +366,20 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
   S <- prod(dim(chunk)[1:2])
   dim(chunk) <- c(S, length(idx))
 
-  # CmdStan order for array[p] matrix[J, n_re]:
-  #   fastest-varying = re (col of matrix), then subject (row of matrix),
-  #   then node (array index).
-  # So the flat order is: u[1,1,1], u[1,1,2], ..., u[1,1,n_re],
-  #                        u[1,2,1], ..., u[1,J,n_re],
-  #                        u[2,1,1], ...
-  # Reshape: chunk is S x (p * J * n_re).
-  # We want out[draw, node, subject, re].
+  ix <- .stan_indices(dimnames(draws)[[3]][idx])   # columns: node, subject, re
+  if (ncol(ix) != 3L)
+    stop("Expected three indices in 'u[...]' parameter names.", call. = FALSE)
+  if (any(ix[, 1L] > p) || any(ix[, 2L] > J) || any(ix[, 3L] > n_re) || any(ix < 1L))
+    stop("A 'u[...]' index is out of range for (p, J, n_re).", call. = FALSE)
+
   out <- array(NA_real_, dim = c(S, p, J, n_re))
-  col <- 0L
-  for (node in seq_len(p)) {
-    for (subj in seq_len(J)) {
-      for (re in seq_len(n_re)) {
-        col <- col + 1L
-        out[, node, subj, re] <- chunk[, col]
-      }
-    }
-  }
+  for (k in seq_along(idx))
+    out[, ix[k, 1L], ix[k, 2L], ix[k, 3L]] <- chunk[, k]
+
+  # A duplicate or missing index would leave a cell unfilled.
+  if (anyNA(out))
+    stop("Posterior draws do not cover every u[node, subject, re] element.",
+         call. = FALSE)
 
   dimnames(out) <- list(
     draw    = NULL,
@@ -375,6 +405,28 @@ extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", 
   u_draws <- .extract_u_draws(object)   # [S, p, J, n_re]
   # Average over the draw dimension (dim 1)
   apply(u_draws, c(2, 3, 4), mean)
+}
+
+
+## ---- disclose data-dependent prior scaling ----
+## Default Gaussian priors are widened by the outcome SD before they reach Stan
+## (see .scale_default_priors()). Printing only the requested scale would hide
+## that, so report the effective one whenever it differs.
+#' @keywords internal
+#' @noRd
+.effective_scale_note <- function(x, nm) {
+  pe <- x$priors_effective
+  if (is.null(pe) || is.null(x$priors[[nm]])) return("")
+
+  base <- x$priors[[nm]]$scale
+  eff  <- vapply(pe, function(p) p[[nm]]$scale %||% NA_real_, numeric(1L))
+  eff  <- unique(eff[!is.na(eff)])
+  if (length(eff) == 0L || all(abs(eff - base) < 1e-8)) return("")
+
+  if (length(eff) == 1L)
+    sprintf("  [scaled by sd(y) to %g]", eff)
+  else
+    sprintf("  [scaled by sd(y) to %g-%g across nodes]", min(eff), max(eff))
 }
 
 
@@ -471,14 +523,16 @@ print.bvarnet <- function(x, ...) {
       x$priors[priors_to_show],
       function(p) isTRUE(p$is_default), logical(1)
     ))
+    notes <- vapply(priors_to_show, .effective_scale_note, character(1L), x = x)
 
-    if (any_user) {
+    if (any_user || any(nzchar(notes))) {
       # Show each prior on its own line with (default) tags
       cat("Priors:\n")
       for (nm in priors_to_show) {
         half <- nm %in% half_pars
         tag <- if (isTRUE(x$priors[[nm]]$is_default)) "  (default)" else ""
-        cat(sprintf("  %-6s ~ %s%s\n", nm, format(x$priors[[nm]], half = half), tag))
+        cat(sprintf("  %-9s ~ %s%s%s\n", nm, format(x$priors[[nm]], half = half),
+                    tag, notes[[nm]]))
       }
     } else {
       # All defaults — compact single line

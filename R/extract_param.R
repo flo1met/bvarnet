@@ -109,12 +109,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   phi_tab <- join_convergence(phi_tab, colnames(draws_phi))
 
   # ---------- Random-effect SDs (sd_u) ----------
-  re_sd_tab <- if (sd$n_re > 0) {
-    draws_sd <- extract_draws(object, "sd_u")
-    tab      <- build_summary_table(draws_sd, nm$y, nm$re, "Random Effect SD",
-                                    probs = probs)
-    join_convergence(tab, colnames(draws_sd))
-  } else NULL
+  re_sd_tab <- if (sd$n_re > 0) .sd_u_summary_table(object, probs) else NULL
 
   # ---------- Residual SD (sigma, gaussian only) ----------
   gauss_idx <- .family_which(object, "gaussian")

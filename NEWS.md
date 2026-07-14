@@ -1,8 +1,22 @@
 # bvarnet 1.0.1.9000
 
-* Minor bug and documentation fixes.
+## New features
 * Introduce toolchain free installation via `bvarnet_setup_models()`.
+
+## Bug fixes affecting results
+
+* Fixed automatic scaling of Gaussian default priors and related misscalulation of BFs 
+* Fixed that `extract_random_effects(what = "mean_u")` and `what = "draws_u"` returned scrambled subject estimates and RE mislabeling in mixed-family fits.
 * Change default CI to 95% and introduce argument to vary CI width.
+
+
+## Other changes
+
+* Defined the `%||%` operator internally.
+* `print()` now reports the effective scale of default Gaussian priors, which
+  are widened by the outcome SD before reaching Stan. Previously this scaling
+  was invisible.
+* Minor bug and documentation fixes.
 * `bvar()` gains `...`, forwarding additional arguments (e.g. `init`, `refresh`,
   `thin`, `step_size`) to CmdStanR's `$sample()` method. 
 

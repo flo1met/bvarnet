@@ -59,8 +59,23 @@
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-#'   \code{priors}. If \code{save_data = TRUE}, also includes
-#'   \code{data_used} (the cleaned estimation data frame).
+#'   \code{priors}, \code{priors_effective}. If \code{save_data = TRUE}, also
+#'   includes \code{data_used} (the cleaned estimation data frame).
+#'
+#' @section Requested versus effective priors:
+#' \code{priors} holds the priors as you specified them. \code{priors_effective}
+#' holds the priors Stan actually sampled under: one \code{bvarnet_priors}
+#' object per outcome. The two differ for Gaussian outcomes left at their
+#' default priors, where \code{intercept}, \code{beta} and \code{sigma} scales
+#' are multiplied by the outcome SD so that unit-scale defaults stay weakly
+#' informative on the raw data scale. User-supplied priors are never rescaled.
+#'
+#' Bayes factors (\code{\link{bf_table}}) divide by \code{priors_effective},
+#' as the Savage-Dickey density ratio requires. Note that the joint path
+#' (\code{family} a single value) scales every outcome by the mean SD across
+#' outcomes, whereas the nodewise path (mixed \code{family}) scales each outcome
+#' by its own SD, so the same data can imply slightly different effective priors
+#' depending on which path runs.
 #'
 #' @seealso \code{\link{bvarnet_setup_models}}, which must be run once before
 #'   the first \code{bvar()} call to set up the required Stan models (either
@@ -221,6 +236,12 @@ bvar <- function(id_col,
       family        = family_vec,
       standata      = standata,
       priors        = priors,
+      # One s_y scales every outcome in the joint path, so all nodes share the
+      # same effective prior. Stored per node anyway, to match the mixed path.
+      priors_effective = stats::setNames(
+        rep(list(attr(standata, "priors_effective")), length(family_vec)),
+        names(family_vec)
+      ),
       priors_needed = priors_needed,
       data_used     = standata$data_used
     ),
@@ -305,14 +326,19 @@ bvar <- function(id_col,
   # whole loop rather than per iteration (many $sample() calls happen here).
   cache_dir <- Find(Negate(is.null), lapply(resolved, `[[`, "cache_dir"))
 
+  # Built up front rather than inside run_sampling(): each node scales the
+  # default Gaussian priors by its own sd(Y_node), and those effective priors
+  # have to reach the fitted object for savage_dickey() to use.
+  sd_nodes <- lapply(seq_len(p), function(j)
+    .to_stan_data_node(shared, j, family_vec[j], priors))
+
   run_sampling <- function() {
     out <- vector("list", p)
     for (j in seq_len(p)) {
-      sd_node <- .to_stan_data_node(shared, j, family_vec[j], priors)
       node_dots <- .bvarnet_node_dots(dots, j)
       out[[j]] <- do.call(resolved[[j]]$model$sample, c(
         list(
-          data            = sd_node,
+          data            = sd_nodes[[j]],
           seed            = seed,
           iter_warmup     = warmup,
           iter_sampling   = iter,
@@ -333,8 +359,11 @@ bvar <- function(id_col,
   }
 
   # --- Combine into bvarnet object ---
-  .combine_nodewise_fits(fits, family_vec, shared, priors, priors_needed,
-                         iter, chains)
+  priors_effective <- stats::setNames(
+    lapply(sd_nodes, attr, "priors_effective"), names(family_vec)
+  )
+  .combine_nodewise_fits(fits, family_vec, shared, priors, priors_effective,
+                         priors_needed, iter, chains)
 }
 
 
@@ -342,7 +371,8 @@ bvar <- function(id_col,
 
 #' @keywords internal
 .combine_nodewise_fits <- function(fits, family_vec, shared, priors,
-                                   priors_needed, iter, chains) {
+                                   priors_effective, priors_needed,
+                                   iter, chains) {
   p <- length(family_vec)
   n_fe_full <- shared$n_fe   # includes Intercept
 
@@ -457,6 +487,8 @@ bvar <- function(id_col,
       family           = family_vec,
       standata         = standata_full,
       priors           = priors,
+      # Per node: each Gaussian node scaled its defaults by its own sd(Y_node).
+      priors_effective = priors_effective,
       priors_needed    = priors_needed,
       data_used        = shared$data_used
     ),

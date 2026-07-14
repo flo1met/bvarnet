@@ -77,6 +77,16 @@ extract_temporal <- function(object,
 #'
 #' @return Depends on \code{what}; see above.
 #'
+#' @section Array layout:
+#' The \code{"mean_u"} and \code{"draws_u"} arrays are indexed
+#' \code{[node, subject, re]} (with a leading \code{draw} dimension for
+#' \code{"draws_u"}), matching the Stan declaration
+#' \code{array[p] matrix[J, n_re] u}. \code{node} is named after the outcome
+#' columns, \code{subject} after the subject index \code{1..J}, and \code{re}
+#' after the random-effect design columns. Elements are placed by parsing the
+#' \code{u[node, subject, re]} indices from the draws, so the layout is the same
+#' whether the model was fitted through the joint or the nodewise path.
+#'
 #' @export
 extract_random_effects <- function(object,
                                    what = c("sd", "mean_u", "draws_u"),
@@ -90,16 +100,7 @@ extract_random_effects <- function(object,
     stop("No random effects in this model (n_re = 0).", call. = FALSE)
 
   switch(what,
-    sd = {
-      sdta     <- object$standata
-      nm       <- get_param_names(sdta)
-      draws_sd <- extract_draws(object, "sd_u")
-      tab      <- build_summary_table(draws_sd, nm$y, nm$re, "Random Effect SD",
-                                      ci_level = ci_level)
-      tab      <- .join_convergence(tab, colnames(draws_sd), object$convergence)
-      rownames(tab) <- NULL
-      tab
-    },
+    sd = .sd_u_summary_table(object, .ci_probs(ci_level)),
     mean_u = .posterior_mean_u(object),
     draws_u = .extract_u_draws(object)
   )
