@@ -220,6 +220,27 @@ to_stan_data <- function(data,
     data <- data[complete, , drop = FALSE]
   }
 
+  # check for duplicated (id, time) rows
+  key <- interaction(data[[id_col]], data[[time_col]], drop = TRUE, lex.order = TRUE)
+  dup <- duplicated(key) | duplicated(key, fromLast = TRUE)
+  if (any(dup)) {
+    ex <- unique(data[dup, c(id_col, time_col), drop = FALSE])
+    ex <- ex[order(ex[[id_col]], ex[[time_col]]), , drop = FALSE]
+    n_show <- min(5L, nrow(ex))
+    pairs <- paste(sprintf("(%s=%s, %s=%s)",
+                           id_col, as.character(ex[[id_col]][seq_len(n_show)]),
+                           time_col, as.character(ex[[time_col]][seq_len(n_show)])),
+                   collapse = "; ")
+    stop(sprintf(
+      paste0("Duplicate (%s, %s) rows found: %d row(s) at %d time point(s). ",
+             "Each (id, time) must be unique",
+             "Deduplicate or aggregate to one row per (id, time) before ",
+             "fitting.%s First: %s"),
+      id_col, time_col, sum(dup), nrow(ex),
+      if (nrow(ex) > n_show) sprintf(" (%d shown)", n_show) else "",
+      pairs), call. = FALSE)
+  }
+
   ids_unique <- unique(data[[id_col]])
   J <- length(ids_unique)
   p <- length(y_cols)

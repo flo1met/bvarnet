@@ -280,6 +280,43 @@ test_that("skip_lag = FALSE removes rows with time gaps", {
 })
 
 
+test_that("duplicate (id, time) rows are rejected", {
+  df <- make_test_df(N = 2, T_obs = 6, p = 2, family = "bernoulli")
+
+  # Duplicate one (id, time) pair
+  dup <- df[df$id == 1 & df$t == 3, , drop = FALSE]
+  df_dup <- rbind(df, dup)
+
+  expect_error(
+    to_stan_data(df_dup, "bernoulli", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE),
+    regexp = "Duplicate \\(id, t\\) rows found"
+  )
+})
+
+
+test_that("duplicate check ignores gaps and NA-deleted duplicates", {
+  df <- make_test_df(N = 1, T_obs = 8, p = 2, family = "gaussian")
+
+  # (a) a genuine irregular gap must NOT trigger the duplicate error
+  df_gap <- df[df$t != 4, ]
+  expect_no_error(
+    to_stan_data(df_gap, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE)
+  )
+
+  # (b) a duplicated (id, time) whose second copy is dropped by listwise
+  #     NA deletion must NOT trigger the error (it never enters the design)
+  dup <- df[df$t == 3, , drop = FALSE]
+  dup$y_1 <- NA_real_
+  df_na <- rbind(df, dup)
+  expect_no_error(
+    to_stan_data(df_na, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE)
+  )
+})
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # §7 Subject ID mapping
 # ═══════════════════════════════════════════════════════════════════════════════
