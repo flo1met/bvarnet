@@ -3,7 +3,8 @@
 #' The `bvar` function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 #'
 #' @param id_col Character. Name of the subject/group identifier column.
-#' @param time_col Character. Name of the time column.
+#' @param time_col Character. Name of the time column. Must be integer-valued
+#'   (one time unit = one lag step); non-integer values error.
 #' @param y_cols Character vector. Names of the outcome columns.
 #' @param x_cols Character vector or NULL. Names of the covariate columns.
 #' @param center_x Logical. Grand-mean centre covariates before fitting?
@@ -20,7 +21,9 @@
 #' @param na_action Character. Missing-data strategy; currently only
 #'   \code{"listwise"}.
 #' @param skip_lag Logical. If \code{TRUE} (default), rows with irregular time
-#'   gaps have their lag set to zero rather than being dropped.
+#'   gaps have their lag predictors zero-filled rather than being dropped. For
+#'   this, `time_col` should be scaled so that each step has a length of one
+#'   (e.g., integer days, weeks, or months). Non-integer values error.
 #' @param data Data frame in long format.
 #' @param family Character scalar or vector. Observation model per node.
 #'   A scalar is recycled to all \code{y_cols}. A vector of length

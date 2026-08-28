@@ -317,6 +317,80 @@ test_that("duplicate check ignores gaps and NA-deleted duplicates", {
 })
 
 
+test_that("non-integer time column errors; rescaling to integer steps succeeds", {
+  df <- data.frame(id = 1L, t = seq(0.5, 3, by = 0.5),
+                   y_1 = rnorm(6), y_2 = rnorm(6))
+
+  expect_error(
+    to_stan_data(df, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1),
+    regexp = "integer-valued"
+  )
+
+  df_rescaled <- df
+  df_rescaled$t <- df_rescaled$t / 0.5  # 1, 2, ..., 6
+  expect_no_error(
+    to_stan_data(df_rescaled, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1)
+  )
+})
+
+
+test_that("float-noise integers are snapped and not treated as gaps", {
+  tt <- cumsum(rep(0.1, 60)) * 10  # nominally 1..60, off by ~1e-13
+  df <- data.frame(id = rep(1:6, each = 10), t = tt,
+                   y_1 = rnorm(60), y_2 = rnorm(60))
+
+  sd <- to_stan_data(df, "gaussian", "id", "t",
+                     paste0("y_", 1:2), character(0), K = 1)
+
+  expect_true(all(sd$B != 0))
+})
+
+
+test_that("no valid lag at all errors with an identifiability message", {
+  # Uniform step of 2: passes the integer-grid check but never yields a
+  # consecutive lag at K = 1.
+  df <- data.frame(id = 1L, t = seq(2, 20, by = 2),
+                   y_1 = rnorm(10), y_2 = rnorm(10))
+
+  expect_error(
+    to_stan_data(df, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE),
+    regexp = "not identified"
+  )
+
+  # skip_lag = FALSE hits the pre-existing "all rows removed" guard instead
+  expect_error(
+    to_stan_data(df, "gaussian", "id", "t",
+                 paste0("y_", 1:2), character(0), K = 1, skip_lag = FALSE),
+    regexp = "All observations removed"
+  )
+})
+
+
+test_that("K >= 2: a partially-gapped row has its whole lag block zeroed", {
+  # t = 1,2,3,5,6,7 (missing 4). At K=2: t=6 has a valid lag-1 (from t=5)
+  # but a missing lag-2 (t=4) -- the all-or-nothing convention zeroes the
+  # whole row, not just the lag-2 block.
+  df <- data.frame(id = 1L, t = c(1, 2, 3, 5, 6, 7),
+                   y_1 = c(10, 20, 30, 50, 60, 70))
+
+  sd <- suppressMessages(
+    to_stan_data(df, "gaussian", "id", "t", "y_1", character(0),
+                 K = 2, skip_lag = TRUE)
+  )
+
+  rownames(sd$B) <- paste0("t=", sd$time_obs)
+
+  expect_true(all(sd$B["t=5", ] == 0))
+  expect_true(all(sd$B["t=6", ] == 0),
+              info = "t=6 has a valid lag-1 but missing lag-2: whole row zeroed")
+  expect_true(all(sd$B["t=3", ] != 0))
+  expect_true(all(sd$B["t=7", ] != 0))
+})
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # §7 Subject ID mapping
 # ═══════════════════════════════════════════════════════════════════════════════

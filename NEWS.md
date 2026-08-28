@@ -19,6 +19,10 @@
 * Minor bug and documentation fixes.
 * `bvar()` gains `...`, forwarding additional arguments (e.g. `init`, `refresh`,
   `thin`, `step_size`) to CmdStanR's `$sample()` method. 
+* Added a safeguard against duplicated `(id, time)` rows, which previously
+  produced an ambiguous, silently-contaminated lag design; these now error
+  with guidance to deduplicate or aggregate.
+* `time_col` must now be integer-valued (one time unit = one lag step).
 
 # bvarnet 1.0.1
 

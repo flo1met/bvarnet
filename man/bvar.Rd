@@ -34,7 +34,8 @@ bvar(
 \arguments{
 \item{id_col}{Character. Name of the subject/group identifier column.}
 
-\item{time_col}{Character. Name of the time column.}
+\item{time_col}{Character. Name of the time column. Must be integer-valued
+(one time unit = one lag step); non-integer values error.}
 
 \item{y_cols}{Character vector. Names of the outcome columns.}
 
@@ -61,7 +62,9 @@ Default \code{FALSE}.}
 \code{"listwise"}.}
 
 \item{skip_lag}{Logical. If \code{TRUE} (default), rows with irregular time
-gaps have their lag set to zero rather than being dropped.}
+gaps have their lag predictors zero-filled rather than being dropped. For
+this, \code{time_col} should be scaled so that each step has a length of one
+(e.g., integer days, weeks, or months). Non-integer values error.}
 
 \item{data}{Data frame in long format.}
 

@@ -47,7 +47,11 @@
 #' @param re_temporal Logical. Random slopes on lag predictors. Default FALSE.
 #' @param K Integer. AR order.
 #' @param na_action Character. Only \code{"listwise"} currently supported.
-#' @param skip_lag Logical. Zero-fill lags across irregular time gaps.
+#' @param skip_lag Logical. If \code{TRUE} (default), rows whose lag is not
+#'   exactly \code{K} consecutive time steps back are kept with their lag
+#'   predictors zero-filled; if \code{FALSE}, such rows are dropped from the
+#'   likelihood entirely. \code{time_col} must be integer-valued (one time
+#'   unit = one lag step); non-integer values error.
 #' @param priors A \code{bvarnet_priors} object. Defaults to \code{set_priors()}.
 #'
 #' @return A named list ready to pass to \code{CmdStanModel$sample()}.
@@ -197,6 +201,9 @@ to_stan_data <- function(data,
 #' family-specific type casting. Used by both \code{to_stan_data()} (joint
 #' path) and \code{.bvar_nodewise()} (mixed path).
 #'
+#' The time column must be integer-valued (one time unit = one lag step);
+#' non-integer values error.
+#'
 #' @return A list with p, J, K, n_obs, n_fe, n_re, id, Y, X, B, Z,
 #'   id_levels, x_center_means, row_map, n_rows_data, design_spec,
 #'   fe_interaction_terms, fe_interaction_colnames.
@@ -220,7 +227,21 @@ to_stan_data <- function(data,
     data <- data[complete, , drop = FALSE]
   }
 
-  # check for duplicated (id, time) rows
+  # Ensure integer only
+  tt <- data[[time_col]]
+  bad <- abs(tt - round(tt)) > 1e-6
+  if (any(bad)) {
+    stop(sprintf(
+      paste0("`%s` must be integer-valued: one time unit = one lag step. ",
+             "Rescale your time column so consecutive observations are 1 ",
+             "apart (e.g. divide by the beep interval). Found non-integer ",
+             "value: %s. Lag construction has no meaning on a non-integer ",
+             "grid."),
+      time_col, format(tt[bad][1])), call. = FALSE)
+  }
+  data[[time_col]] <- round(tt)
+
+  # check for duplicated (id, time) rows 
   key <- interaction(data[[id_col]], data[[time_col]], drop = TRUE, lex.order = TRUE)
   dup <- duplicated(key) | duplicated(key, fromLast = TRUE)
   if (any(dup)) {
@@ -233,7 +254,7 @@ to_stan_data <- function(data,
                    collapse = "; ")
     stop(sprintf(
       paste0("Duplicate (%s, %s) rows found: %d row(s) at %d time point(s). ",
-             "Each (id, time) must be unique",
+             "Each (id, time) must be unique. ",
              "Deduplicate or aggregate to one row per (id, time) before ",
              "fitting.%s First: %s"),
       id_col, time_col, sum(dup), nrow(ex),
@@ -263,6 +284,8 @@ to_stan_data <- function(data,
   id_out <- integer(n_obs)
   time_obs <- rep(NA_real_, n_obs)
   row_map <- integer(n_obs)
+
+  n_gap <- 0L
 
   row <- 0L
   for (jj in seq_len(J)) {
@@ -300,6 +323,8 @@ to_stan_data <- function(data,
       } else if (!skip_lag) {
         row <- row - 1L
         next
+      } else {
+        n_gap <- n_gap + 1L
       }
     }
   }
@@ -319,10 +344,33 @@ to_stan_data <- function(data,
          "Check your data for NAs and irregular time gaps.")
   }
 
+  # Identifiability guard: if every modelled row is a gap row, phi has zero
+  # informative rows and is identified only by its prior
+  if (skip_lag && n_gap == n_obs) {
+    stop(sprintf(
+      paste0("No observation has a valid lag: every modelled row's time ",
+             "gap is irregular for K = %d. `phi` is not identified from ",
+             "the data. Check K and the spacing of `%s`; if your grid is ",
+             "coarser than 1 unit, rescale so one step = 1."),
+      K, time_col), call. = FALSE)
+  }
+
   n_dropped <- n_obs_initial - n_obs
   if (n_dropped > 0) {
     message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
                     n_dropped, na_action, skip_lag, n_obs))
+  }
+  if (skip_lag && n_gap > 0) {
+    k_note <- if (K >= 2) {
+      sprintf(" %d of %d row(s) have all %d lag(s) valid.",
+              n_obs - n_gap, n_obs, K)
+    } else {
+      ""
+    }
+    message(sprintf(
+      paste0("bvarnet: %d of %d row(s) had an irregular time gap; their ",
+             "lag predictors were zero-filled (skip_lag = TRUE).%s"),
+      n_gap, n_obs, k_note))
   }
 
   x_center_means <- NULL
