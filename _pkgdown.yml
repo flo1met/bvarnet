@@ -51,7 +51,7 @@ reference:
     contents:
       - studentlife
 
-    - title: "Model Setup"
+  - title: "Model Setup"
     desc: "Set up and manage precompiled Stan models"
     contents:
       - bvarnet_setup_models
