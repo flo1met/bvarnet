@@ -1,0 +1,29 @@
+bvarnet copyright and third-party software information
+=======================================================
+
+The bvarnet R package and its Stan model source files are copyright
+Florian Metwaly and are licensed under GPL-3.0-or-later.
+
+When the user calls bvarnet_setup_models(method = "download"), bvarnet can
+download a platform-specific archive of precompiled Stan models from:
+
+https://github.com/flo1met/bvarnet/releases
+
+The exact bvarnet and CmdStan versions used for each archive are recorded in
+the release manifest.json file. The archives contain the following
+third-party components:
+
+1. CmdStan stanc
+
+   Copyright: Stan developers and their assignees
+   Source: https://github.com/stan-dev/cmdstan
+   License: BSD-3-Clause
+
+2. Intel Threading Building Blocks (TBB) runtime libraries
+
+   Copyright: Intel Corporation and contributors
+   Source: https://github.com/oneapi-src/oneTBB
+   License: Apache-2.0
+
+The complete license texts applicable to these components, together with the
+TBB third-party notices, are included in every downloadable model archive.

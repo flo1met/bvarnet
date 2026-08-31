@@ -12,6 +12,9 @@
 #     model_ordinal[.exe]         model_ordinal.stan
 #     runtime/makefile            runtime/bin/stanc[.exe]
 #     lib/tbb/<tbb libs>
+#     licenses/CmdStan-LICENSE
+#     licenses/TBB-LICENSE
+#     licenses/TBB-third-party-programs.txt
 #     SHA256SUMS
 #   bvarnet-models-<version>-<platform>.tar.gz   -- the actual release asset
 #   asset-info.json                              -- side-car for the manifest job:
@@ -38,6 +41,7 @@ assemble_model_asset <- function(platform, cmdstan_version, out_dir = "asset-out
   unlink(staging, recursive = TRUE, force = TRUE)
   dir.create(file.path(staging, "runtime", "bin"), recursive = TRUE)
   dir.create(file.path(staging, "lib", "tbb"), recursive = TRUE)
+  dir.create(file.path(staging, "licenses"), recursive = TRUE)
 
   # -- model executables + their .stan sources ---------------------------------
   for (name in model_names) {
@@ -65,6 +69,49 @@ assemble_model_asset <- function(platform, cmdstan_version, out_dir = "asset-out
   tbb_libs <- list.files(tbb_dir, pattern = tbb_pattern, full.names = TRUE)
   stopifnot(length(tbb_libs) > 0L)
   file.copy(tbb_libs, file.path(staging, "lib", "tbb"))
+
+  # -- exact upstream licenses and notices -------------------------------------
+  # Copy these from the pinned CmdStan installation used for this build, rather
+  # than maintaining duplicate license text or fetching files from a moving
+  # upstream branch. The versioned TBB source directory is a sibling of the
+  # runtime-only lib/tbb directory copied above.
+  math_lib_dir <- file.path(cmdstan_dir, "stan", "lib", "stan_math", "lib")
+  tbb_source_dirs <- list.dirs(math_lib_dir, recursive = FALSE, full.names = TRUE)
+  tbb_source_dirs <- tbb_source_dirs[grepl("^tbb_[^/\\\\]+$", basename(tbb_source_dirs))]
+  tbb_source_dirs <- tbb_source_dirs[
+    file.exists(file.path(tbb_source_dirs, "LICENSE")) &
+      file.exists(file.path(tbb_source_dirs, "third-party-programs.txt"))
+  ]
+  if (length(tbb_source_dirs) != 1L) {
+    stop(
+      "Expected exactly one versioned TBB source directory containing LICENSE and ",
+      "third-party-programs.txt under ", math_lib_dir, "; found ",
+      length(tbb_source_dirs), ".",
+      call. = FALSE
+    )
+  }
+
+  license_sources <- c(
+    file.path(cmdstan_dir, "LICENSE"),
+    file.path(tbb_source_dirs, "LICENSE"),
+    file.path(tbb_source_dirs, "third-party-programs.txt")
+  )
+  license_targets <- file.path(
+    staging,
+    "licenses",
+    c("CmdStan-LICENSE", "TBB-LICENSE", "TBB-third-party-programs.txt")
+  )
+  if (!all(file.exists(license_sources))) {
+    stop(
+      "Missing upstream license or notice file(s): ",
+      paste(license_sources[!file.exists(license_sources)], collapse = ", "),
+      call. = FALSE
+    )
+  }
+  copied <- file.copy(license_sources, license_targets, overwrite = TRUE)
+  if (!all(copied) || any(file.info(license_targets)$size <= 0L)) {
+    stop("Failed to stage complete upstream license and notice files.", call. = FALSE)
+  }
 
   # -- SHA256SUMS over every staged file (client verifies before exec'ing) -----
   all_files <- list.files(staging, recursive = TRUE, full.names = FALSE)

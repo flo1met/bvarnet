@@ -9,6 +9,7 @@ Description: Bayesian estimation of multilevel Vector Autoregression (VAR) model
     using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category) outcome
     variables with random effects and customizable priors.
 License: GPL (>= 3)
+Copyright: file inst/COPYRIGHTS
 Encoding: UTF-8
 URL: https://flo1met.github.io/bvarnet/, https://github.com/flo1met/bvarnet
 BugReports: https://github.com/flo1met/bvarnet/issues
