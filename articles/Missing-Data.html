@@ -91,21 +91,21 @@ missing values:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">studentlife</span><span class="op">)</span></span>
 <span><span class="co">#&gt; # A tibble: 6 × 76</span></span>
-<span><span class="co">#&gt;      id   day happy happyornot   sad sadornot social_number stress_level sleep_hour sleep_quality difficult_stay_awake</span></span>
-<span><span class="co">#&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;      &lt;int&gt; &lt;dbl&gt;    &lt;dbl&gt;         &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;                &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1     0     1    NA         NA    NA       NA         NA               3       7.5           1.5                     0</span></span>
-<span><span class="co">#&gt; 2     0     2    NA         NA    NA       NA          4               2       5.33          2.33                    0</span></span>
-<span><span class="co">#&gt; 3     0     4    NA         NA    NA       NA          2               4       9             2                       0</span></span>
-<span><span class="co">#&gt; 4     0     5    NA         NA    NA       NA          2              NA       3             4                       0</span></span>
-<span><span class="co">#&gt; 5     0     6    NA         NA    NA       NA         NA               1      NA            NA                      NA</span></span>
-<span><span class="co">#&gt; 6     0     7    NA         NA    NA       NA          2.67            2       5             3                       1</span></span>
-<span><span class="co">#&gt; # ℹ 65 more variables: anxious &lt;dbl&gt;, calm &lt;dbl&gt;, conventional &lt;dbl&gt;, critical &lt;dbl&gt;, dependable &lt;dbl&gt;, disorganized &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   enthusiastic &lt;dbl&gt;, open_to_experiences &lt;dbl&gt;, reserved &lt;dbl&gt;, sympathetic &lt;dbl&gt;, act_running_ep_0 &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   act_running_ep_1 &lt;dbl&gt;, act_running_ep_2 &lt;dbl&gt;, act_running_ep_3 &lt;dbl&gt;, act_running_ep_4 &lt;dbl&gt;, act_still_ep_0 &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   act_still_ep_1 &lt;dbl&gt;, act_still_ep_2 &lt;dbl&gt;, act_still_ep_3 &lt;dbl&gt;, act_still_ep_4 &lt;dbl&gt;, act_unknown_ep_0 &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   act_unknown_ep_1 &lt;dbl&gt;, act_unknown_ep_2 &lt;dbl&gt;, act_unknown_ep_3 &lt;dbl&gt;, act_unknown_ep_4 &lt;dbl&gt;, act_walking_ep_0 &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   act_walking_ep_1 &lt;dbl&gt;, act_walking_ep_2 &lt;dbl&gt;, act_walking_ep_3 &lt;dbl&gt;, act_walking_ep_4 &lt;dbl&gt;, act_on_foot_ep_0 &lt;dbl&gt;,</span></span>
-<span><span class="co">#&gt; #   act_on_foot_ep_1 &lt;dbl&gt;, act_on_foot_ep_2 &lt;dbl&gt;, act_on_foot_ep_3 &lt;dbl&gt;, act_on_foot_ep_4 &lt;dbl&gt;, …</span></span></code></pre></div>
+<span><span class="co">#&gt;      id   day happy happyornot   sad sadornot social_number stress_level sleep_hour sleep_quality difficult_stay_awake anxious  calm</span></span>
+<span><span class="co">#&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;      &lt;int&gt; &lt;dbl&gt;    &lt;dbl&gt;         &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;                &lt;int&gt;   &lt;dbl&gt; &lt;dbl&gt;</span></span>
+<span><span class="co">#&gt; 1     0     1    NA         NA    NA       NA         NA               3       7.5           1.5                     0      NA    NA</span></span>
+<span><span class="co">#&gt; 2     0     2    NA         NA    NA       NA          4               2       5.33          2.33                    0      NA    NA</span></span>
+<span><span class="co">#&gt; 3     0     4    NA         NA    NA       NA          2               4       9             2                       0      NA    NA</span></span>
+<span><span class="co">#&gt; 4     0     5    NA         NA    NA       NA          2              NA       3             4                       0      NA    NA</span></span>
+<span><span class="co">#&gt; 5     0     6    NA         NA    NA       NA         NA               1      NA            NA                      NA      NA    NA</span></span>
+<span><span class="co">#&gt; 6     0     7    NA         NA    NA       NA          2.67            2       5             3                       1      NA    NA</span></span>
+<span><span class="co">#&gt; # ℹ 63 more variables: conventional &lt;dbl&gt;, critical &lt;dbl&gt;, dependable &lt;dbl&gt;, disorganized &lt;dbl&gt;, enthusiastic &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   open_to_experiences &lt;dbl&gt;, reserved &lt;dbl&gt;, sympathetic &lt;dbl&gt;, act_running_ep_0 &lt;dbl&gt;, act_running_ep_1 &lt;dbl&gt;, act_running_ep_2 &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   act_running_ep_3 &lt;dbl&gt;, act_running_ep_4 &lt;dbl&gt;, act_still_ep_0 &lt;dbl&gt;, act_still_ep_1 &lt;dbl&gt;, act_still_ep_2 &lt;dbl&gt;, act_still_ep_3 &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   act_still_ep_4 &lt;dbl&gt;, act_unknown_ep_0 &lt;dbl&gt;, act_unknown_ep_1 &lt;dbl&gt;, act_unknown_ep_2 &lt;dbl&gt;, act_unknown_ep_3 &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   act_unknown_ep_4 &lt;dbl&gt;, act_walking_ep_0 &lt;dbl&gt;, act_walking_ep_1 &lt;dbl&gt;, act_walking_ep_2 &lt;dbl&gt;, act_walking_ep_3 &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   act_walking_ep_4 &lt;dbl&gt;, act_on_foot_ep_0 &lt;dbl&gt;, act_on_foot_ep_1 &lt;dbl&gt;, act_on_foot_ep_2 &lt;dbl&gt;, act_on_foot_ep_3 &lt;dbl&gt;,</span></span>
+<span><span class="co">#&gt; #   act_on_foot_ep_4 &lt;dbl&gt;, audio_convo_duration_ep_0 &lt;dbl&gt;, audio_convo_duration_ep_1 &lt;dbl&gt;, audio_convo_duration_ep_2 &lt;dbl&gt;, …</span></span></code></pre></div>
 <p>If we look at the subset of variables that we use in the
 <code>Vignette("bvarnet")</code> c(“anxious”, “calm”, “conventional”,
 “critical”, “dependable”), we see there is approximately
@@ -118,23 +118,43 @@ of missing data:</p>
 <div class="section level2">
 <h2 id="the-skipping-lag-mechanism">The Skipping-Lag Mechanism<a class="anchor" aria-label="anchor" href="#the-skipping-lag-mechanism"></a>
 </h2>
-<p>Currently, <code>bvarnet</code> handles missing data through a
-listwise deletion and skipping lag-mechanism. Listwise deletion is a
-computational simple solution to the missing data problem, but does rely
-on the assumption that data are <em>missing completely at random
-(MCAR)</em>. Violating this assumption may lead to biased parameter
-estimation. In longitudinal settings such as like the Vector
-Autoregressive models, listwise deletion can introduce irregular gaps in
-the observed time series. This violates the modeling assumption of no
-missing time points and equal length of time gaps. To address this
-issue, we introduce a skipping-lag mechanism. Specifically, lagged
-effects are only estimated when the time difference between two
-observations does not exceed a threshold determined by the
-autoregressive order K. That is, for a VAR(K) model, lagged
-relationships are only included if the effective time gap corresponds to
-at most K time steps. In other words, the model excludes the estimation
-of temporal parameters across large time gaps, thereby preserving the
-interpretation of lagged effects as local (short-term) dependencies.</p>
+<p>Before constructing lagged predictors, bvarnet applies listwise
+deletion at the measurement-occasion level. Within each subject, a row
+is removed if any selected outcome or covariate is missing. The subject
+is not removed simply because one or more measurement occasions are
+incomplete. Entirely absent time points and rows removed through
+listwise deletion can therefore create gaps in the remaining time
+series. Listwise deletion is computationally simple, but it reduces the
+available sample size and can produce biased estimates when the retained
+observations differ systematically from the omitted observations.
+Missing completely at random (MCAR) provides a straightforward
+justification for this procedure, although its validity ultimately
+depends on the missingness process, model, and estimand. After listwise
+deletion, bvarnet constructs the lagged predictors. For a
+VAR(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>)
+model, the outcome at time
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+has a valid lag window only when observations are available at every
+required time
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>−</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>t</mi><mo>−</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">t-1,\ldots,t-K</annotation></semantics></math>.
+The time_col variable must therefore be integer-valued, with one unit
+corresponding to one lag step. When skip_lag = TRUE (the default), a
+current observation with an incomplete lag window is retained, but its
+entire set of lagged predictors is set to zero. Consequently, that row
+provides no direct information about the temporal coefficients. It can
+still inform non-temporal components of the model, such as covariate
+effects and non-temporal random effects. In Gaussian and binary models,
+it can also inform the intercept; in ordinal models, it can inform the
+category thresholds. Gaussian observations additionally inform the
+residual standard deviation. When skip_lag = FALSE, a current
+observation with an incomplete lag window is removed from the
+likelihood. Thus, all retained observations have a complete and
+correctly spaced lag window. This prevents effects spanning irregular
+time gaps from being interpreted as ordinary one-step or higher-order
+lagged relationships. This mechanism does not impute missing values or
+recover temporal information from incomplete lag windows. It determines
+whether current observations with unavailable lagged predictors are
+retained for estimating the non-temporal parts of the model.</p>
 </div>
 <div class="section level2">
 <h2 id="comparison-with-and-without-lag-skipping">Comparison: With and Without Lag Skipping<a class="anchor" aria-label="anchor" href="#comparison-with-and-without-lag-skipping"></a>
@@ -197,7 +217,7 @@ mechanism, and once without:</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 4  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  13.0 sec</span></span>
+<span><span class="co">#&gt; Total time:  8.3 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_skip_lag</span><span class="op">)</span></span>
 <span><span class="co">#&gt; BVAR Network fit</span></span>
@@ -210,7 +230,7 @@ mechanism, and once without:</p>
 <span><span class="co">#&gt; Rhat max:    1.001</span></span>
 <span><span class="co">#&gt; Divergences: 2  WARNING: check model/priors.</span></span>
 <span><span class="co">#&gt; Priors:       beta ~ Normal(0, 1), phi ~ Normal(0, 0.5), kappa ~ Normal(0, 2) (all defaults)</span></span>
-<span><span class="co">#&gt; Total time:  20.0 sec</span></span>
+<span><span class="co">#&gt; Total time:  14.7 sec</span></span>
 <span><span class="co">#&gt; ========================================</span></span></code></pre></div>
 <p>Here we get information about the number of variables and lags, the
 number of observations and some first indications if the model did
@@ -219,146 +239,57 @@ converge.</p>
 <code>summary(fit)</code> function:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_no_skip_lag</span><span class="op">)</span></span>
-<span><span class="co">#&gt; BVAR Network Summary</span></span>
-<span><span class="co">#&gt; ================================================== </span></span>
-<span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=67</span></span>
-<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 4</span></span>
-<span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Autoregressive ---</span></span>
-<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_anxious      anxious      0.339 0.338   0.040 0.651 1    14313.98 12663.29</span></span>
-<span><span class="co">#&gt;  lag1_calm         calm         0.272 0.271  -0.032 0.583 1    12597.37 11566.30</span></span>
-<span><span class="co">#&gt;  lag1_conventional conventional 0.704 0.699   0.387 1.037 1    14261.66 11256.07</span></span>
-<span><span class="co">#&gt;  lag1_critical     critical     0.375 0.371   0.132 0.628 1    17694.93 12596.36</span></span>
-<span><span class="co">#&gt;  lag1_dependable   dependable   0.509 0.503   0.256 0.782 1    15301.30 12277.34</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
-<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_calm         anxious      -0.302 -0.300 -0.608 -0.003 1    10483.74 10555.98</span></span>
-<span><span class="co">#&gt;  lag1_conventional anxious       0.214  0.213 -0.090  0.522 1    15024.71 12494.95</span></span>
-<span><span class="co">#&gt;  lag1_critical     anxious       0.131  0.130 -0.110  0.375 1    18724.81 11340.99</span></span>
-<span><span class="co">#&gt;  lag1_dependable   anxious       0.114  0.114 -0.129  0.364 1    14973.68 12577.59</span></span>
-<span><span class="co">#&gt;  lag1_anxious      calm         -0.115 -0.116 -0.426  0.195 1    13347.20 11867.03</span></span>
-<span><span class="co">#&gt;  lag1_conventional calm         -0.226 -0.224 -0.549  0.091 1    13782.69 12198.55</span></span>
-<span><span class="co">#&gt;  lag1_critical     calm         -0.110 -0.111 -0.363  0.146 1    18142.55 12199.66</span></span>
-<span><span class="co">#&gt;  lag1_dependable   calm          0.180  0.177 -0.073  0.442 1    15069.37 11928.87</span></span>
-<span><span class="co">#&gt;  lag1_anxious      conventional -0.156 -0.153 -0.472  0.157 1    13342.76 12063.64</span></span>
-<span><span class="co">#&gt;  lag1_calm         conventional -0.040 -0.040 -0.333  0.253 1    11344.55 12031.13</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Threshold ---</span></span>
-<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  kappa(anxious, c1)      —       -0.699 -0.689 -2.162  0.738 1.000 12338.40 12029.46</span></span>
-<span><span class="co">#&gt;  kappa(calm, c1)         —       -2.297 -2.259 -4.094 -0.655 1.000 12290.58 10066.12</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c1) —       -0.639 -0.631 -2.081  0.774 1.000 14940.93 11881.86</span></span>
-<span><span class="co">#&gt;  kappa(critical, c1)     —       -0.004  0.005 -1.379  1.347 1.000 13376.88 11823.21</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c1)   —       -1.497 -1.482 -2.988 -0.071 1.000 13894.65 11128.82</span></span>
-<span><span class="co">#&gt;  kappa(anxious, c2)      —        1.569  1.569  0.188  2.938 1.000 17380.14 11741.22</span></span>
-<span><span class="co">#&gt;  kappa(calm, c2)         —       -1.036 -1.021 -2.468  0.355 1.000 21368.65 12745.46</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c2) —       -0.146 -0.144 -1.519  1.231 1.001 16691.08 13160.89</span></span>
-<span><span class="co">#&gt;  kappa(critical, c2)     —        0.945  0.939 -0.384  2.291 1.000 15379.49 12143.76</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.631 -0.622 -1.978  0.699 1.001 18780.65 12187.75</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
-<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span>
+<span><span class="co">#&gt; Error in `q[1L, ]`:</span></span>
+<span><span class="co">#&gt; ! incorrect number of dimensions</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">fit_skip_lag</span><span class="op">)</span></span>
-<span><span class="co">#&gt; BVAR Network Summary</span></span>
-<span><span class="co">#&gt; ================================================== </span></span>
-<span><span class="co">#&gt; Family: ordinal | p=5 | K=1 | n=147</span></span>
-<span><span class="co">#&gt; Rhat max: 1.001 | Divergences: 2</span></span>
-<span><span class="co">#&gt;   WARNING: divergent transitions detected — check model/priors.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Autoregressive ---</span></span>
-<span><span class="co">#&gt;  predictor         outcome      mean  median q5     q95   rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_anxious      anxious      0.203 0.203  -0.054 0.460 1    15617.37 12599.58</span></span>
-<span><span class="co">#&gt;  lag1_calm         calm         0.176 0.174  -0.058 0.415 1    13025.39 11190.21</span></span>
-<span><span class="co">#&gt;  lag1_conventional conventional 0.558 0.554   0.280 0.843 1    14346.16 11205.97</span></span>
-<span><span class="co">#&gt;  lag1_critical     critical     0.278 0.277   0.075 0.492 1    18103.80 11283.74</span></span>
-<span><span class="co">#&gt;  lag1_dependable   dependable   0.476 0.473   0.247 0.714 1    15253.27 12152.74</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Cross-lagged ---</span></span>
-<span><span class="co">#&gt;  predictor         outcome      mean   median q5     q95    rhat ess_bulk ess_tail</span></span>
-<span><span class="co">#&gt;  lag1_calm         anxious      -0.308 -0.307 -0.556 -0.069 1    12276.01 12256.25</span></span>
-<span><span class="co">#&gt;  lag1_conventional anxious       0.113  0.112 -0.145  0.375 1    15288.24 12209.56</span></span>
-<span><span class="co">#&gt;  lag1_critical     anxious       0.065  0.065 -0.142  0.273 1    21335.42 11693.19</span></span>
-<span><span class="co">#&gt;  lag1_dependable   anxious       0.054  0.052 -0.158  0.267 1    14645.31 12404.76</span></span>
-<span><span class="co">#&gt;  lag1_anxious      calm         -0.085 -0.085 -0.338  0.168 1    15499.73 13047.83</span></span>
-<span><span class="co">#&gt;  lag1_conventional calm         -0.162 -0.162 -0.423  0.096 1    14847.92 12191.17</span></span>
-<span><span class="co">#&gt;  lag1_critical     calm         -0.077 -0.077 -0.286  0.131 1    20946.54 12223.59</span></span>
-<span><span class="co">#&gt;  lag1_dependable   calm          0.116  0.115 -0.096  0.328 1    15982.24 11988.57</span></span>
-<span><span class="co">#&gt;  lag1_anxious      conventional -0.184 -0.184 -0.462  0.095 1    14348.25 12403.62</span></span>
-<span><span class="co">#&gt;  lag1_calm         conventional -0.105 -0.105 -0.349  0.134 1    12989.52 12059.56</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_temporal(fit, effect = "cl") for full output.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; --- Threshold ---</span></span>
-<span><span class="co">#&gt;  predictor               outcome mean   median q5     q95    rhat  ess_bulk ess_tail </span></span>
-<span><span class="co">#&gt;  kappa(anxious, c1)      —       -1.033 -1.029 -1.470 -0.613 1.000 11123.68  9566.673</span></span>
-<span><span class="co">#&gt;  kappa(calm, c1)         —       -1.300 -1.266 -1.869 -0.848 1.000 14564.11 10916.416</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c1) —       -1.033 -1.012 -1.471 -0.674 1.000 14373.14 11229.523</span></span>
-<span><span class="co">#&gt;  kappa(critical, c1)     —        0.086  0.095 -0.239  0.379 1.000 12541.34 10745.366</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c1)   —       -1.726 -1.680 -2.521 -1.081 1.000 10748.70 10274.783</span></span>
-<span><span class="co">#&gt;  kappa(anxious, c2)      —        0.459  0.464  0.139  0.765 1.000 13762.57 12456.461</span></span>
-<span><span class="co">#&gt;  kappa(calm, c2)         —       -0.884 -0.875 -1.244 -0.552 1.000 18423.96 13368.980</span></span>
-<span><span class="co">#&gt;  kappa(conventional, c2) —       -0.707 -0.710 -1.008 -0.397 1.000 15460.49 10840.830</span></span>
-<span><span class="co">#&gt;  kappa(critical, c2)     —        0.548  0.547  0.298  0.806 1.000 16603.34 12957.191</span></span>
-<span><span class="co">#&gt;  kappa(dependable, c2)   —       -0.859 -0.860 -1.263 -0.456 1.001 10048.09  6937.794</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ... 10 more rows. Use extract_param(fit, type = "Threshold") for full output.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ==================================================</span></span>
-<span><span class="co">#&gt; Use extract_param() or extract_param(fit, type = "...") for the full parameter table.</span></span>
-<span><span class="co">#&gt; Use extract_network_matrix() for the temporal network matrix.</span></span></code></pre></div>
+<span><span class="co">#&gt; Error in `q[1L, ]`:</span></span>
+<span><span class="co">#&gt; ! incorrect number of dimensions</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="why-does-skip_lag-false-produce-fewer-observations">Why does <code>skip_lag = FALSE</code> produce fewer
 observations?<a class="anchor" aria-label="anchor" href="#why-does-skip_lag-false-produce-fewer-observations"></a>
 </h3>
-<p>When <code>skip_lag = FALSE</code>, any row whose previous
-observation is not exactly one time step away lacks a valid lag. Because
-the autoregressive component cannot be computed for that row, the row is
-dropped entirely from the likelihood. This is the conservative choice:
-every observation that remains has a genuine lagged value, so estimates
-of the temporal coefficients
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>)
-are unbiased (given the model).</p>
-<p>When <code>skip_lag = TRUE</code> (the default), those same rows are
-kept. The contribution of the autoregressive effect is set to zero,
-while the outcome is still modeled through the intercept, fixed effects,
-and (if present) random effects. Oly the temporal component is “switched
-off” for that row.</p>
+<p>For the demonstrated VAR(1) model, an observation has a valid lag
+only when an observation is available exactly one time unit earlier.
+More generally, a
+VAR(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>)
+model requires observations at every time
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>−</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>t</mi><mo>−</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">t-1,\ldots,t-K</annotation></semantics></math>.</p>
+<p>When <code>skip_lag = FALSE</code>, a current observation with an
+incomplete lag window is removed from the likelihood. When
+<code>skip_lag = TRUE</code>, the current observation is retained, but
+all its lagged predictors are set to zero. The row therefore provides no
+direct information about the temporal coefficients, temporal random
+effects, or interactions involving lagged predictors. It can still
+inform the non-temporal components of the model.</p>
+<p>The reported number of observations is the number of rows entering
+the likelihood after listwise deletion, removal of the first
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+observations per subject, and application of the selected skip-lag
+rule.</p>
 </div>
 <div class="section level3">
 <h3 id="practical-implications">Practical implications<a class="anchor" aria-label="anchor" href="#practical-implications"></a>
 </h3>
-<p>The two approaches trade off sample size against potential bias in
-the autoregressive estimates:</p>
 <ul>
-<li>
-<strong><code>skip_lag = FALSE</code></strong> — Every row has a
-valid lag, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
-estimates reflect true short-term dynamics. However, in datasets with
-many irregular gaps (such as the present one), a large share of
-observations is discarded, reducing statistical power for all
-parameters.</li>
-<li>
-<strong><code>skip_lag = TRUE</code></strong> — All observations
-contribute to the estimation of the intercept, fixed effects, and
-residual variance. Because zero-filled lags are treated as “no temporal
-information” rather than “the lag was zero”, rows with gaps gently pull
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>
-toward zero. In datasets with many gaps this can lead to a slight
-weakening of autoregressive estimates.</li>
+<li><p><strong><code>skip_lag = FALSE</code></strong> — Only
+observations with a complete and correctly spaced lag window enter the
+likelihood. This preserves the intended timing of all retained lagged
+relationships, but it may substantially reduce the number of
+observations available for estimating both temporal and non-temporal
+parameters.</p></li>
+<li><p><strong><code>skip_lag = TRUE</code></strong> — Current
+observations with incomplete lag windows remain available for estimating
+non-temporal model components, while their temporal contribution is set
+to zero. These rows provide no direct information about
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ϕ</mi><annotation encoding="application/x-tex">\phi</annotation></semantics></math>,
+although they can affect its marginal posterior indirectly through
+posterior dependence with shared model parameters.</p></li>
 </ul>
-<p>Currently, more sophisticated missing data handling (e.g. imputation)
-has to be implemented by the users themselves.</p>
+<p>Neither option imputes missing values or recovers temporal
+information from incomplete lag windows. If listwise deletion is
+inappropriate for the missingness process, users should consider a
+suitable imputation procedure or an explicit model for the missing
+data.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
