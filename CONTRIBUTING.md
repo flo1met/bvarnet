@@ -1,6 +1,6 @@
 # Contributing to bvarnet
 
-To be added...
+Full CONTRIBUTING.md will be added soon.
 
 
 ## Release checklist (precompiled model binaries)
