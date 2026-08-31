@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/flo1met/bvarnet/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/flo1met/bvarnet/blob/v1.0.2/inst/CITATION)
 
 Metwaly F (2026). *bvarnet: Bayesian Estimation of Dynamic VAR Models
 using STAN*. R package version 1.0.1,

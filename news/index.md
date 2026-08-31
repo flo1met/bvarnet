@@ -1,6 +1,6 @@
 # Changelog
 
-## bvarnet 1.0.1.9000
+## bvarnet 1.0.2
 
 ### New features
 
