@@ -56,7 +56,8 @@ visualisation (e.g., with <span class="pkg">igraph</span> or <span class="pkg">q
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">extract_network_matrix</span><span class="op">(</span></span>
 <span>  <span class="va">object</span>,</span>
 <span>  lag <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  stat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mean"</span>, <span class="st">"median"</span>, <span class="st">"q5"</span>, <span class="st">"q95"</span><span class="op">)</span></span>
+<span>  stat <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"mean"</span>, <span class="st">"median"</span>, <span class="st">"ci_lower"</span>, <span class="st">"ci_upper"</span><span class="op">)</span>,</span>
+<span>  ci_level <span class="op">=</span> <span class="fl">0.95</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -74,7 +75,14 @@ visualisation (e.g., with <span class="pkg">igraph</span> or <span class="pkg">q
 
 <dt id="arg-stat">stat<a class="anchor" aria-label="anchor" href="#arg-stat"></a></dt>
 <dd><p>Character. Summary statistic to fill the matrix with:
-<code>"mean"</code> (default), <code>"median"</code>, <code>"q5"</code>, or <code>"q95"</code>.</p></dd>
+<code>"mean"</code> (default), <code>"median"</code>, <code>"ci_lower"</code>, or
+<code>"ci_upper"</code>.</p></dd>
+
+
+<dt id="arg-ci-level">ci_level<a class="anchor" aria-label="anchor" href="#arg-ci-level"></a></dt>
+<dd><p>Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval. Default <code>0.95</code>. Only used when
+<code>stat</code> is <code>"ci_lower"</code> or <code>"ci_upper"</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -93,7 +101,7 @@ gives the effect of variable <code>i</code> (lagged) on variable <code>j</code>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

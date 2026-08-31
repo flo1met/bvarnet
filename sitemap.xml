@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://flo1met.github.io/bvarnet/404.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/CONTRIBUTING.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/LICENSE.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/articles/Hypothesis-Testing.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/articles/MCMC-Diagnostics.html</loc></url>
@@ -14,6 +15,9 @@
 <url><loc>https://flo1met.github.io/bvarnet/reference/bf_table.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/reference/bvar.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/reference/bvarnet-package.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/reference/bvarnet_clear_model_cache.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/reference/bvarnet_model_cache_dir.html</loc></url>
+<url><loc>https://flo1met.github.io/bvarnet/reference/bvarnet_setup_models.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/reference/compare_to_truth.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/reference/extract_draws.html</loc></url>
 <url><loc>https://flo1met.github.io/bvarnet/reference/extract_network_matrix.html</loc></url>

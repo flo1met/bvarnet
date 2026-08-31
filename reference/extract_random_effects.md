@@ -7,7 +7,11 @@ subject-level random effects `u`.
 ## Usage
 
 ``` r
-extract_random_effects(object, what = c("sd", "mean_u", "draws_u"))
+extract_random_effects(
+  object,
+  what = c("sd", "mean_u", "draws_u"),
+  ci_level = 0.95
+)
 ```
 
 ## Arguments
@@ -34,6 +38,23 @@ extract_random_effects(object, what = c("sd", "mean_u", "draws_u"))
 
   :   4D array `[draw, node, subject, re]` of full posterior draws.
 
+- ci_level:
+
+  Numeric scalar strictly between 0 and 1; the mass of the equal-tailed
+  credible interval reported in `ci_lower` and `ci_upper`. Default
+  `0.95`. Only used when `what = "sd"`.
+
 ## Value
 
 Depends on `what`; see above.
+
+## Array layout
+
+The `"mean_u"` and `"draws_u"` arrays are indexed `[node, subject, re]`
+(with a leading `draw` dimension for `"draws_u"`), matching the Stan
+declaration `array[p] matrix[J, n_re] u`. `node` is named after the
+outcome columns, `subject` after the subject index `1..J`, and `re`
+after the random-effect design columns. Elements are placed by parsing
+the `u[node, subject, re]` indices from the draws, so the layout is the
+same whether the model was fitted through the joint or the nodewise
+path.

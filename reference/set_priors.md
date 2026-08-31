@@ -57,3 +57,21 @@ set_priors(
 ## Value
 
 A `bvarnet_priors` S3 object.
+
+## Automatic scaling of Gaussian defaults
+
+Gaussian outcomes are modelled on their raw scale, so
+[`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md) widens
+the default `intercept`, `beta` and `sigma` scales by the outcome SD
+before passing them to Stan. A default `beta ~ Normal(0, 1)` on data
+with `sd(y) = 17.8` therefore becomes `Normal(0, 17.8)`. This keeps the
+unit-scale defaults weakly informative whatever the units of `y`, but it
+means the default you see here is not the prior that was used.
+
+A prior you pass explicitly is taken at face value and never rescaled.
+The priors actually used are recorded on the fitted object as
+`priors_effective` (see
+[`bvar`](https://flo1met.github.io/bvarnet/reference/bvar.md)), are
+reported by [`print()`](https://rdrr.io/r/base/print.html), and are what
+[`bf_table`](https://flo1met.github.io/bvarnet/reference/bf_table.md)
+divides by.

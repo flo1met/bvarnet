@@ -9,7 +9,7 @@ them to the true parameter values used for data generation.
 compare_to_truth(
   fit,
   truth,
-  ci_width = 0.9,
+  ci_width = 0.95,
   bayes_factor = FALSE,
   null_value = 0
 )
@@ -30,7 +30,9 @@ compare_to_truth(
 
 - ci_width:
 
-  Numeric. Width of the credible interval (default 0.90).
+  Numeric scalar strictly between 0 and 1. Mass of the equal-tailed
+  credible interval used for `ci_lower`, `ci_upper`, and the `covered`
+  indicator (default 0.95).
 
 - bayes_factor:
 

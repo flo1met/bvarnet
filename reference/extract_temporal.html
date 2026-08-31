@@ -55,7 +55,8 @@ summaries with convergence diagnostics, filtered by lag and effect type.</p>
 <span>  lag <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  effect <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"all"</span>, <span class="st">"ar"</span>, <span class="st">"cl"</span><span class="op">)</span>,</span>
 <span>  bayes_factor <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  null_value <span class="op">=</span> <span class="fl">0</span></span>
+<span>  null_value <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  ci_level <span class="op">=</span> <span class="fl">0.95</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -85,13 +86,19 @@ Default <code>FALSE</code>.</p></dd>
 <dt id="arg-null-value">null_value<a class="anchor" aria-label="anchor" href="#arg-null-value"></a></dt>
 <dd><p>Numeric; null hypothesis for BF. Default 0.</p></dd>
 
+
+<dt id="arg-ci-level">ci_level<a class="anchor" aria-label="anchor" href="#arg-ci-level"></a></dt>
+<dd><p>Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in <code>ci_lower</code> and
+<code>ci_upper</code>. Default <code>0.95</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A data frame with columns <code>type</code>, <code>predictor</code>,
-<code>outcome</code>, <code>mean</code>, <code>median</code>, <code>q5</code>, <code>q95</code>,
-<code>rhat</code>, <code>ess_bulk</code>, <code>ess_tail</code>, and optionally
-<code>BF01</code>, <code>BF10</code>.</p>
+<code>outcome</code>, <code>mean</code>, <code>median</code>, <code>ci_lower</code>,
+<code>ci_upper</code>, <code>rhat</code>, <code>ess_bulk</code>, <code>ess_tail</code>, and
+optionally <code>BF01</code>, <code>BF10</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -103,7 +110,7 @@ Default <code>FALSE</code>.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

@@ -70,7 +70,8 @@
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  adapt_delta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_treedepth <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  save_data <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  save_data <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -83,7 +84,8 @@
 
 
 <dt id="arg-time-col">time_col<a class="anchor" aria-label="anchor" href="#arg-time-col"></a></dt>
-<dd><p>Character. Name of the time column.</p></dd>
+<dd><p>Character. Name of the time column. Must be integer-valued
+(one time unit = one lag step); non-integer values error.</p></dd>
 
 
 <dt id="arg-y-cols">y_cols<a class="anchor" aria-label="anchor" href="#arg-y-cols"></a></dt>
@@ -130,7 +132,9 @@ Default <code>FALSE</code>.</p></dd>
 
 <dt id="arg-skip-lag">skip_lag<a class="anchor" aria-label="anchor" href="#arg-skip-lag"></a></dt>
 <dd><p>Logical. If <code>TRUE</code> (default), rows with irregular time
-gaps have their lag set to zero rather than being dropped.</p></dd>
+gaps have their lag predictors zero-filled rather than being dropped. For
+this, <code>time_col</code> should be scaled so that each step has a length of one
+(e.g., integer days, weeks, or months). Non-integer values error.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
@@ -190,14 +194,49 @@ listwise-deleted) estimation data in the <code>data_used</code> slot of the
 returned object for reproducibility and downstream analyses.
 Default <code>FALSE</code>.</p></dd>
 
+
+<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
+<dd><p>Additional named arguments forwarded to the CmdStanR
+<code>$sample()</code> method, e.g. <code>init</code>, <code>refresh</code>, <code>thin</code>,
+<code>step_size</code>, or <code>show_messages</code>. See
+<code><a href="https://mc-stan.org/cmdstanr/reference/model-method-sample.html" class="external-link">?cmdstanr::"model-method-sample"</a></code> for the full list. Arguments that
+<code>bvar()</code> sets itself (<code>data</code>, <code>seed</code>, <code>iter_warmup</code>,
+<code>iter_sampling</code>, <code>chains</code>, <code>parallel_chains</code>,
+<code>adapt_delta</code>, <code>max_treedepth</code>, and CmdStanR's deprecated
+aliases for them) are rejected with an error; use the corresponding
+<code>bvar()</code> argument instead.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>bvarnet</code> object (a named list) with slots:
 <code>draws</code>, <code>convergence</code>, <code>diagnostics</code>, <code>timing</code>,
 <code>metadata</code>, <code>return_codes</code>, <code>family</code>, <code>standata</code>,
-<code>priors</code>. If <code>save_data = TRUE</code>, also includes
-<code>data_used</code> (the cleaned estimation data frame).</p>
+<code>priors</code>, <code>priors_effective</code>. If <code>save_data = TRUE</code>, also
+includes <code>data_used</code> (the cleaned estimation data frame).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="requested-versus-effective-priors">Requested versus effective priors<a class="anchor" aria-label="anchor" href="#requested-versus-effective-priors"></a></h2>
+
+
+<p><code>priors</code> holds the priors as you specified them. <code>priors_effective</code>
+holds the priors Stan actually sampled under: one <code>bvarnet_priors</code>
+object per outcome. The two differ for Gaussian outcomes left at their
+default priors, where <code>intercept</code>, <code>beta</code> and <code>sigma</code> scales
+are multiplied by the outcome SD so that unit-scale defaults stay weakly
+informative on the raw data scale. User-supplied priors are never rescaled.</p>
+<p>Bayes factors (<code><a href="bf_table.html">bf_table</a></code>) divide by <code>priors_effective</code>,
+as the Savage-Dickey density ratio requires. Note that the joint path
+(<code>family</code> a single value) scales every outcome by the mean SD across
+outcomes, whereas the nodewise path (mixed <code>family</code>) scales each outcome
+by its own SD, so the same data can imply slightly different effective priors
+depending on which path runs.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="bvarnet_setup_models.html">bvarnet_setup_models</a></code>, which must be run once before
+the first <code>bvar()</code> call to set up the required Stan models (either
+by downloading precompiled binaries or compiling them locally).</p></div>
     </div>
 
     <div class="section level2">
@@ -207,7 +246,7 @@ Default <code>FALSE</code>.</p></dd>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/data.html" class="external-link">data</a></span><span class="op">(</span><span class="va">studentlife</span>, package <span class="op">=</span> <span class="st">"bvarnet"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">fit</span> <span class="op">&lt;-</span> <span class="fu">bvar</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  id_col <span class="op">=</span> <span class="st">"id"</span>,</span></span>
-<span class="r-in"><span>  time_col <span class="op">=</span> <span class="st">"time"</span>,</span></span>
+<span class="r-in"><span>  time_col <span class="op">=</span> <span class="st">"day"</span>,</span></span>
 <span class="r-in"><span>  y_cols <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"anxious"</span>, <span class="st">"calm"</span>, <span class="st">"conventional"</span>, <span class="st">"critical"</span>, <span class="st">"dependable"</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  re_temporal <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  K <span class="op">=</span> <span class="fl">1</span>,</span></span>
@@ -229,7 +268,7 @@ Default <code>FALSE</code>.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

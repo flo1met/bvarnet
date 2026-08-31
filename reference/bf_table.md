@@ -92,3 +92,15 @@ bf_table(
 
 A data frame with columns: `type`, `predictor`, `outcome`, `BF10` (and
 optionally `log_BF10`).
+
+## Which prior the Bayes factor divides by
+
+The Savage-Dickey density ratio is only valid against the prior the
+model was actually fitted with, so `bf_table()` evaluates the prior
+density using `object$priors_effective` — resolved per outcome, since
+Gaussian nodes scale their default priors by the outcome SD (see
+[`set_priors`](https://flo1met.github.io/bvarnet/reference/set_priors.md)).
+For a Gaussian outcome with default priors this makes `intercepts` and
+`fe` Bayes factors differ from what the unscaled `object$priors` would
+give, by roughly a factor of `sd(y)`. `ar`, `cl` and `temporal` tests
+are unaffected: `phi` priors are never scaled.

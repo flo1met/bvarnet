@@ -8,7 +8,7 @@ with convergence diagnostics and optional Bayes factors. Wraps
 
 ``` r
 # S3 method for class 'bvarnet'
-summary(object, bayes_factor = FALSE, null_value = 0, ...)
+summary(object, bayes_factor = FALSE, null_value = 0, ..., ci_level = 0.95)
 ```
 
 ## Arguments
@@ -29,6 +29,12 @@ summary(object, bayes_factor = FALSE, null_value = 0, ...)
 - ...:
 
   Ignored.
+
+- ci_level:
+
+  Numeric scalar strictly between 0 and 1; the mass of the equal-tailed
+  credible interval reported in `ci_lower` and `ci_upper`. Default
+  `0.95`. Must be supplied by name.
 
 ## Value
 
@@ -62,3 +68,7 @@ An object of class `"summary.bvarnet"` (a list) with elements:
 - n_divergences:
 
   Total divergent transitions.
+
+- ci_level:
+
+  Credible-interval mass used for the table.

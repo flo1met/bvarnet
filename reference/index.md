@@ -73,3 +73,14 @@ Example datasets
 
 - [`studentlife`](https://flo1met.github.io/bvarnet/reference/studentlife.md)
   : StudentLife Data
+
+## Model Setup
+
+Set up and manage precompiled Stan models
+
+- [`bvarnet_setup_models()`](https://flo1met.github.io/bvarnet/reference/bvarnet_setup_models.md)
+  : Set up bvarnet's precompiled Stan models
+- [`bvarnet_model_cache_dir()`](https://flo1met.github.io/bvarnet/reference/bvarnet_model_cache_dir.md)
+  : Path to bvarnet's Stan model cache directory
+- [`bvarnet_clear_model_cache()`](https://flo1met.github.io/bvarnet/reference/bvarnet_clear_model_cache.md)
+  : Remove bvarnet's cached Stan model binaries

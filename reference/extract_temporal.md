@@ -11,7 +11,8 @@ extract_temporal(
   lag = NULL,
   effect = c("all", "ar", "cl"),
   bayes_factor = FALSE,
-  null_value = 0
+  null_value = 0,
+  ci_level = 0.95
 )
 ```
 
@@ -40,8 +41,14 @@ extract_temporal(
 
   Numeric; null hypothesis for BF. Default 0.
 
+- ci_level:
+
+  Numeric scalar strictly between 0 and 1; the mass of the equal-tailed
+  credible interval reported in `ci_lower` and `ci_upper`. Default
+  `0.95`.
+
 ## Value
 
 A data frame with columns `type`, `predictor`, `outcome`, `mean`,
-`median`, `q5`, `q95`, `rhat`, `ess_bulk`, `ess_tail`, and optionally
-`BF01`, `BF10`.
+`median`, `ci_lower`, `ci_upper`, `rhat`, `ess_bulk`, `ess_tail`, and
+optionally `BF01`, `BF10`.

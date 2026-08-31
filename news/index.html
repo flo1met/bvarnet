@@ -41,8 +41,33 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0.1.9000" id="bvarnet-1019000">bvarnet 1.0.1.9000<a class="anchor" aria-label="anchor" href="#bvarnet-1019000"></a></h2>
+<div class="section level3">
+<h3 id="new-features-1-0-1-9000">New features<a class="anchor" aria-label="anchor" href="#new-features-1-0-1-9000"></a></h3>
+<ul><li>Introduce toolchain free installation via <code><a href="../reference/bvarnet_setup_models.html">bvarnet_setup_models()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-affecting-results-1-0-1-9000">Bug fixes affecting results<a class="anchor" aria-label="anchor" href="#bug-fixes-affecting-results-1-0-1-9000"></a></h3>
+<ul><li>Fixed automatic scaling of Gaussian default priors and related misscalulation of BFs</li>
+<li>Fixed that <code>extract_random_effects(what = "mean_u")</code> and <code>what = "draws_u"</code> returned scrambled subject estimates and RE mislabeling in mixed-family fits.</li>
+<li>Change default CI to 95% and introduce argument to vary CI width.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="other-changes-1-0-1-9000">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-1-0-1-9000"></a></h3>
+<ul><li>Defined the <code>%||%</code> operator internally.</li>
+<li>
+<code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> now reports the effective scale of default Gaussian priors, which are widened by the outcome SD before reaching Stan. Previously this scaling was invisible.</li>
+<li>Minor bug and documentation fixes.</li>
+<li>
+<code><a href="../reference/bvar.html">bvar()</a></code> gains <code>...</code>, forwarding additional arguments (e.g. <code>init</code>, <code>refresh</code>, <code>thin</code>, <code>step_size</code>) to CmdStanR’s <code>$sample()</code> method.</li>
+<li>Added a safeguard against duplicated <code>(id, time)</code> rows, which previously produced an ambiguous, silently-contaminated lag design; these now error with guidance to deduplicate or aggregate.</li>
+<li>
+<code>time_col</code> must now be integer-valued (one time unit = one lag step).</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.1" id="bvarnet-101">bvarnet 1.0.1<a class="anchor" aria-label="anchor" href="#bvarnet-101"></a></h2><p class="text-muted">CRAN release: 2026-06-13</p>
-<ul><li>Add installation safeguard on CRAN</li>
+<ul><li>Add installation safeguard on CRAN.</li>
 </ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.0" id="bvarnet-100">bvarnet 1.0.0<a class="anchor" aria-label="anchor" href="#bvarnet-100"></a></h2><p class="text-muted">CRAN release: 2026-05-27</p>
@@ -57,7 +82,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

@@ -29,7 +29,8 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE
+  save_data = FALSE,
+  ...
 )
 ```
 
@@ -41,7 +42,8 @@ bvar(
 
 - time_col:
 
-  Character. Name of the time column.
+  Character. Name of the time column. Must be integer-valued (one time
+  unit = one lag step); non-integer values error.
 
 - y_cols:
 
@@ -86,7 +88,9 @@ bvar(
 - skip_lag:
 
   Logical. If `TRUE` (default), rows with irregular time gaps have their
-  lag set to zero rather than being dropped.
+  lag predictors zero-filled rather than being dropped. For this,
+  `time_col` should be scaled so that each step has a length of one
+  (e.g., integer days, weeks, or months). Non-integer values error.
 
 - data:
 
@@ -148,12 +152,49 @@ bvar(
   estimation data in the `data_used` slot of the returned object for
   reproducibility and downstream analyses. Default `FALSE`.
 
+- ...:
+
+  Additional named arguments forwarded to the CmdStanR `$sample()`
+  method, e.g. `init`, `refresh`, `thin`, `step_size`, or
+  `show_messages`. See
+  [`?cmdstanr::"model-method-sample"`](https://mc-stan.org/cmdstanr/reference/model-method-sample.html)
+  for the full list. Arguments that `bvar()` sets itself (`data`,
+  `seed`, `iter_warmup`, `iter_sampling`, `chains`, `parallel_chains`,
+  `adapt_delta`, `max_treedepth`, and CmdStanR's deprecated aliases for
+  them) are rejected with an error; use the corresponding `bvar()`
+  argument instead.
+
 ## Value
 
 A `bvarnet` object (a named list) with slots: `draws`, `convergence`,
 `diagnostics`, `timing`, `metadata`, `return_codes`, `family`,
-`standata`, `priors`. If `save_data = TRUE`, also includes `data_used`
-(the cleaned estimation data frame).
+`standata`, `priors`, `priors_effective`. If `save_data = TRUE`, also
+includes `data_used` (the cleaned estimation data frame).
+
+## Requested versus effective priors
+
+`priors` holds the priors as you specified them. `priors_effective`
+holds the priors Stan actually sampled under: one `bvarnet_priors`
+object per outcome. The two differ for Gaussian outcomes left at their
+default priors, where `intercept`, `beta` and `sigma` scales are
+multiplied by the outcome SD so that unit-scale defaults stay weakly
+informative on the raw data scale. User-supplied priors are never
+rescaled.
+
+Bayes factors
+([`bf_table`](https://flo1met.github.io/bvarnet/reference/bf_table.md))
+divide by `priors_effective`, as the Savage-Dickey density ratio
+requires. Note that the joint path (`family` a single value) scales
+every outcome by the mean SD across outcomes, whereas the nodewise path
+(mixed `family`) scales each outcome by its own SD, so the same data can
+imply slightly different effective priors depending on which path runs.
+
+## See also
+
+[`bvarnet_setup_models`](https://flo1met.github.io/bvarnet/reference/bvarnet_setup_models.md),
+which must be run once before the first `bvar()` call to set up the
+required Stan models (either by downloading precompiled binaries or
+compiling them locally).
 
 ## Examples
 
@@ -163,7 +204,7 @@ if (FALSE) { # \dontrun{
 data(studentlife, package = "bvarnet")
 fit <- bvar(
   id_col = "id",
-  time_col = "time",
+  time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   re_temporal = TRUE,
   K = 1,

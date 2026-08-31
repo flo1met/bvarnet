@@ -10,7 +10,8 @@ VAR lag coefficients at a chosen lag, suitable for network visualisation
 extract_network_matrix(
   object,
   lag = 1L,
-  stat = c("mean", "median", "q5", "q95")
+  stat = c("mean", "median", "ci_lower", "ci_upper"),
+  ci_level = 0.95
 )
 ```
 
@@ -28,7 +29,13 @@ extract_network_matrix(
 - stat:
 
   Character. Summary statistic to fill the matrix with: `"mean"`
-  (default), `"median"`, `"q5"`, or `"q95"`.
+  (default), `"median"`, `"ci_lower"`, or `"ci_upper"`.
+
+- ci_level:
+
+  Numeric scalar strictly between 0 and 1; the mass of the equal-tailed
+  credible interval. Default `0.95`. Only used when `stat` is
+  `"ci_lower"` or `"ci_upper"`.
 
 ## Value
 

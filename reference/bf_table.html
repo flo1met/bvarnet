@@ -139,6 +139,19 @@ disable rounding.</p></dd>
     <p>A data frame with columns: <code>type</code>, <code>predictor</code>,
 <code>outcome</code>, <code>BF10</code> (and optionally <code>log_BF10</code>).</p>
     </div>
+    <div class="section level2">
+    <h2 id="which-prior-the-bayes-factor-divides-by">Which prior the Bayes factor divides by<a class="anchor" aria-label="anchor" href="#which-prior-the-bayes-factor-divides-by"></a></h2>
+
+
+<p>The Savage-Dickey density ratio is only valid against the prior the model was
+actually fitted with, so <code>bf_table()</code> evaluates the prior density using
+<code>object$priors_effective</code> — resolved per outcome, since Gaussian nodes
+scale their default priors by the outcome SD (see <code><a href="set_priors.html">set_priors</a></code>).
+For a Gaussian outcome with default priors this makes <code>intercepts</code> and
+<code>fe</code> Bayes factors differ from what the unscaled <code>object$priors</code>
+would give, by roughly a factor of <code>sd(y)</code>. <code>ar</code>, <code>cl</code> and
+<code>temporal</code> tests are unaffected: <code>phi</code> priors are never scaled.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
@@ -149,7 +162,7 @@ disable rounding.</p></dd>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer></div>

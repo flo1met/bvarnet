@@ -67,29 +67,49 @@
 <!-- badges: start -->
 
 <div class="section level2">
-<h2 id="bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan">Bayesian Estimation of Multilevel Vector Autoregressive Networks using <code>STAN</code>
-<a class="anchor" aria-label="anchor" href="#bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan"></a>
+<h2 id="bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan">Bayesian Estimation of Multilevel Vector Autoregressive Networks using Stan<a class="anchor" aria-label="anchor" href="#bayesian-estimation-of-multilevel-vector-autoregressive-networks-using-stan"></a>
 </h2>
 <p>The <code>bvarnet</code> package allows user to estimate Bayesian multilevel Vector Auto Regressive (VAR) models for binary, ordinal and continuous outcome variables. Missing data is handled through listwise deletion and a skip-lag mechanism, which skips the estimation of the temporal structure when there is a gap between two timepoints. Further, we provide functionality to conduct hypothesis tests.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>To install <code>bvarnet</code> from CRAN, you need to have <a href="https://mc-stan.org/cmdstanr/index.html" class="external-link">CmdStanR</a> installed which is not available on CRAN. To do this, make sure you have <a href="https://cran.r-project.org/bin/windows/Rtools/" class="external-link">RTools</a> (Windows) or <a href="https://developer.apple.com/xcode/" class="external-link">Xcode</a> (Mac) installed and the run the following code</p>
+<p><code><a href="reference/bvar.html">bvar()</a></code> fits its models with Stan, so it needs a compiled <code>Stan</code> executable for each of the three outcome families. Installing is a <strong>two-step flow</strong>, and works the same way whether or not you have a C++ toolchain:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Step 1: install bvarnet from CRAN</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"bvarnet"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Step 2: set up the Stan models</span></span>
+<span><span class="fu">bvarnet</span><span class="fu">::</span><span class="fu"><a href="reference/bvarnet_setup_models.html">bvarnet_setup_models</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p><code><a href="reference/bvarnet_setup_models.html">bvarnet_setup_models()</a></code> offers to either <strong>download precompiled model binaries</strong> for your platform (<em>recommended</em>) or <strong>compile them locally</strong> if you already have a working CmdStan installation. You only need to set this up once; re-run it only after updating <code>bvarnet</code> to a new version.</p>
+<div class="section level3">
+<h3 id="no-toolchain-most-users-recommended">No toolchain? (most users, recommended)<a class="anchor" aria-label="anchor" href="#no-toolchain-most-users-recommended"></a>
+</h3>
+<p>Just run <code><a href="reference/bvarnet_setup_models.html">bvarnet::bvarnet_setup_models()</a></code> and choose the download option when prompted. This fetches a small, platform-specific set of precompiled Stan executables.</p>
+</div>
+<div class="section level3">
+<h3 id="have-a-c-toolchain-advanced">Have a C++ toolchain? (advanced)<a class="anchor" aria-label="anchor" href="#have-a-c-toolchain-advanced"></a>
+</h3>
+<p>For this option you need to have <a href="https://cran.r-project.org/bin/windows/Rtools/" class="external-link">RTools</a> (Windows) or <a href="https://developer.apple.com/xcode/" class="external-link">Xcode</a> (Mac) installed. Further, you need to have cmdstanr installed and the C++ toolchain set up. If you don’t have CmdStan yet, after installing RTools/Xcode install it using:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"cmdstanr"</span>, repos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"https://mc-stan.org/r-packages/"</span>, <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"repos"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">cmdstanr</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/cmdstanr/reference/install_cmdstan.html" class="external-link">check_cmdstan_toolchain</a></span><span class="op">(</span>fix <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu">cmdstanr</span><span class="fu">::</span><span class="fu"><a href="https://mc-stan.org/cmdstanr/reference/install_cmdstan.html" class="external-link">install_cmdstan</a></span><span class="op">(</span>cores <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></code></pre></div>
-<p>If you run into any problems, you can look at the <a href="https://mc-stan.org/cmdstanr/articles/cmdstanr.html" class="external-link">Getting started with CmdStanR</a> guide.</p>
-<p>After setting up cmdstanr you can install the newest version of the package from CRAN:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"bvarnet"</span>, type <span class="op">=</span> <span class="st">"source"</span><span class="op">)</span></span></code></pre></div>
-<p>Or you can install the development version of <code>bvarnet</code> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a> with:</p>
+<p>If you run into any problems, see the <a href="https://mc-stan.org/cmdstanr/articles/cmdstanr.html" class="external-link">Getting started with CmdStanR</a> guide.</p>
+<p>Then you can use <code><a href="reference/bvarnet_setup_models.html">bvarnet::bvarnet_setup_models()</a></code> to compile the models locally.</p>
+<p>Alternatively, <code>install.packages("bvarnet", type = "source")</code> compiles the models at install time (requires CmdStan to already be set up). This works equivalent to the two-step flow above, just compiled into the package’s install tree instead of a user cache directory.</p>
+</div>
+<div class="section level3">
+<h3 id="development-version">Development version<a class="anchor" aria-label="anchor" href="#development-version"></a>
+</h3>
+<p>You can install the development version of <code>bvarnet</code> from <a href="https://github.com/flo1met/bvarnet" class="external-link">GitHub</a>. If you use the development version, you will have to compile the models yourself!</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"flo1met/bvarnet"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"flo1met/bvarnet"</span><span class="op">)</span></span>
+<span><span class="fu">bvarnet</span><span class="fu">::</span><span class="fu"><a href="reference/bvarnet_setup_models.html">bvarnet_setup_models</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="getting-started">Getting Started<a class="anchor" aria-label="anchor" href="#getting-started"></a>
@@ -130,6 +150,12 @@
 </ul>
 </div>
 
+<div class="community">
+<h2 data-toc-skip>Community</h2>
+<ul class="list-unstyled">
+<li><a href="CONTRIBUTING.html">Contributing guide</a></li>
+</ul>
+</div>
 
 <div class="citation">
 <h2 data-toc-skip>Citation</h2>
@@ -163,7 +189,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>
