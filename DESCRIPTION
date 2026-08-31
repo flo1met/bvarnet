@@ -25,6 +25,7 @@ Imports:
     posterior
 Suggests:
     cmdstanr,
+    codetools,
     bayesplot,
     knitr,
     qgraph,

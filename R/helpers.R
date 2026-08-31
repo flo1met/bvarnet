@@ -8,13 +8,15 @@
 #' user could supply it via `...` and reach `do.call()` with a duplicated
 #' argument name.
 #'
-#' The second block holds CmdStanR's deprecated aliases for those same
-#' arguments. `$sample()` resolves an alias by overwriting its modern
-#' equivalent (e.g. `iter_warmup <- num_warmup`), so letting one through `...`
-#' would silently override the value `bvar()` set, behind nothing more than a
-#' deprecation warning. `stepsize`, `validate_csv` and `save_extra_diagnostics`
-#' are deprecated too, but alias arguments `bvar()` does not set, so they pass
-#' through.
+#' The second block holds CmdStanR's deprecated or removed aliases for those
+#' same arguments. In CmdStanR versions that still provide them, `$sample()`
+#' resolves an alias by overwriting its modern equivalent (e.g.
+#' `iter_warmup <- num_warmup`), so letting one through `...` would silently
+#' override the value `bvar()` set behind a deprecation warning. Keeping the
+#' removed aliases reserved also gives users of newer CmdStanR versions the
+#' same informative `bvar()` error. `stepsize`, `validate_csv` and
+#' `save_extra_diagnostics` were aliases for arguments `bvar()` does not set,
+#' so they are not reserved here.
 #' @keywords internal
 #' @noRd
 .bvarnet_reserved_sampler_args <- c(

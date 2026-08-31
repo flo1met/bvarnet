@@ -395,25 +395,45 @@ test_that(".check_sampler_dots() rejects duplicated argument names", {
   expect_error(.check_sampler_dots(refresh = 0, refresh = 1), "Duplicated")
 })
 
-test_that("every reserved name is a real CmdStanR $sample() argument", {
+test_that("every modern reserved name is a real CmdStanR $sample() argument", {
   skip_if_not_installed("cmdstanr")
   sample_args <- names(formals(
     getFromNamespace("CmdStanModel", "cmdstanr")$public_methods$sample
   ))
-  expect_length(setdiff(names(.bvarnet_reserved_sampler_args), sample_args), 0L)
+  expect_length(setdiff(.bvarnet_fixed_sample_args, sample_args), 0L)
+  expect_length(
+    setdiff(.bvarnet_fixed_sample_args, names(.bvarnet_reserved_sampler_args)),
+    0L
+  )
 })
 
-test_that(".check_sampler_dots() rejects abbreviations that partial-match a deprecated alias", {
+test_that(".check_sampler_dots() follows CmdStanR's available alias formals", {
   skip_if_not_installed("cmdstanr")
+  sample_args <- names(formals(
+    getFromNamespace("CmdStanModel", "cmdstanr")$public_methods$sample
+  ))
+
   # $sample() has no '...', so do.call() partial-matches any dot name that
   # isn't an exact formal name against the formals bvar() hasn't already
   # claimed by exact name (e.g. 'num_warm' -> 'num_warmup'). Left unchecked,
-  # this silently overrides the value bvar() set for 'warmup'.
-  expect_error(.check_sampler_dots(num_warm = 50), "use bvar\\(warmup = ")
-  expect_error(.check_sampler_dots(num_sam = 50), "use bvar\\(iter = ")
-  expect_error(.check_sampler_dots(num_ch = 2), "use bvar\\(chains = ")
-  expect_error(.check_sampler_dots(core = 2), "use bvar\\(cores = ")
-  expect_error(.check_sampler_dots(max_de = 8), "use bvar\\(max_treedepth = ")
+  # this silently overrides the value bvar() set for 'warmup'. CmdStanR 1.0
+  # removes these deprecated formals, in which case there is no partial match
+  # for this helper to intercept and the argument is left for $sample() to
+  # reject.
+  check_alias <- function(alias, formal, value, replacement) {
+    args <- stats::setNames(list(value), alias)
+    if (formal %in% sample_args) {
+      expect_error(do.call(.check_sampler_dots, args), replacement)
+    } else {
+      expect_identical(do.call(.check_sampler_dots, args), args)
+    }
+  }
+
+  check_alias("num_warm", "num_warmup", 50, "use bvar\\(warmup = ")
+  check_alias("num_sam", "num_samples", 50, "use bvar\\(iter = ")
+  check_alias("num_ch", "num_chains", 2, "use bvar\\(chains = ")
+  check_alias("core", "cores", 2, "use bvar\\(cores = ")
+  check_alias("max_de", "max_depth", 8, "use bvar\\(max_treedepth = ")
 })
 
 test_that(".check_sampler_dots() still allows genuine abbreviations of non-reserved args", {
