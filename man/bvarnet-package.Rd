@@ -6,6 +6,8 @@
 \alias{bvarnet-package}
 \title{bvarnet: Bayesian Estimation of Dynamic VAR Models using STAN}
 \description{
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
 Bayesian estimation of multilevel Vector Autoregression (VAR) models using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category) outcome variables with random effects and customizable priors.
 }
 \seealso{
