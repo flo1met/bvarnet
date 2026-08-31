@@ -1,4 +1,4 @@
-# bvarnet 1.0.1.9000
+# bvarnet 1.0.2
 
 ## New features
 * Introduce toolchain free installation via `bvarnet_setup_models()`.
