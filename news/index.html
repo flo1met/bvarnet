@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">bvarnet</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,19 +41,19 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.0.1.9000" id="bvarnet-1019000">bvarnet 1.0.1.9000<a class="anchor" aria-label="anchor" href="#bvarnet-1019000"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.0.2" id="bvarnet-102">bvarnet 1.0.2<a class="anchor" aria-label="anchor" href="#bvarnet-102"></a></h2>
 <div class="section level3">
-<h3 id="new-features-1-0-1-9000">New features<a class="anchor" aria-label="anchor" href="#new-features-1-0-1-9000"></a></h3>
+<h3 id="new-features-1-0-2">New features<a class="anchor" aria-label="anchor" href="#new-features-1-0-2"></a></h3>
 <ul><li>Introduce toolchain free installation via <code><a href="../reference/bvarnet_setup_models.html">bvarnet_setup_models()</a></code>.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="bug-fixes-affecting-results-1-0-1-9000">Bug fixes affecting results<a class="anchor" aria-label="anchor" href="#bug-fixes-affecting-results-1-0-1-9000"></a></h3>
+<h3 id="bug-fixes-affecting-results-1-0-2">Bug fixes affecting results<a class="anchor" aria-label="anchor" href="#bug-fixes-affecting-results-1-0-2"></a></h3>
 <ul><li>Fixed automatic scaling of Gaussian default priors and related misscalulation of BFs</li>
 <li>Fixed that <code>extract_random_effects(what = "mean_u")</code> and <code>what = "draws_u"</code> returned scrambled subject estimates and RE mislabeling in mixed-family fits.</li>
 <li>Change default CI to 95% and introduce argument to vary CI width.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="other-changes-1-0-1-9000">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-1-0-1-9000"></a></h3>
+<h3 id="other-changes-1-0-2">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-1-0-2"></a></h3>
 <ul><li>Defined the <code>%||%</code> operator internally.</li>
 <li>
 <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> now reports the effective scale of default Gaussian priors, which are widened by the outcome SD before reaching Stan. Previously this scaling was invisible.</li>
