@@ -12,6 +12,8 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+
+has_cmdstan <- instantiate::stan_cmdstan_exists()
 ```
 
 ## Setup
@@ -42,14 +44,14 @@ If we look at the subset of variables that we use in the `Vignette("bvarnet")` c
 sum(is.na(studentlife[c("anxious", "calm", "conventional", "critical", "dependable")])) / (5*nrow(studentlife))
 ```
 
-
 ## The Skipping-Lag Mechanism
 
-Currently, `bvarnet` handles missing data through a listwise deletion and skipping lag-mechanism. 
-Listwise deletion is a computational simple solution to the missing data problem, but does rely on the assumption that data are *missing completely at random (MCAR)*. Violating this assumption may lead to biased parameter estimation.
-In longitudinal settings such as like the Vector Autoregressive models, listwise deletion can introduce irregular gaps in the observed time series. This violates the modeling assumption of no missing time points and equal length of time gaps.
-To address this issue, we introduce a skipping-lag mechanism. Specifically, lagged effects are only estimated when the time difference between two observations does not exceed a threshold determined by the autoregressive order K. That is, for a VAR(K) model, lagged relationships are only included if the effective time gap corresponds to at most K time steps.
-In other words, the model excludes the estimation of temporal parameters across large time gaps, thereby preserving the interpretation of lagged effects as local (short-term) dependencies.
+Before constructing lagged predictors, bvarnet applies listwise deletion at the measurement-occasion level. Within each subject, a row is removed if any selected outcome or covariate is missing. The subject is not removed simply because one or more measurement occasions are incomplete. Entirely absent time points and rows removed through listwise deletion can therefore create gaps in the remaining time series.
+Listwise deletion is computationally simple, but it reduces the available sample size and can produce biased estimates when the retained observations differ systematically from the omitted observations. Missing completely at random (MCAR) provides a straightforward justification for this procedure, although its validity ultimately depends on the missingness process, model, and estimand.
+After listwise deletion, bvarnet constructs the lagged predictors. For a VAR(\(K\)) model, the outcome at time \(t\) has a valid lag window only when observations are available at every required time \(t-1,\ldots,t-K\). The time_col variable must therefore be integer-valued, with one unit corresponding to one lag step.
+When skip_lag = TRUE (the default), a current observation with an incomplete lag window is retained, but its entire set of lagged predictors is set to zero. Consequently, that row provides no direct information about the temporal coefficients. It can still inform non-temporal components of the model, such as covariate effects and non-temporal random effects. In Gaussian and binary models, it can also inform the intercept; in ordinal models, it can inform the category thresholds. Gaussian observations additionally inform the residual standard deviation.
+When skip_lag = FALSE, a current observation with an incomplete lag window is removed from the likelihood. Thus, all retained observations have a complete and correctly spaced lag window. This prevents effects spanning irregular time gaps from being interpreted as ordinary one-step or higher-order lagged relationships.
+This mechanism does not impute missing values or recover temporal information from incomplete lag windows. It determines whether current observations with unavailable lagged predictors are retained for estimating the non-temporal parts of the model.
 
 ## Comparison: With and Without Lag Skipping
 
@@ -111,15 +113,17 @@ summary(fit_skip_lag)
 
 ### Why does `skip_lag = FALSE` produce fewer observations?
 
-When `skip_lag = FALSE`, any row whose previous observation is not exactly one time step away lacks a valid lag. Because the autoregressive component cannot be computed for that row, the row is dropped entirely from the likelihood. This is the conservative choice: every observation that remains has a genuine lagged value, so estimates of the temporal coefficients ($\phi$) are unbiased (given the model).
+For the demonstrated VAR(1) model, an observation has a valid lag only when an observation is available exactly one time unit earlier. More generally, a VAR(\(K\)) model requires observations at every time \(t-1,\ldots,t-K\).
 
-When `skip_lag = TRUE` (the default), those same rows are kept. The contribution of the autoregressive effect is set to zero, while the outcome is still modeled through the intercept, fixed effects, and (if present) random effects. Oly the temporal component is "switched off" for that row.
+When `skip_lag = FALSE`, a current observation with an incomplete lag window is removed from the likelihood. When `skip_lag = TRUE`, the current observation is retained, but all its lagged predictors are set to zero. The row therefore provides no direct information about the temporal coefficients, temporal random effects, or interactions involving lagged predictors. It can still inform the non-temporal components of the model.
+
+The reported number of observations is the number of rows entering the likelihood after listwise deletion, removal of the first \(K\) observations per subject, and application of the selected skip-lag rule.
 
 ### Practical implications
 
-The two approaches trade off sample size against potential bias in the autoregressive estimates:
+* **`skip_lag = FALSE`** — Only observations with a complete and correctly spaced lag window enter the likelihood. This preserves the intended timing of all retained lagged relationships, but it may substantially reduce the number of observations available for estimating both temporal and non-temporal parameters.
 
-* **`skip_lag = FALSE`** — Every row has a valid lag, so $\phi$ estimates reflect true short-term dynamics. However, in datasets with many irregular gaps (such as the present one), a large share of observations is discarded, reducing statistical power for all parameters.
-* **`skip_lag = TRUE`** — All observations contribute to the estimation of the intercept, fixed effects, and residual variance. Because zero-filled lags are treated as "no temporal information" rather than "the lag was zero", rows with gaps gently pull $\phi$ toward zero. In datasets with many gaps this can lead to a slight weakening of autoregressive estimates.
+* **`skip_lag = TRUE`** — Current observations with incomplete lag windows remain available for estimating non-temporal model components, while their temporal contribution is set to zero. These rows provide no direct information about \(\phi\), although they can affect its marginal posterior indirectly through posterior dependence with shared model parameters.
 
-Currently, more sophisticated missing data handling (e.g. imputation) has to be implemented by the users themselves.
+Neither option imputes missing values or recovers temporal information from incomplete lag windows. If listwise deletion is inappropriate for the missingness process, users should consider a suitable imputation procedure or an explicit model for the missing data.
+
