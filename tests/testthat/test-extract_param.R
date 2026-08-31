@@ -107,9 +107,30 @@ test_that("extract_param result has all required columns", {
   res <- extract_param(obj)
 
   expected_cols <- c("type", "predictor", "outcome",
-                     "mean", "median", "q5", "q95",
+                     "mean", "median", "ci_lower", "ci_upper",
                      "rhat", "ess_bulk", "ess_tail")
   expect_true(all(expected_cols %in% names(res)))
+})
+
+
+test_that("extract_param ci_level widens/narrows the interval", {
+  obj <- make_mock_bvarnet("bernoulli")
+
+  res95 <- extract_param(obj)
+  res50 <- extract_param(obj, ci_level = 0.50)
+  res99 <- extract_param(obj, ci_level = 0.99)
+
+  expect_true(all(res50$ci_lower >= res95$ci_lower))
+  expect_true(all(res50$ci_upper <= res95$ci_upper))
+  expect_true(all(res99$ci_lower <= res95$ci_lower))
+  expect_true(all(res99$ci_upper >= res95$ci_upper))
+})
+
+
+test_that("extract_param rejects an invalid ci_level", {
+  obj <- make_mock_bvarnet("bernoulli")
+  expect_error(extract_param(obj, ci_level = 95), "strictly between 0 and 1")
+  expect_error(extract_param(obj, ci_level = 0), "strictly between 0 and 1")
 })
 
 

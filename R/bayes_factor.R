@@ -35,19 +35,18 @@ eval_prior_density <- function(prior, x) {
 
 #' Evaluate the joint prior density for independent priors (internal)
 #'
-#' @param prior_list A named list of \code{bvarnet_prior} objects keyed by
-#'   parameter type (e.g., \code{"phi"}, \code{"beta"}).
-#' @param param_types Character vector of prior types for each parameter.
-#' @param null_vec Numeric vector of null values (same length as
-#'   \code{param_types}).
+#' @param prior_objs A list of \code{bvarnet_prior} objects, one per parameter
+#'   and in the same order as \code{null_vec}. Priors are resolved per parameter
+#'   rather than per type because a Gaussian node's effective scale depends on
+#'   its own outcome SD.
+#' @param null_vec Numeric vector of null values.
 #'
 #' @return Numeric scalar — the product of marginal densities.
 #' @keywords internal
 #' @noRd
-eval_joint_prior_density <- function(prior_list, param_types, null_vec) {
-  prod(mapply(function(ptype, x) {
-    eval_prior_density(prior_list[[ptype]], x)
-  }, param_types, null_vec, USE.NAMES = FALSE))
+eval_joint_prior_density <- function(prior_objs, null_vec) {
+  stopifnot(length(prior_objs) == length(null_vec))
+  prod(mapply(eval_prior_density, prior_objs, null_vec, USE.NAMES = FALSE))
 }
 
 
@@ -297,20 +296,19 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' Compute the SDDR using a multivariate normal approximation (internal)
 #'
 #' @param draws_mat  Numeric matrix — S rows x d columns of posterior draws.
-#' @param prior_list Named list of \code{bvarnet_prior} objects.
-#' @param param_types Character vector of prior types for each column.
+#' @param prior_objs List of \code{bvarnet_prior} objects, one per column.
 #' @param null_vec   Numeric vector of null values.
 #'
 #' @return Named list with elements \code{BF01}, \code{post_density},
 #'   \code{prior_density}.
 #' @keywords internal
 #' @noRd
-.compute_sddr_mvn <- function(draws_mat, prior_list, param_types, null_vec) {
+.compute_sddr_mvn <- function(draws_mat, prior_objs, null_vec) {
   mu_hat    <- colMeans(draws_mat)
   Sigma_hat <- stats::cov(draws_mat)
 
   post_den  <- mvtnorm::dmvnorm(null_vec, mean = mu_hat, sigma = Sigma_hat)
-  prior_den <- eval_joint_prior_density(prior_list, param_types, null_vec)
+  prior_den <- eval_joint_prior_density(prior_objs, null_vec)
 
   list(
     BF01          = post_den / prior_den,
@@ -340,6 +338,86 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @noRd
 .is_half_prior <- function(param_name) {
   grepl("^(sigma|sd_u)\\[", param_name)
+}
+
+
+#' The per-node effective priors, with a fallback for pre-0.2.0 objects
+#'
+#' Objects fitted before effective priors were recorded carry only the
+#' unscaled \code{priors}. Falling back to those reproduces the old (biased)
+#' Bayes factors for Gaussian default priors, so warn.
+#'
+#' @keywords internal
+#' @noRd
+.priors_effective_or_fallback <- function(object) {
+  pe <- object$priors_effective
+  if (!is.null(pe)) return(pe)
+
+  warning("This fit predates effective-prior recording, so Bayes factors fall ",
+          "back to the unscaled priors. For Gaussian outcomes with default ",
+          "priors these are biased by roughly sd(y); refit to get correct ",
+          "values.", call. = FALSE)
+  rep(list(object$priors), object$standata$p)
+}
+
+
+#' The family of a given node
+#'
+#' \code{bvar()} always stores a length-p vector, but recycle a scalar so
+#' hand-built objects behave.
+#'
+#' @keywords internal
+#' @noRd
+.node_family <- function(object, node) {
+  rep_len(unname(object$family), object$standata$p)[[node]]
+}
+
+
+#' Which node a Stan parameter belongs to
+#'
+#' \code{beta[k, node]} and \code{phi[m, node]} carry the node in the second
+#' index; \code{sigma[node]}, \code{sd_u[node, re]} and \code{kappa[node, c]}
+#' carry it in the first.
+#'
+#' @keywords internal
+#' @noRd
+.param_node <- function(param_name) {
+  ix   <- .stan_indices(param_name)
+  type <- .param_type(param_name)
+  ix[1L, if (type %in% c("beta", "phi")) 2L else 1L]
+}
+
+
+#' Resolve the effective prior that Stan actually sampled a parameter under
+#'
+#' Two things make this node-specific. Gaussian nodes scale their default
+#' \code{beta}/\code{intercept}/\code{sigma} priors by their own outcome SD. And
+#' \code{beta} row 1 is the intercept for gaussian/bernoulli nodes (Stan gives
+#' it \code{intercept_scale}), but a plain covariate for ordinal nodes, whose
+#' intercept column is stripped from X and absorbed by the cutpoints.
+#'
+#' @param object A \code{bvarnet} object.
+#' @param param_name A single Stan parameter name.
+#'
+#' @return A \code{bvarnet_prior} object.
+#' @keywords internal
+#' @noRd
+.prior_for_param <- function(object, param_name, priors_effective = NULL) {
+  if (is.null(priors_effective))
+    priors_effective <- .priors_effective_or_fallback(object)
+
+  node <- .param_node(param_name)
+  type <- .param_type(param_name)
+
+  if (type == "beta" && .stan_indices(param_name)[1L, 1L] == 1L &&
+      .node_family(object, node) %in% c("gaussian", "bernoulli"))
+    type <- "intercept"
+
+  prior <- priors_effective[[node]][[type]]
+  if (is.null(prior))
+    stop(sprintf("No '%s' prior recorded for node %d (parameter '%s').",
+                 type, node, param_name), call. = FALSE)
+  prior
 }
 
 
@@ -404,15 +482,18 @@ savage_dickey <- function(object, params, null_value = 0,
   if (method == "auto")
     method <- if (d == 1L) "logspline" else "mvn"
 
-  # --- Extract draws ---
-  param_types <- vapply(params, .param_type, character(1), USE.NAMES = FALSE)
-  priors      <- object$priors   # bvarnet_priors object
+  # --- Resolve the prior each parameter was actually sampled under ---
+  # Resolved once, per parameter: the effective scale is node-specific for
+  # Gaussian outcomes, so a lookup keyed only on parameter type is wrong.
+  priors_effective <- .priors_effective_or_fallback(object)
+  prior_objs <- lapply(params, .prior_for_param, object = object,
+                       priors_effective = priors_effective)
 
   if (method == "logspline" && d == 1L) {
 
     draws_vec <- .extract_draws_raw(object, params)
     res <- .compute_sddr_logspline(
-      draws_vec, prior = priors[[param_types]], null = null_value
+      draws_vec, prior = prior_objs[[1L]], null = null_value
     )
 
   } else if (method == "mvn" || (method == "logspline" && d > 1L)) {
@@ -423,9 +504,7 @@ savage_dickey <- function(object, params, null_value = 0,
       method <- "mvn"
     }
     draws_mat <- .extract_draws_raw(object, params)
-    res <- .compute_sddr_mvn(
-      draws_mat, priors, param_types, null_vec = null_value
-    )
+    res <- .compute_sddr_mvn(draws_mat, prior_objs, null_vec = null_value)
 
   } else {
     stop("Invalid method/dimension combination.", call. = FALSE)
@@ -645,6 +724,16 @@ savage_dickey <- function(object, params, null_value = 0,
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
 #'   \code{outcome}, \code{BF10} (and optionally \code{log_BF10}).
+#'
+#' @section Which prior the Bayes factor divides by:
+#' The Savage-Dickey density ratio is only valid against the prior the model was
+#' actually fitted with, so \code{bf_table()} evaluates the prior density using
+#' \code{object$priors_effective} — resolved per outcome, since Gaussian nodes
+#' scale their default priors by the outcome SD (see \code{\link{set_priors}}).
+#' For a Gaussian outcome with default priors this makes \code{intercepts} and
+#' \code{fe} Bayes factors differ from what the unscaled \code{object$priors}
+#' would give, by roughly a factor of \code{sd(y)}. \code{ar}, \code{cl} and
+#' \code{temporal} tests are unaffected: \code{phi} priors are never scaled.
 #'
 #' @export
 bf_table <- function(object,

@@ -43,3 +43,18 @@ Available prior distributions are:
 For standart deviations and random effects, the prior is automatically converted to a half-prior (truncated at \code{loc}) in the Stan code, so the printed format reflects this.
 }
 }
+\section{Automatic scaling of Gaussian defaults}{
+
+Gaussian outcomes are modelled on their raw scale, so \code{bvar()} widens the
+default \code{intercept}, \code{beta} and \code{sigma} scales by the outcome
+SD before passing them to Stan. A default \code{beta ~ Normal(0, 1)} on data
+with \code{sd(y) = 17.8} therefore becomes \code{Normal(0, 17.8)}. This keeps
+the unit-scale defaults weakly informative whatever the units of \code{y},
+but it means the default you see here is not the prior that was used.
+
+A prior you pass explicitly is taken at face value and never rescaled. The
+priors actually used are recorded on the fitted object as
+\code{priors_effective} (see \code{\link{bvar}}), are reported by
+\code{print()}, and are what \code{\link{bf_table}} divides by.
+}
+

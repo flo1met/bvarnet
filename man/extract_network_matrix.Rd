@@ -7,7 +7,8 @@
 extract_network_matrix(
   object,
   lag = 1L,
-  stat = c("mean", "median", "q5", "q95")
+  stat = c("mean", "median", "ci_lower", "ci_upper"),
+  ci_level = 0.95
 )
 }
 \arguments{
@@ -16,7 +17,12 @@ extract_network_matrix(
 \item{lag}{Integer. Which lag block. Default 1.}
 
 \item{stat}{Character. Summary statistic to fill the matrix with:
-\code{"mean"} (default), \code{"median"}, \code{"q5"}, or \code{"q95"}.}
+\code{"mean"} (default), \code{"median"}, \code{"ci_lower"}, or
+\code{"ci_upper"}.}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval. Default \code{0.95}. Only used when
+\code{stat} is \code{"ci_lower"} or \code{"ci_upper"}.}
 }
 \value{
 A named \code{p x p} numeric matrix. Element \code{[i, j]}

@@ -11,24 +11,29 @@
 #' @param bayes_factor Logical; if \code{TRUE}, append BF columns.
 #'   Default \code{FALSE}.
 #' @param null_value Numeric; null hypothesis for BF. Default 0.
+#' @param ci_level Numeric scalar strictly between 0 and 1; the mass of the
+#'   equal-tailed credible interval reported in \code{ci_lower} and
+#'   \code{ci_upper}. Default \code{0.95}.
 #'
 #' @return A data frame with columns \code{type}, \code{predictor},
-#'   \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-#'   \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
-#'   \code{BF01}, \code{BF10}.
+#'   \code{outcome}, \code{mean}, \code{median}, \code{ci_lower},
+#'   \code{ci_upper}, \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and
+#'   optionally \code{BF01}, \code{BF10}.
 #'
 #' @export
 extract_temporal <- function(object,
                              lag = NULL,
                              effect = c("all", "ar", "cl"),
                              bayes_factor = FALSE,
-                             null_value = 0) {
+                             null_value = 0,
+                             ci_level = 0.95) {
   stopifnot(inherits(object, "bvarnet"))
   effect <- match.arg(effect)
 
   tab <- extract_param(object,
                         bayes_factor = bayes_factor,
-                        null_value   = null_value)
+                        null_value   = null_value,
+                        ci_level     = ci_level)
 
   # Filter to temporal types
   type_filter <- switch(effect,
@@ -66,25 +71,36 @@ extract_temporal <- function(object,
 #'     \item{\code{"draws_u"}}{4D array \code{[draw, node, subject, re]}
 #'       of full posterior draws.}
 #'   }
+#' @param ci_level Numeric scalar strictly between 0 and 1; the mass of the
+#'   equal-tailed credible interval reported in \code{ci_lower} and
+#'   \code{ci_upper}. Default \code{0.95}. Only used when \code{what = "sd"}.
 #'
 #' @return Depends on \code{what}; see above.
 #'
+#' @section Array layout:
+#' The \code{"mean_u"} and \code{"draws_u"} arrays are indexed
+#' \code{[node, subject, re]} (with a leading \code{draw} dimension for
+#' \code{"draws_u"}), matching the Stan declaration
+#' \code{array[p] matrix[J, n_re] u}. \code{node} is named after the outcome
+#' columns, \code{subject} after the subject index \code{1..J}, and \code{re}
+#' after the random-effect design columns. Elements are placed by parsing the
+#' \code{u[node, subject, re]} indices from the draws, so the layout is the same
+#' whether the model was fitted through the joint or the nodewise path.
+#'
 #' @export
 extract_random_effects <- function(object,
-                                   what = c("sd", "mean_u", "draws_u")) {
+                                   what = c("sd", "mean_u", "draws_u"),
+                                   ci_level = 0.95) {
   stopifnot(inherits(object, "bvarnet"))
   what <- match.arg(what)
+  .ci_probs(ci_level)  # validate regardless of `what`, for consistency with
+                        # every other entry point in this API
 
   if (object$standata$n_re == 0L)
     stop("No random effects in this model (n_re = 0).", call. = FALSE)
 
   switch(what,
-    sd = {
-      tab <- extract_param(object)
-      out <- tab[tab$type == "Random Effect SD", , drop = FALSE]
-      rownames(out) <- NULL
-      out
-    },
+    sd = .sd_u_summary_table(object, .ci_probs(ci_level)),
     mean_u = .posterior_mean_u(object),
     draws_u = .extract_u_draws(object)
   )
@@ -100,7 +116,11 @@ extract_random_effects <- function(object,
 #' @param object A \code{bvarnet} object returned by \code{\link{bvar}}.
 #' @param lag Integer. Which lag block. Default 1.
 #' @param stat Character. Summary statistic to fill the matrix with:
-#'   \code{"mean"} (default), \code{"median"}, \code{"q5"}, or \code{"q95"}.
+#'   \code{"mean"} (default), \code{"median"}, \code{"ci_lower"}, or
+#'   \code{"ci_upper"}.
+#' @param ci_level Numeric scalar strictly between 0 and 1; the mass of the
+#'   equal-tailed credible interval. Default \code{0.95}. Only used when
+#'   \code{stat} is \code{"ci_lower"} or \code{"ci_upper"}.
 #'
 #' @return A named \code{p x p} numeric matrix. Element \code{[i, j]}
 #'   gives the effect of variable \code{i} (lagged) on variable \code{j}
@@ -109,7 +129,8 @@ extract_random_effects <- function(object,
 #' @export
 extract_network_matrix <- function(object,
                                    lag = 1L,
-                                   stat = c("mean", "median", "q5", "q95")) {
+                                   stat = c("mean", "median", "ci_lower", "ci_upper"),
+                                   ci_level = 0.95) {
   stopifnot(inherits(object, "bvarnet"))
   stat <- match.arg(stat)
 
@@ -119,19 +140,27 @@ extract_network_matrix <- function(object,
   stopifnot(lag >= 1L, lag <= K)
 
   nm <- get_param_names(sd)
+  nr <- p * K
 
-  # Extract phi draws and build summary
   draws_phi <- extract_draws(object, "phi")
-  phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "phi")
 
-  # Filter to the requested lag block
-  lag_pattern <- paste0("^lag", as.integer(lag), "_")
-  lag_rows <- grepl(lag_pattern, phi_tab$predictor)
-  sub <- phi_tab[lag_rows, , drop = FALSE]
+  # nm$b is K contiguous blocks of size p, in lag order (see R/to_stan_data.R);
+  # select the requested lag's columns before summarizing instead of after,
+  # so only the needed 1/K of the posterior is ever summarized.
+  row_idx   <- ((lag - 1L) * p + 1L):(lag * p)
+  keep_cols <- as.vector(outer(row_idx, (seq_len(p) - 1L) * nr, `+`))
+  draws_lag <- draws_phi[, keep_cols, drop = FALSE]
 
-  # Build p x p matrix: sub rows cycle through predictors (lagged vars)
-  # for each outcome column.
-  mat <- matrix(sub[[stat]], nrow = p, ncol = p)
+  probs  <- .ci_probs(ci_level)  # validate regardless of `stat`, for
+                                 # consistency with extract_random_effects
+  values <- switch(stat,
+    mean     = colMeans(draws_lag),
+    median   = apply(draws_lag, 2L, stats::median),
+    ci_lower = apply(draws_lag, 2L, stats::quantile, probs = probs[1L]),
+    ci_upper = apply(draws_lag, 2L, stats::quantile, probs = probs[2L])
+  )
+
+  mat <- matrix(as.numeric(values), nrow = p, ncol = p)
   y_names <- nm$y
   rownames(mat) <- y_names
   colnames(mat) <- y_names

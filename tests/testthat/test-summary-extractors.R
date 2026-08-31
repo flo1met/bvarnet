@@ -26,9 +26,22 @@ test_that("summary.bvarnet table is a data.frame with correct columns", {
   s   <- summary(obj)
   expect_true(is.data.frame(s$table))
   expected_cols <- c("type", "predictor", "outcome",
-                     "mean", "median", "q5", "q95",
+                     "mean", "median", "ci_lower", "ci_upper",
                      "rhat", "ess_bulk", "ess_tail")
   expect_true(all(expected_cols %in% names(s$table)))
+})
+
+
+test_that("summary.bvarnet records and reports the ci_level", {
+  obj <- make_mock_bvarnet("gaussian")
+
+  expect_equal(summary(obj)$ci_level, 0.95)
+  expect_output(print(summary(obj)), "Credible interval: 95%")
+
+  s90 <- summary(obj, ci_level = 0.90)
+  expect_equal(s90$ci_level, 0.90)
+  expect_output(print(s90), "Credible interval: 90%")
+  expect_true(all(s90$table$ci_lower >= summary(obj)$table$ci_lower))
 })
 
 test_that("summary.bvarnet prints without error", {
@@ -44,6 +57,23 @@ test_that("summary.bvarnet warns for high Rhat", {
   obj$convergence$rhat <- rep(1.05, nrow(obj$convergence))
   s <- summary(obj)
   expect_output(print(s), "WARNING")
+})
+
+test_that("print.summary.bvarnet does not error when rhat_max is NA", {
+  obj <- make_mock_bvarnet()
+  obj$convergence <- NULL
+  s <- summary(obj)
+  expect_true(is.na(s$rhat_max))
+  out <- capture.output(print(s))
+  txt <- paste(out, collapse = "\n")
+  expect_true(grepl("Rhat max: NA", txt))
+  expect_false(grepl("Rhat > 1.01", txt))
+})
+
+test_that("summary.bvarnet's ci_level cannot be set positionally", {
+  obj <- make_mock_bvarnet("gaussian")
+  s <- summary(obj, FALSE, 0, 0.80)  # 4th positional arg falls into `...`
+  expect_equal(s$ci_level, 0.95)
 })
 
 test_that("summary.bvarnet with bayes_factor = TRUE includes BF10", {
@@ -144,6 +174,14 @@ test_that("extract_random_effects what='draws_u' returns 4D array", {
   expect_equal(length(dim(out)), 4L)
 })
 
+test_that("extract_random_effects validates ci_level for every `what`", {
+  obj <- make_mock_bvarnet("bernoulli", n_re = 2L, J = 5L)
+  expect_error(extract_random_effects(obj, what = "mean_u", ci_level = 95),
+               "strictly between 0 and 1")
+  expect_error(extract_random_effects(obj, what = "draws_u", ci_level = 95),
+               "strictly between 0 and 1")
+})
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # §4 — extract_network_matrix()
@@ -165,6 +203,25 @@ test_that("extract_network_matrix respects stat argument", {
   m2 <- extract_network_matrix(obj, stat = "median")
   # They should both be p x p but may have different values
   expect_equal(dim(m1), dim(m2))
+})
+
+test_that("extract_network_matrix supports ci bounds and ci_level", {
+  obj <- make_mock_bvarnet("gaussian")
+
+  lo95 <- extract_network_matrix(obj, stat = "ci_lower")
+  hi95 <- extract_network_matrix(obj, stat = "ci_upper")
+  expect_true(all(lo95 <= hi95))
+
+  lo90 <- extract_network_matrix(obj, stat = "ci_lower", ci_level = 0.90)
+  expect_true(all(lo90 >= lo95))
+
+  expect_error(extract_network_matrix(obj, stat = "q5"))
+})
+
+test_that("extract_network_matrix validates ci_level even for stat='mean'", {
+  obj <- make_mock_bvarnet("gaussian")
+  expect_error(extract_network_matrix(obj, stat = "mean", ci_level = 95),
+               "strictly between 0 and 1")
 })
 
 test_that("extract_network_matrix errors for invalid lag", {

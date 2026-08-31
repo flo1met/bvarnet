@@ -27,13 +27,15 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE
+  save_data = FALSE,
+  ...
 )
 }
 \arguments{
 \item{id_col}{Character. Name of the subject/group identifier column.}
 
-\item{time_col}{Character. Name of the time column.}
+\item{time_col}{Character. Name of the time column. Must be integer-valued
+(one time unit = one lag step); non-integer values error.}
 
 \item{y_cols}{Character vector. Names of the outcome columns.}
 
@@ -60,7 +62,9 @@ Default \code{FALSE}.}
 \code{"listwise"}.}
 
 \item{skip_lag}{Logical. If \code{TRUE} (default), rows with irregular time
-gaps have their lag set to zero rather than being dropped.}
+gaps have their lag predictors zero-filled rather than being dropped. For
+this, \code{time_col} should be scaled so that each step has a length of one
+(e.g., integer days, weeks, or months). Non-integer values error.}
 
 \item{data}{Data frame in long format.}
 
@@ -97,24 +101,51 @@ hierarchical logistic models) but increases computation. Default
 listwise-deleted) estimation data in the \code{data_used} slot of the
 returned object for reproducibility and downstream analyses.
 Default \code{FALSE}.}
+
+\item{...}{Additional named arguments forwarded to the CmdStanR
+\code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},
+\code{step_size}, or \code{show_messages}. See
+\code{?cmdstanr::"model-method-sample"} for the full list. Arguments that
+\code{bvar()} sets itself (\code{data}, \code{seed}, \code{iter_warmup},
+\code{iter_sampling}, \code{chains}, \code{parallel_chains},
+\code{adapt_delta}, \code{max_treedepth}, and CmdStanR's deprecated
+aliases for them) are rejected with an error; use the corresponding
+\code{bvar()} argument instead.}
 }
 \value{
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-\code{priors}. If \code{save_data = TRUE}, also includes
-\code{data_used} (the cleaned estimation data frame).
+\code{priors}, \code{priors_effective}. If \code{save_data = TRUE}, also
+includes \code{data_used} (the cleaned estimation data frame).
 }
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 }
+\section{Requested versus effective priors}{
+
+\code{priors} holds the priors as you specified them. \code{priors_effective}
+holds the priors Stan actually sampled under: one \code{bvarnet_priors}
+object per outcome. The two differ for Gaussian outcomes left at their
+default priors, where \code{intercept}, \code{beta} and \code{sigma} scales
+are multiplied by the outcome SD so that unit-scale defaults stay weakly
+informative on the raw data scale. User-supplied priors are never rescaled.
+
+Bayes factors (\code{\link{bf_table}}) divide by \code{priors_effective},
+as the Savage-Dickey density ratio requires. Note that the joint path
+(\code{family} a single value) scales every outcome by the mean SD across
+outcomes, whereas the nodewise path (mixed \code{family}) scales each outcome
+by its own SD, so the same data can imply slightly different effective priors
+depending on which path runs.
+}
+
 \examples{
 \dontrun{
 # Run bvar on studentlife data
 data(studentlife, package = "bvarnet")
 fit <- bvar(
   id_col = "id",
-  time_col = "time",
+  time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   re_temporal = TRUE,
   K = 1,
@@ -125,4 +156,9 @@ fit <- bvar(
 
 summary(fit)
 }
+}
+\seealso{
+\code{\link{bvarnet_setup_models}}, which must be run once before
+the first \code{bvar()} call to set up the required Stan models (either
+by downloading precompiled binaries or compiling them locally).
 }

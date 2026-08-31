@@ -25,14 +25,24 @@ test_that("eval_prior_density: cauchy prior", {
 
 test_that("eval_joint_prior_density: product of independent marginals", {
   priors <- set_priors()
-  types <- c("phi", "phi", "beta")
+  prior_objs <- list(priors$phi, priors$phi, priors$beta)
   null  <- c(0, 0, 0)
   expected <- eval_prior_density(priors$phi, 0) *
               eval_prior_density(priors$phi, 0) *
               eval_prior_density(priors$beta, 0)
   expect_equal(
-    eval_joint_prior_density(priors, types, null),
+    eval_joint_prior_density(prior_objs, null),
     expected
+  )
+})
+
+test_that("eval_joint_prior_density: each parameter gets its own prior", {
+  # Two same-type parameters may carry different effective scales, e.g. beta on
+  # two Gaussian nodes with different outcome SDs.
+  prior_objs <- list(prior("normal", 0, 1), prior("normal", 0, 10))
+  expect_equal(
+    eval_joint_prior_density(prior_objs, c(0, 0)),
+    dnorm(0, 0, 1) * dnorm(0, 0, 10)
   )
 })
 
@@ -77,30 +87,15 @@ test_that("MVN SDDR matches analytical bivariate normal-normal BF", {
   prior_den_true <- dnorm(0, 0, prior_sd[1]) * dnorm(0, 0, prior_sd[2])
   BF_true <- post_den_true / prior_den_true
 
-  # Use two phi priors with different scales — need to pass them via prior_list
-  priors <- list(phi = prior("normal", 0, 1))
-  # Since both use "phi" type, the function uses the same prior for both — but
-  # our analytical uses different scales.  So let's use same scale for both.
-  draws_mat2 <- cbind(
-    rnorm(S, post_mean[1], sqrt(post_var[1])),
-    rnorm(S, post_mean[1], sqrt(post_var[1]))  # same marginal
-  )
-  colnames(draws_mat2) <- c("phi[1,1]", "phi[2,1]")
-
-  # Equal-prior version
-  post_var_eq  <- 1 / (n_obs / 1 + 1 / 1)
-  post_mean_eq <- post_var_eq * (n_obs * 0.3)
-  post_den_eq  <- dnorm(0, post_mean_eq, sqrt(post_var_eq))^2
-  prior_den_eq <- dnorm(0, 0, 1)^2
-  BF_eq <- post_den_eq / prior_den_eq
-
+  # Priors are supplied one per parameter, so the two differing scales used to
+  # generate the draws are exactly the ones the SDDR divides by.
   res <- .compute_sddr_mvn(
-    draws_mat2,
-    prior_list  = list(phi = prior("normal", 0, 1)),
-    param_types = c("phi", "phi"),
-    null_vec    = c(0, 0)
+    draws_mat,
+    prior_objs = list(prior("normal", 0, prior_sd[1]),
+                      prior("normal", 0, prior_sd[2])),
+    null_vec   = c(0, 0)
   )
-  expect_equal(res$BF01, BF_eq, tolerance = 0.10)
+  expect_equal(res$BF01, BF_true, tolerance = 0.10)
 })
 
 
@@ -120,10 +115,7 @@ test_that("logspline and MVN give consistent single-parameter BFs", {
 
   draws_mat <- matrix(draws, ncol = 1)
   colnames(draws_mat) <- "phi[1,1]"
-  res_mvn <- .compute_sddr_mvn(draws_mat,
-                                prior_list = list(phi = pr),
-                                param_types = "phi",
-                                null_vec = 0)
+  res_mvn <- .compute_sddr_mvn(draws_mat, prior_objs = list(pr), null_vec = 0)
 
   expect_equal(res_ls$BF01, res_mvn$BF01, tolerance = 0.15)
 })
@@ -410,6 +402,7 @@ test_that("bf_table fe: p=2, 2 predictors → 4 cell + 2 joint + 1 joint all = 7
     draws     = draws,
     standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -451,6 +444,7 @@ test_that("bf_table fe: p=1, 2 predictors → 2 cell + 0 joint + 1 joint all = 3
     draws     = draws,
     standata  = list(p = p, K = K, n_fe = n_fe, n_re = n_re, Y = Y, X = X, B = B, Z = Z),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -501,6 +495,7 @@ test_that("bf_table lag_fe: p=2, K=1, 1 interaction → 2 rows", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -543,6 +538,7 @@ test_that("bf_table lag_fe: p=2, K=2 → 3 rows (2 per-lag + 1 omnibus)", {
                                   "lag2_y_1:x_1", "lag2_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -682,6 +678,7 @@ test_that("bf_table temporal with lag interaction emits interaction rows", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -735,6 +732,7 @@ test_that("bf_table temporal with 2 interaction terms emits per-term rows", {
                                   "lag1_y_1:x_2", "lag1_y_2:x_2")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -779,6 +777,7 @@ test_that("bf_table temporal p=1: no CL row emitted", {
                      Y = Y, X = X, B = B, Z = Z,
                      fe_interaction_terms = list()),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -864,6 +863,7 @@ test_that("bf_table type='all' includes lag_fe when interactions exist", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -962,6 +962,7 @@ test_that("bf_table returns 0-row data frame when variable+type yields no params
                     Y = Y, X = X, B = B, Z = Z,
                     fe_interaction_terms = list()),
     priors = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family = "gaussian"
   ), class = "bvarnet")
 
@@ -1023,6 +1024,7 @@ test_that("bf_table(variable + type='lag_fe') filters to variable interactions",
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1060,6 +1062,7 @@ test_that("bf_table(variable) with K=2 filters across lags", {
                      Y = Y, X = X, B = B, Z = Z,
                      fe_interaction_terms = list()),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1107,6 +1110,7 @@ test_that("bf_table(variable + temporal) with K=1 interactions filters correctly
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1159,6 +1163,7 @@ test_that("bf_table(variable = covariate, type = 'all') auto-selects fe + lag_fe
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1206,6 +1211,7 @@ test_that("bf_table(variable = mixed network + covariate) combines both", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1292,6 +1298,7 @@ test_that("type='all' with interactions has no duplicate interaction joints", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 
@@ -1328,6 +1335,7 @@ test_that("K=1 lag_fe has no duplicate omnibus row", {
       fe_interaction_colnames = c("lag1_y_1:x_1", "lag1_y_2:x_1")
     ),
     priors    = set_priors(),
+    priors_effective = rep(list(set_priors()), p),
     family    = "gaussian"
   ), class = "bvarnet")
 

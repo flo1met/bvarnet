@@ -9,7 +9,8 @@ extract_temporal(
   lag = NULL,
   effect = c("all", "ar", "cl"),
   bayes_factor = FALSE,
-  null_value = 0
+  null_value = 0,
+  ci_level = 0.95
 )
 }
 \arguments{
@@ -25,12 +26,16 @@ lag are returned. Default \code{NULL} (all lags).}
 Default \code{FALSE}.}
 
 \item{null_value}{Numeric; null hypothesis for BF. Default 0.}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in \code{ci_lower} and
+\code{ci_upper}. Default \code{0.95}.}
 }
 \value{
 A data frame with columns \code{type}, \code{predictor},
-\code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-\code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
-\code{BF01}, \code{BF10}.
+\code{outcome}, \code{mean}, \code{median}, \code{ci_lower},
+\code{ci_upper}, \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and
+optionally \code{BF01}, \code{BF10}.
 }
 \description{
 Returns a data frame of autoregressive and/or cross-lagged parameter

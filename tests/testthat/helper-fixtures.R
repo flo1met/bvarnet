@@ -113,6 +113,19 @@ get_standata_ordinal <- function() {
 # ── Reusable test helpers ────────────────────────────────────────────────────
 
 #' Check if all values lie within [lo, hi]
+#' Skip unless a real `bvar()` fit can actually run here
+#'
+#' CmdStan being installed is not enough: the precompiled Stan models live in
+#' `bin/stan`, which is absent from a source checkout.
+skip_if_no_bvarnet_models <- function(family = "gaussian") {
+  testthat::skip_if_not(instantiate::stan_cmdstan_exists(), "CmdStan not found")
+  ok <- tryCatch({
+    .bvarnet_stan_model(.bvarnet_model_for_family(family))
+    TRUE
+  }, error = function(e) FALSE)
+  testthat::skip_if_not(ok, "precompiled bvarnet Stan models not available")
+}
+
 values_in_range <- function(x, lo, hi) {
   all(x >= lo & x <= hi, na.rm = TRUE)
 }
@@ -143,6 +156,14 @@ make_test_df <- function(N = 5, T_obs = 20, p = 2, q = 0,
     df[[paste0("x_", j)]] <- rnorm(nrow(df))
   }
   df
+}
+
+#' Create a fresh temp directory for a test (caller unlinks it, e.g. via
+#' `on.exit(unlink(dir, recursive = TRUE, force = TRUE), add = TRUE)`).
+bvarnet_test_tempdir <- function() {
+  dir <- tempfile("bvarnet_test_")
+  dir.create(dir)
+  dir
 }
 
 #' Build a mock bvarnet object without running Stan
@@ -193,31 +214,36 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     par_nms <- c(par_nms, sigma_nm)
   }
 
-  # kappa only for ordinal nodes (C=3 → 2 cutpoints each)
+  # Every block below is emitted in true CmdStan order: all indices flatten
+  # column-major, so the FIRST index varies fastest. Getting this wrong is what
+  # let the u-ordering bug hide — the fixture must mirror real output, not the
+  # order any particular extractor happens to assume.
+
+  # kappa only for ordinal nodes (C=3 → 2 cutpoints each): array[p] ordered[C-1]
   ord_idx <- which(family_vec == "ordinal")
   if (length(ord_idx) > 0L) {
     kappa_nm <- character(0)
-    for (node in ord_idx)
-      for (k in 1:2)
+    for (k in 1:2)
+      for (node in ord_idx)
         kappa_nm <- c(kappa_nm, sprintf("kappa[%d,%d]", node, k))
     par_nms <- c(par_nms, kappa_nm)
   }
 
-  # sd_u parameters: sd_u[node,re]
+  # sd_u: matrix[p, n_re] → sd_u[node, re], node fastest
   if (n_re > 0L) {
     sd_u_nm <- character(0)
-    for (node in seq_len(p))
-      for (re in seq_len(n_re))
+    for (re in seq_len(n_re))
+      for (node in seq_len(p))
         sd_u_nm <- c(sd_u_nm, sprintf("sd_u[%d,%d]", node, re))
     par_nms <- c(par_nms, sd_u_nm)
   }
 
-  # u parameters: array[p] matrix[J, n_re] → u[node, subject, re]
+  # u: array[p] matrix[J, n_re] → u[node, subject, re], node fastest
   u_nm <- character(0)
   if (n_re > 0L) {
-    for (node in seq_len(p))
+    for (re in seq_len(n_re))
       for (subj in seq_len(J))
-        for (re in seq_len(n_re))
+        for (node in seq_len(p))
           u_nm <- c(u_nm, sprintf("u[%d,%d,%d]", node, subj, re))
     par_nms <- c(par_nms, u_nm)
   }
@@ -338,6 +364,9 @@ make_mock_bvarnet <- function(family   = "bernoulli",
       family        = family_vec,
       standata      = sd_list,
       priors        = set_priors(),
+      # Mocks carry no data-dependent scaling, so the effective prior on every
+      # node equals the requested one.
+      priors_effective = setNames(rep(list(set_priors()), p), y_cols),
       priors_needed = priors_needed
     ),
     class = "bvarnet"

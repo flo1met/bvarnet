@@ -4,7 +4,11 @@
 \alias{extract_random_effects}
 \title{Extract random-effect summaries}
 \usage{
-extract_random_effects(object, what = c("sd", "mean_u", "draws_u"))
+extract_random_effects(
+  object,
+  what = c("sd", "mean_u", "draws_u"),
+  ci_level = 0.95
+)
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{\link{bvar}}.}
@@ -18,6 +22,10 @@ posterior means of subject-level effects.}
 \item{\code{"draws_u"}}{4D array \code{[draw, node, subject, re]}
 of full posterior draws.}
 }}
+
+\item{ci_level}{Numeric scalar strictly between 0 and 1; the mass of the
+equal-tailed credible interval reported in \code{ci_lower} and
+\code{ci_upper}. Default \code{0.95}. Only used when \code{what = "sd"}.}
 }
 \value{
 Depends on \code{what}; see above.
@@ -27,3 +35,15 @@ Returns random-effect standard deviations (group-level variance),
 subject-level posterior means, or the full posterior draws of the
 subject-level random effects \code{u}.
 }
+\section{Array layout}{
+
+The \code{"mean_u"} and \code{"draws_u"} arrays are indexed
+\code{[node, subject, re]} (with a leading \code{draw} dimension for
+\code{"draws_u"}), matching the Stan declaration
+\code{array[p] matrix[J, n_re] u}. \code{node} is named after the outcome
+columns, \code{subject} after the subject index \code{1..J}, and \code{re}
+after the random-effect design columns. Elements are placed by parsing the
+\code{u[node, subject, re]} indices from the draws, so the layout is the same
+whether the model was fitted through the joint or the nodewise path.
+}
+

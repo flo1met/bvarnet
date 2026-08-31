@@ -1,3 +1,32 @@
+#' Apply the data-dependent default-prior scaling
+#'
+#' Gaussian outcomes are modelled on their raw scale, so the unit-scale default
+#' priors on \code{beta}, \code{intercept} and \code{sigma} are widened by the
+#' outcome SD. User-supplied priors are taken at face value and never rescaled.
+#'
+#' This is the single definition of the scaling rule. Both \code{to_stan_data()}
+#' and \code{.to_stan_data_node()} call it, and the result is the *effective*
+#' prior that Stan actually samples under — the one \code{savage_dickey()} must
+#' use as the Savage-Dickey denominator.
+#'
+#' @param priors A \code{bvarnet_priors} object.
+#' @param family Character scalar.
+#' @param s_y Numeric scalar. The outcome SD to scale by.
+#'
+#' @return A \code{bvarnet_priors} object, scaled where applicable.
+#' @keywords internal
+#' @noRd
+.scale_default_priors <- function(priors, family, s_y) {
+  if (family != "gaussian" || !is.finite(s_y) || s_y <= 0) return(priors)
+
+  for (par in c("beta", "intercept", "sigma"))
+    if (isTRUE(priors[[par]]$is_default))
+      priors[[par]]$scale <- priors[[par]]$scale * s_y
+
+  priors
+}
+
+
 #' Build a Stan data list from a long-format data frame
 #'
 #' Internal function called by \code{bvar()}. Constructs the list passed to
@@ -18,7 +47,11 @@
 #' @param re_temporal Logical. Random slopes on lag predictors. Default FALSE.
 #' @param K Integer. AR order.
 #' @param na_action Character. Only \code{"listwise"} currently supported.
-#' @param skip_lag Logical. Zero-fill lags across irregular time gaps.
+#' @param skip_lag Logical. If \code{TRUE} (default), rows whose lag is not
+#'   exactly \code{K} consecutive time steps back are kept with their lag
+#'   predictors zero-filled; if \code{FALSE}, such rows are dropped from the
+#'   likelihood entirely. \code{time_col} must be integer-valued (one time
+#'   unit = one lag step); non-integer values error.
 #' @param priors A \code{bvarnet_priors} object. Defaults to \code{set_priors()}.
 #'
 #' @return A named list ready to pass to \code{CmdStanModel$sample()}.
@@ -79,15 +112,10 @@ to_stan_data <- function(data,
     }
   }
 
-  ## Data-dependent scaling for Gaussian
-  if (family == "gaussian") {
-    s_y <- mean(apply(Y, 2, sd, na.rm = TRUE))
-    if (is.finite(s_y) && s_y > 0) {
-      if (priors$beta$is_default)      priors$beta$scale      <- priors$beta$scale      * s_y
-      if (priors$intercept$is_default) priors$intercept$scale <- priors$intercept$scale * s_y
-      if (priors$sigma$is_default)     priors$sigma$scale     <- priors$sigma$scale     * s_y
-    }
-  }
+  ## Data-dependent scaling for Gaussian. The joint path shares one s_y across
+  ## all outcomes; .to_stan_data_node() scales per node.
+  priors <- .scale_default_priors(priors, family,
+                                  s_y = mean(apply(Y, 2, sd, na.rm = TRUE)))
 
   ## Rebuild Z from the (possibly stripped) X
   Z <- build_Z(X, shared$B, re_cols = re_cols, re_temporal = re_temporal)
@@ -156,6 +184,11 @@ to_stan_data <- function(data,
     out$intercept_df        <- priors$intercept$df
   }
 
+  # An attribute, not a list element: bvar() filters standata by name before
+  # $sample(), but .bvar_nodewise() passes its node data list through
+  # unfiltered, and cmdstanr serialises names() only.
+  attr(out, "priors_effective") <- priors
+
   return(out)
 }
 
@@ -167,6 +200,9 @@ to_stan_data <- function(data,
 #' Always includes the Intercept column in X. Does NOT pack priors or do
 #' family-specific type casting. Used by both \code{to_stan_data()} (joint
 #' path) and \code{.bvar_nodewise()} (mixed path).
+#'
+#' The time column must be integer-valued (one time unit = one lag step);
+#' non-integer values error.
 #'
 #' @return A list with p, J, K, n_obs, n_fe, n_re, id, Y, X, B, Z,
 #'   id_levels, x_center_means, row_map, n_rows_data, design_spec,
@@ -191,6 +227,41 @@ to_stan_data <- function(data,
     data <- data[complete, , drop = FALSE]
   }
 
+  # Ensure integer only
+  tt <- data[[time_col]]
+  bad <- abs(tt - round(tt)) > 1e-6
+  if (any(bad)) {
+    stop(sprintf(
+      paste0("`%s` must be integer-valued: one time unit = one lag step. ",
+             "Rescale your time column so consecutive observations are 1 ",
+             "apart (e.g. divide by the beep interval). Found non-integer ",
+             "value: %s. Lag construction has no meaning on a non-integer ",
+             "grid."),
+      time_col, format(tt[bad][1])), call. = FALSE)
+  }
+  data[[time_col]] <- round(tt)
+
+  # check for duplicated (id, time) rows 
+  key <- interaction(data[[id_col]], data[[time_col]], drop = TRUE, lex.order = TRUE)
+  dup <- duplicated(key) | duplicated(key, fromLast = TRUE)
+  if (any(dup)) {
+    ex <- unique(data[dup, c(id_col, time_col), drop = FALSE])
+    ex <- ex[order(ex[[id_col]], ex[[time_col]]), , drop = FALSE]
+    n_show <- min(5L, nrow(ex))
+    pairs <- paste(sprintf("(%s=%s, %s=%s)",
+                           id_col, as.character(ex[[id_col]][seq_len(n_show)]),
+                           time_col, as.character(ex[[time_col]][seq_len(n_show)])),
+                   collapse = "; ")
+    stop(sprintf(
+      paste0("Duplicate (%s, %s) rows found: %d row(s) at %d time point(s). ",
+             "Each (id, time) must be unique. ",
+             "Deduplicate or aggregate to one row per (id, time) before ",
+             "fitting.%s First: %s"),
+      id_col, time_col, sum(dup), nrow(ex),
+      if (nrow(ex) > n_show) sprintf(" (%d shown)", n_show) else "",
+      pairs), call. = FALSE)
+  }
+
   ids_unique <- unique(data[[id_col]])
   J <- length(ids_unique)
   p <- length(y_cols)
@@ -213,6 +284,8 @@ to_stan_data <- function(data,
   id_out <- integer(n_obs)
   time_obs <- rep(NA_real_, n_obs)
   row_map <- integer(n_obs)
+
+  n_gap <- 0L
 
   row <- 0L
   for (jj in seq_len(J)) {
@@ -250,6 +323,8 @@ to_stan_data <- function(data,
       } else if (!skip_lag) {
         row <- row - 1L
         next
+      } else {
+        n_gap <- n_gap + 1L
       }
     }
   }
@@ -269,10 +344,33 @@ to_stan_data <- function(data,
          "Check your data for NAs and irregular time gaps.")
   }
 
+  # Identifiability guard: if every modelled row is a gap row, phi has zero
+  # informative rows and is identified only by its prior
+  if (skip_lag && n_gap == n_obs) {
+    stop(sprintf(
+      paste0("No observation has a valid lag: every modelled row's time ",
+             "gap is irregular for K = %d. `phi` is not identified from ",
+             "the data. Check K and the spacing of `%s`; if your grid is ",
+             "coarser than 1 unit, rescale so one step = 1."),
+      K, time_col), call. = FALSE)
+  }
+
   n_dropped <- n_obs_initial - n_obs
   if (n_dropped > 0) {
     message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
                     n_dropped, na_action, skip_lag, n_obs))
+  }
+  if (skip_lag && n_gap > 0) {
+    k_note <- if (K >= 2) {
+      sprintf(" %d of %d row(s) have all %d lag(s) valid.",
+              n_obs - n_gap, n_obs, K)
+    } else {
+      ""
+    }
+    message(sprintf(
+      paste0("bvarnet: %d of %d row(s) had an irregular time gap; their ",
+             "lag predictors were zero-filled (skip_lag = TRUE).%s"),
+      n_gap, n_obs, k_note))
   }
 
   x_center_means <- NULL
@@ -361,15 +459,7 @@ to_stan_data <- function(data,
                                        shared$design_spec$re_interactions)
 
   # Per-node Gaussian prior scaling (D3)
-  node_priors <- priors
-  if (family == "gaussian") {
-    s_y <- sd(Y_node, na.rm = TRUE)
-    if (is.finite(s_y) && s_y > 0) {
-      if (node_priors$beta$is_default)      node_priors$beta$scale      <- node_priors$beta$scale      * s_y
-      if (node_priors$intercept$is_default) node_priors$intercept$scale <- node_priors$intercept$scale * s_y
-      if (node_priors$sigma$is_default)     node_priors$sigma$scale     <- node_priors$sigma$scale     * s_y
-    }
-  }
+  node_priors <- .scale_default_priors(priors, family, s_y = sd(Y_node, na.rm = TRUE))
 
   # Abused K: Stan sees p=1, so K_node = p_full * K_orig to keep B correct
   K_node <- shared$p * shared$K
@@ -421,6 +511,9 @@ to_stan_data <- function(data,
     out$kappa_scale <- node_priors$kappa$scale
     out$kappa_df   <- node_priors$kappa$df
   }
+
+  # See to_stan_data(): carried as an attribute so it never reaches Stan's JSON.
+  attr(out, "priors_effective") <- node_priors
 
   out
 }

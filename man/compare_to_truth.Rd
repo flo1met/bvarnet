@@ -7,7 +7,7 @@
 compare_to_truth(
   fit,
   truth,
-  ci_width = 0.9,
+  ci_width = 0.95,
   bayes_factor = FALSE,
   null_value = 0
 )
@@ -17,7 +17,9 @@ compare_to_truth(
 
 \item{truth}{The \code{truth} component from \code{sim_var()} output.}
 
-\item{ci_width}{Numeric. Width of the credible interval (default 0.90).}
+\item{ci_width}{Numeric scalar strictly between 0 and 1. Mass of the
+equal-tailed credible interval used for \code{ci_lower}, \code{ci_upper},
+and the \code{covered} indicator (default 0.95).}
 
 \item{bayes_factor}{Logical; if \code{TRUE}, compute Savage-Dickey BFs for
 beta and phi parameters and append \code{BF01}, \code{BF10}, and

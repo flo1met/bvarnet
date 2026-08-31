@@ -63,3 +63,15 @@ By default, all applicable parameters are tested and returned in a tidy data fra
 The \code{type} argument controls which parameter groups are included; the \code{variable} argument can be used to filter to effects involving specific variables.
 The \code{log_BF10} argument allows including the natural log of the Bayes factor in the output, and \code{round} controls numeric rounding of the results.
 }
+\section{Which prior the Bayes factor divides by}{
+
+The Savage-Dickey density ratio is only valid against the prior the model was
+actually fitted with, so \code{bf_table()} evaluates the prior density using
+\code{object$priors_effective} — resolved per outcome, since Gaussian nodes
+scale their default priors by the outcome SD (see \code{\link{set_priors}}).
+For a Gaussian outcome with default priors this makes \code{intercepts} and
+\code{fe} Bayes factors differ from what the unscaled \code{object$priors}
+would give, by roughly a factor of \code{sd(y)}. \code{ar}, \code{cl} and
+\code{temporal} tests are unaffected: \code{phi} priors are never scaled.
+}
+

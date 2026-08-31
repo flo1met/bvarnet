@@ -314,3 +314,32 @@ test_that("bvar rejects invalid family string", {
     "arg"
   )
 })
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# bvar() sampler passthrough validation
+#
+# The `...` check runs before any Stan model is resolved, so these need no
+# compiled models and no CmdStan installation.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("bvar() rejects sampler arguments it sets itself", {
+  expect_error(
+    bvar(id_col = "id", time_col = "t", y_cols = c("a", "b"),
+         data = data.frame(), iter_warmup = 500),
+    "use bvar\\(warmup = "
+  )
+})
+
+test_that("bvar() rejects deprecated aliases of arguments it sets itself", {
+  expect_error(
+    bvar(id_col = "id", time_col = "t", y_cols = c("a", "b"),
+         data = data.frame(), num_samples = 500),
+    "use bvar\\(iter = "
+  )
+})
+
+# NOTE: the "all dots must be named" guard is exercised in test-helpers.R
+# against .check_sampler_dots() directly. It is not reachable through bvar(),
+# whose many optional formals (x_cols, center_x, ...) absorb a stray positional
+# argument before it can reach `...`.

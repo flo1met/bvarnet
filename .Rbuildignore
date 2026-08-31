@@ -9,3 +9,6 @@
 ^\.github$
 ^data-raw$
 ^vignettes/figure$
+^\.claude$
+^\.vscode$
+^CONTRIBUTING\.md$

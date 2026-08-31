@@ -1,8 +1,8 @@
 #' Extract labelled parameter summaries from a fitted bvarnet model
 #'
 #' Returns a single flat data frame with posterior summaries (mean, median,
-#' 5th/95th percentiles) and convergence diagnostics (Rhat, ESS) for all
-#' model parameters.
+#' and an equal-tailed credible interval) and convergence diagnostics
+#' (Rhat, ESS) for all model parameters.
 #'
 #' @param object A \code{bvarnet} object returned by \code{bvar()}.
 #' @param bayes_factor Logical; if \code{TRUE}, append \code{BF01} and
@@ -15,16 +15,20 @@
 #'   \code{"Intercept"}, \code{"Fixed Effect"}, \code{"Autoregressive"},
 #'   \code{"Cross-lagged"}, \code{"Random Effect SD"}, \code{"Residual SD"},
 #'   \code{"Threshold"}.
+#' @param ci_level Numeric scalar strictly between 0 and 1; the mass of the
+#'   equal-tailed credible interval reported in \code{ci_lower} and
+#'   \code{ci_upper}.  Default \code{0.95}.
 #'
 #' @return A data frame with columns: \code{type}, \code{predictor},
-#'   \code{outcome}, \code{mean}, \code{median}, \code{q5}, \code{q95},
-#'   \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and optionally
-#'   \code{BF01}, \code{BF10}.
+#'   \code{outcome}, \code{mean}, \code{median}, \code{ci_lower},
+#'   \code{ci_upper}, \code{rhat}, \code{ess_bulk}, \code{ess_tail}, and
+#'   optionally \code{BF01}, \code{BF10}.
 #'
 #' @export
 extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
-                          type = NULL) {
+                          type = NULL, ci_level = 0.95) {
   stopifnot(inherits(object, "bvarnet"))
+  probs <- .ci_probs(ci_level)
 
   .valid_types <- c("Intercept", "Fixed Effect", "Autoregressive",
                     "Cross-lagged", "Random Effect SD", "Residual SD",
@@ -45,13 +49,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
 
   # Join Rhat + ESS from object$convergence by Stan parameter name.
   # stan_colnames: character vector aligned with rows of tab.
-  join_convergence <- function(tab, stan_colnames) {
-    idx          <- match(stan_colnames, smry$variable)
-    tab$rhat     <- smry$rhat[idx]
-    tab$ess_bulk <- smry$ess_bulk[idx]
-    tab$ess_tail <- smry$ess_tail[idx]
-    tab
-  }
+  join_convergence <- function(tab, stan_colnames) .join_convergence(tab, stan_colnames, smry)
 
   # ---------- Intercepts & fixed effects (beta) ----------
   draws_beta <- extract_draws(object, "beta")
@@ -78,19 +76,16 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   kept_fe <- all_beta_indices$fe[keep_idx]
   kept_node <- all_beta_indices$node[keep_idx]
 
-  # Build summary table manually for the filtered columns
-  d_mean   <- colMeans(draws_beta_clean)
-  d_median <- apply(draws_beta_clean, 2L, stats::median)
-  d_q5     <- apply(draws_beta_clean, 2L, stats::quantile, probs = 0.05)
-  d_q95    <- apply(draws_beta_clean, 2L, stats::quantile, probs = 0.95)
+  # Build summary table manually for the filtered (non-rectangular) columns
+  s <- .summarize_draws(draws_beta_clean, probs)
   beta_tab <- data.frame(
     type      = ifelse(nm$fe[kept_fe] == "Intercept", "Intercept", "Fixed Effect"),
     predictor = nm$fe[kept_fe],
     outcome   = nm$y[kept_node],
-    mean      = as.numeric(d_mean),
-    median    = as.numeric(d_median),
-    q5        = as.numeric(d_q5),
-    q95       = as.numeric(d_q95),
+    mean      = s$mean,
+    median    = s$median,
+    ci_lower  = s$ci_lower,
+    ci_upper  = s$ci_upper,
     stringsAsFactors = FALSE
   )
   beta_stan_names <- colnames(draws_beta_clean)
@@ -98,7 +93,8 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
 
   # ---------- Autoregressive & Cross-lagged effects (phi) ----------
   draws_phi <- extract_draws(object, "phi")
-  phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "placeholder")
+  phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "placeholder",
+                                   probs = probs)
 
   # Classify each phi row as Autoregressive or Cross-lagged
   p_  <- sd$p
@@ -113,18 +109,15 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   phi_tab <- join_convergence(phi_tab, colnames(draws_phi))
 
   # ---------- Random-effect SDs (sd_u) ----------
-  re_sd_tab <- if (sd$n_re > 0) {
-    draws_sd <- extract_draws(object, "sd_u")
-    tab      <- build_summary_table(draws_sd, nm$y, nm$re, "Random Effect SD")
-    join_convergence(tab, colnames(draws_sd))
-  } else NULL
+  re_sd_tab <- if (sd$n_re > 0) .sd_u_summary_table(object, probs) else NULL
 
   # ---------- Residual SD (sigma, gaussian only) ----------
   gauss_idx <- .family_which(object, "gaussian")
   sigma_tab <- if (length(gauss_idx) > 0) {
     draws_sigma <- extract_draws(object, "sigma")
     gauss_names <- nm$y[gauss_idx]
-    tab <- build_summary_table(draws_sigma, gauss_names, "sigma", "Residual SD")
+    tab <- build_summary_table(draws_sigma, gauss_names, "sigma", "Residual SD",
+                               probs = probs)
     join_convergence(tab, colnames(draws_sigma))
   } else NULL
 
@@ -136,14 +129,15 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
     parts <- strsplit(gsub("kappa\\[|\\]", "", cn), ",")
     j_idx <- as.integer(vapply(parts, `[[`, character(1L), 1L))
     c_idx <- as.integer(vapply(parts, `[[`, character(1L), 2L))
+    s <- .summarize_draws(draws_kappa, probs)
     tab <- data.frame(
       type      = "Threshold",
       predictor = paste0("kappa(", nm$y[j_idx], ", c", c_idx, ")"),
       outcome   = "\u2014",
-      mean      = colMeans(draws_kappa),
-      median    = apply(draws_kappa, 2L, stats::median),
-      q5        = apply(draws_kappa, 2L, stats::quantile, probs = 0.05),
-      q95       = apply(draws_kappa, 2L, stats::quantile, probs = 0.95),
+      mean      = s$mean,
+      median    = s$median,
+      ci_lower  = s$ci_lower,
+      ci_upper  = s$ci_upper,
       stringsAsFactors = FALSE
     )
     join_convergence(tab, cn)
