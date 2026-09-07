@@ -77,19 +77,21 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   kept_node <- all_beta_indices$node[keep_idx]
 
   # Build summary table manually for the filtered (non-rectangular) columns
-  s <- .summarize_draws(draws_beta_clean, probs)
-  beta_tab <- data.frame(
-    type      = ifelse(nm$fe[kept_fe] == "Intercept", "Intercept", "Fixed Effect"),
-    predictor = nm$fe[kept_fe],
-    outcome   = nm$y[kept_node],
-    mean      = s$mean,
-    median    = s$median,
-    ci_lower  = s$ci_lower,
-    ci_upper  = s$ci_upper,
-    stringsAsFactors = FALSE
-  )
   beta_stan_names <- colnames(draws_beta_clean)
-  beta_tab <- join_convergence(beta_tab, beta_stan_names)
+  beta_tab <- if (ncol(draws_beta_clean) == 0L) NULL else {
+    s <- .summarize_draws(draws_beta_clean, probs)
+    tab <- data.frame(
+      type      = ifelse(nm$fe[kept_fe] == "Intercept", "Intercept", "Fixed Effect"),
+      predictor = nm$fe[kept_fe],
+      outcome   = nm$y[kept_node],
+      mean      = s$mean,
+      median    = s$median,
+      ci_lower  = s$ci_lower,
+      ci_upper  = s$ci_upper,
+      stringsAsFactors = FALSE
+    )
+    join_convergence(tab, beta_stan_names)
+  }
 
   # ---------- Autoregressive & Cross-lagged effects (phi) ----------
   draws_phi <- extract_draws(object, "phi")

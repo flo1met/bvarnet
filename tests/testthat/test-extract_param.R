@@ -188,6 +188,68 @@ test_that("extract_param retains FE rows for pure ordinal (no sentinel filtering
 })
 
 
+# A pure ordinal model with no covariates has the Intercept stripped from X,
+# so n_fe == 0 and Stan emits no beta at all. The summary path must cope with
+# that empty block instead of failing inside quantile().
+make_mock_ordinal_no_fe <- function() {
+  obj <- make_mock_bvarnet("ordinal")
+
+  beta_idx <- grep("^beta\\[", dimnames(obj$draws)[[3]])
+  obj$draws <- obj$draws[, , -beta_idx, drop = FALSE]
+  obj$convergence <- obj$convergence[
+    !grepl("^beta\\[", obj$convergence$variable), , drop = FALSE
+  ]
+
+  obj$standata$X <- obj$standata$X[, 0L, drop = FALSE]
+  obj$standata$n_fe <- 0L
+  obj$standata$design_spec$x_cols <- character(0)
+  obj
+}
+
+
+test_that("extract_draws returns a zero-column matrix when n_fe == 0", {
+  obj <- make_mock_ordinal_no_fe()
+  d <- extract_draws(obj, "beta")
+
+  expect_true(is.matrix(d))
+  expect_equal(ncol(d), 0L)
+  expect_equal(nrow(d), 40L)   # n_iter (20) * n_chains (2)
+})
+
+
+test_that("extract_param works for pure ordinal with no fixed effects", {
+  obj <- make_mock_ordinal_no_fe()
+  res <- extract_param(obj)
+
+  expect_s3_class(res, "data.frame")
+  expect_gt(nrow(res), 0L)
+  expect_equal(sum(res$type %in% c("Intercept", "Fixed Effect")), 0L)
+  expect_true(is.character(res$type))
+  expect_true(all(c("Autoregressive", "Cross-lagged", "Threshold") %in% res$type))
+  expect_equal(sum(res$type == "Threshold"),
+               obj$standata$p * (obj$standata$C - 1L))
+})
+
+
+test_that("summary() works for pure ordinal with no fixed effects", {
+  obj <- make_mock_ordinal_no_fe()
+
+  expect_no_error(s <- summary(obj))
+  expect_s3_class(s, "summary.bvarnet")
+  expect_output(print(s), "Threshold")
+})
+
+
+test_that(".summarize_draws handles a zero-column draws matrix", {
+  s <- .summarize_draws(matrix(numeric(0), nrow = 10L, ncol = 0L), c(0.025, 0.975))
+
+  expect_equal(s$mean,     numeric(0))
+  expect_equal(s$median,   numeric(0))
+  expect_equal(s$ci_lower, numeric(0))
+  expect_equal(s$ci_upper, numeric(0))
+})
+
+
 test_that("extract_param filtering by type works", {
   obj <- make_mock_bvarnet("bernoulli")
   res <- extract_param(obj)

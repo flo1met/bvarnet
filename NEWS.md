@@ -1,3 +1,6 @@
+# bvarnet 1.0.3
+* Minor bugfix that let to an error when running a model without covariates.
+
 # bvarnet 1.0.2
 
 ## New features

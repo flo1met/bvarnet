@@ -203,6 +203,10 @@ get_param_names <- function(sd) {
 #' @keywords internal
 #' @noRd
 .summarize_draws <- function(draws, probs) {
+  if (ncol(draws) == 0L) #safeguard if empty
+    return(list(mean = numeric(0), median = numeric(0),
+                ci_lower = numeric(0), ci_upper = numeric(0)))
+
   q <- apply(draws, 2L, stats::quantile, probs = c(probs[1L], probs[2L]))
   list(
     mean     = as.numeric(colMeans(draws)),
