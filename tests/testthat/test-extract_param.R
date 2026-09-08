@@ -66,6 +66,150 @@ test_that("extract_draws rejects sd_u when n_re = 0", {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# §1b extract_draws() — multiple parameter blocks
+# ═══════════════════════════════════════════════════════════════════════════════
+
+test_that("extract_draws returns several blocks side by side in one matrix", {
+  obj <- make_mock_bvarnet("gaussian")
+  res <- extract_draws(obj, c("beta", "phi", "sigma"))
+
+  expect_true(is.matrix(res))
+  expect_equal(nrow(res), 40L)   # n_iter (20) * n_chains (2)
+  expect_equal(
+    ncol(res),
+    ncol(extract_draws(obj, "beta")) +
+      ncol(extract_draws(obj, "phi")) +
+      ncol(extract_draws(obj, "sigma"))
+  )
+  # Columns keep their Stan names and appear in the order requested
+  expect_equal(colnames(res)[1L], "beta[1,1]")
+  expect_true(all(grepl("^(beta|phi|sigma)\\[", colnames(res))))
+  expect_equal(res[, "phi[2,1]"], extract_draws(obj, "phi")[, "phi[2,1]"])
+})
+
+
+test_that("extract_draws deduplicates repeated parameter names", {
+  obj <- make_mock_bvarnet("bernoulli")
+
+  expect_equal(
+    extract_draws(obj, c("phi", "phi")),
+    extract_draws(obj, "phi")
+  )
+})
+
+
+test_that("extract_draws supports partial matching of parameter names", {
+  obj <- make_mock_bvarnet("gaussian")
+
+  expect_equal(extract_draws(obj, "sig"), extract_draws(obj, "sigma"))
+})
+
+
+test_that("extract_draws rejects unknown parameter names in a vector", {
+  obj <- make_mock_bvarnet("bernoulli")
+
+  # A bad name must not be silently dropped just because a good one matched
+  expect_error(extract_draws(obj, c("phi", "bogus")), "bogus")
+})
+
+
+test_that("extract_draws rejects 'all' combined with other names", {
+  obj <- make_mock_bvarnet("bernoulli")
+
+  expect_error(extract_draws(obj, c("all", "phi")), "cannot be combined")
+})
+
+
+test_that("extract_draws 'all' returns every block the model has", {
+  obj <- make_mock_bvarnet("gaussian", n_re = 2L)
+  res <- extract_draws(obj, "all")
+
+  expect_true(is.matrix(res))
+  expect_true(all(c("beta[1,1]", "phi[1,1]", "sd_u[1,1]", "sigma[1]") %in%
+                    colnames(res)))
+  # kappa belongs to ordinal models only, and u is not one of the blocks
+  expect_false(any(grepl("^(kappa|u)\\[", colnames(res))))
+})
+
+
+test_that("extract_draws defaults to 'all'", {
+  obj <- make_mock_bvarnet("ordinal")
+
+  expect_equal(extract_draws(obj), extract_draws(obj, "all"))
+})
+
+
+test_that("extract_draws does not offer u — that is extract_random_effects' job", {
+  obj <- make_mock_bvarnet("gaussian", n_re = 2L, J = 5L)
+
+  expect_error(extract_draws(obj, "u"), "Unknown `parameter` value")
+  expect_false("u" %in% .draw_param_choices)
+  expect_false(any(grepl("^u\\[", colnames(extract_draws(obj, "all")))))
+})
+
+
+test_that(".extract_draws_block still reaches u internally", {
+  # u is off the public menu but must stay available to package internals,
+  # which is why .extract_draws_block() does not consult .draw_param_choices.
+  obj <- make_mock_bvarnet("gaussian", n_re = 2L, J = 5L)
+  res <- .extract_draws_block(obj, "u")
+
+  expect_true(is.matrix(res))
+  sd <- obj$standata
+  expect_equal(ncol(res), sd$p * sd$J * sd$n_re)
+  expect_true(all(grepl("^u\\[", colnames(res))))
+  # Same draws the shaped extractor reports, just flattened into columns
+  expect_equal(unname(res[, "u[2,3,1]"]),
+               unname(.extract_u_draws(obj)[, 2L, 3L, 1L]))
+})
+
+
+test_that("extract_draws returns lp__ as a one-column matrix", {
+  obj <- add_mock_lp(make_mock_bvarnet("bernoulli"))
+  res <- extract_draws(obj, "lp__")
+
+  expect_true(is.matrix(res))
+  expect_equal(dim(res), c(40L, 1L))
+  expect_equal(colnames(res), "lp__")
+  # lp__ is the one name matched whole rather than by an "[index]" suffix
+  expect_equal(as.numeric(res), as.numeric(obj$draws[, , "lp__"]))
+})
+
+
+test_that("extract_draws errors on lp__ when the draws do not carry it", {
+  obj <- make_mock_bvarnet("bernoulli")   # mocks have no lp__ unless added
+
+  expect_error(extract_draws(obj, "lp__"), "lp__")
+})
+
+
+test_that("extract_draws 'all' includes lp__ and orders blocks", {
+  obj <- add_mock_lp(make_mock_bvarnet("ordinal", n_re = 2L))
+  res <- extract_draws(obj, "all")
+
+  block <- sub("\\[.*$", "", colnames(res))
+  expect_equal(unique(block), c("beta", "phi", "sd_u", "kappa", "lp__"))
+  expect_equal(ncol(res), sum(vapply(
+    c("beta", "phi", "sd_u", "kappa", "lp__"),
+    function(p) ncol(extract_draws(obj, p)), integer(1L)
+  )))
+})
+
+
+test_that("extract_draws 'all' skips blocks this model does not have", {
+  # Pure ordinal with no covariates: no sigma (not gaussian), no sd_u
+  # (n_re = 0), and beta is declared matrix[0, p] so it has no draws.
+  obj <- make_mock_ordinal_no_fe()
+  res <- extract_draws(obj, "all")
+
+  expect_true(all(grepl("^(phi|kappa)\\[", colnames(res))))
+  expect_false(any(grepl("^beta\\[", colnames(res))))
+  # Naming an absent block explicitly is still an error
+  expect_error(extract_draws(obj, c("phi", "sigma")), "gaussian")
+})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # §2 extract_param() — class validation
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -186,25 +330,6 @@ test_that("extract_param retains FE rows for pure ordinal (no sentinel filtering
 
   expect_equal(sum(res$type == "Intercept"), 0L)
 })
-
-
-# A pure ordinal model with no covariates has the Intercept stripped from X,
-# so n_fe == 0 and Stan emits no beta at all. The summary path must cope with
-# that empty block instead of failing inside quantile().
-make_mock_ordinal_no_fe <- function() {
-  obj <- make_mock_bvarnet("ordinal")
-
-  beta_idx <- grep("^beta\\[", dimnames(obj$draws)[[3]])
-  obj$draws <- obj$draws[, , -beta_idx, drop = FALSE]
-  obj$convergence <- obj$convergence[
-    !grepl("^beta\\[", obj$convergence$variable), , drop = FALSE
-  ]
-
-  obj$standata$X <- obj$standata$X[, 0L, drop = FALSE]
-  obj$standata$n_fe <- 0L
-  obj$standata$design_spec$x_cols <- character(0)
-  obj
-}
 
 
 test_that("extract_draws returns a zero-column matrix when n_fe == 0", {

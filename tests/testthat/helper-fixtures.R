@@ -166,6 +166,45 @@ bvarnet_test_tempdir <- function() {
   dir
 }
 
+#' Build a mock pure-ordinal bvarnet object with no fixed effects
+#'
+#' A pure ordinal model with no covariates has the Intercept stripped from X,
+#' so n_fe == 0 and Stan emits no beta draws at all. Downstream code must cope
+#' with that empty block instead of failing inside quantile().
+make_mock_ordinal_no_fe <- function() {
+  obj <- make_mock_bvarnet("ordinal")
+
+  beta_idx <- grep("^beta\\[", dimnames(obj$draws)[[3]])
+  obj$draws <- obj$draws[, , -beta_idx, drop = FALSE]
+  obj$convergence <- obj$convergence[
+    !grepl("^beta\\[", obj$convergence$variable), , drop = FALSE
+  ]
+
+  obj$standata$X <- obj$standata$X[, 0L, drop = FALSE]
+  obj$standata$n_fe <- 0L
+  obj$standata$design_spec$x_cols <- character(0)
+  obj
+}
+
+#' Append an `lp__` column to a mock's draws array
+#'
+#' make_mock_bvarnet() carries only model parameters; real fits also carry the
+#' sampler's log density as a scalar `lp__` column (see bvar.R), which is the
+#' one draw name that has no `[index]` suffix.
+add_mock_lp <- function(obj) {
+  d  <- obj$draws
+  lp <- array(rnorm(dim(d)[1] * dim(d)[2]),
+              dim = c(dim(d)[1], dim(d)[2], 1L),
+              dimnames = list(NULL, NULL, "lp__"))
+  obj$draws <- abind_simple(d, lp)
+  obj$convergence <- rbind(
+    obj$convergence,
+    data.frame(variable = "lp__", rhat = 1.001, ess_bulk = 3000,
+               ess_tail = 2800, stringsAsFactors = FALSE)
+  )
+  obj
+}
+
 #' Build a mock bvarnet object without running Stan
 #'
 #' Returns a minimal bvarnet list with a synthetic 3D draws array, a matching
