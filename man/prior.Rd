@@ -14,7 +14,8 @@ prior(family, loc = 0, scale = 1, df = 7)
 
 \item{scale}{Scale parameter (default 1). Must be > 0.}
 
-\item{df}{Degrees of freedom for \code{"student_t"} (default 7). Must be0 when \code{family = "student_t"}.}
+\item{df}{Degrees of freedom for \code{"student_t"} (default 7). Must be > 0
+when \code{family = "student_t"}.}
 }
 \value{
 A \code{bvarnet_prior} S3 object.

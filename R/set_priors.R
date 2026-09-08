@@ -23,8 +23,8 @@
 #'   \code{"cauchy"}.
 #' @param loc Location parameter (default 0).
 #' @param scale Scale parameter (default 1). Must be > 0.
-#' @param df Degrees of freedom for \code{"student_t"} (default 7). Must be
-#'   > 0 when \code{family = "student_t"}.
+#' @param df Degrees of freedom for \code{"student_t"} (default 7). Must be > 0
+#'   when \code{family = "student_t"}.
 #'
 #' @return A \code{bvarnet_prior} S3 object.
 #' @export
