@@ -1,4 +1,5 @@
-# bvarnet 1.0.3.9000
+# bvarnet 1.0.3
+
 * Minor bugfix that let to an error when running a model without covariates.
 * `extract_draws()` now accepts several parameters at once.
 * Minor documentation fixes
