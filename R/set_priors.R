@@ -134,7 +134,8 @@ print.bvarnet_prior <- function(x, ...) {
 #' @param beta      Prior for fixed-effect regression coefficients (slopes).
 #' @param phi    Prior for lag coefficients.
 #' @param sd_u   Prior for random-effect standard deviations (half-prior).
-#' @param kappa  Prior for ordinal cut-points (ordinal models only).
+#' @param kappa  Prior for the adjacent-category thresholds (ordinal models
+#'   only).
 #' @param sigma  Prior for residual standard deviation (gaussian models only;
 #'   half-prior).
 #'

@@ -528,7 +528,7 @@ build_Z <- function(X, B, re_cols = character(0), re_temporal = FALSE) {
   # random slopes on selected fixed-effect columns
   if (length(re_cols) > 0) {
     # Handle "Intercept" specially: for ordinal, X has no intercept column
-    # (intercept is absorbed by kappa cutpoints), so create a column of 1s
+    # (intercept is absorbed by the kappa thresholds), so create a column of 1s
     if ("Intercept" %in% re_cols && !"Intercept" %in% colnames(X)) {
       intercept_col <- matrix(1, nrow = nrow(X), ncol = 1)
       colnames(intercept_col) <- "Intercept"

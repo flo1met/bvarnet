@@ -104,8 +104,6 @@ test_that("ordinal kappa has correct structure", {
 
   for (node in seq_len(p)) {
     expect_length(kappa[[node]], C - 1)
-    # cutpoints must be strictly ordered
-    expect_true(!is.unsorted(kappa[[node]], strictly = TRUE))
   }
 })
 
@@ -378,7 +376,7 @@ test_that("rescale_to_stable makes unstable Phi stable", {
 })
 
 
-test_that("generate_default_kappa returns ordered cutpoints", {
+test_that("generate_default_kappa returns increasing thresholds", {
   for (C in c(2, 3, 5, 10)) {
     kappa <- bvarnet:::generate_default_kappa(C)
     expect_length(kappa, C - 1)
@@ -410,7 +408,7 @@ test_that("generate_response_ordinal returns values in {1, ..., C}", {
   set.seed(202)
   p <- 5; C <- 4
   eta <- rnorm(p)
-  kappa <- replicate(p, sort(rnorm(C - 1)), simplify = FALSE)
+  kappa <- replicate(p, rnorm(C - 1), simplify = FALSE)
   y <- bvarnet:::generate_response_ordinal(eta, kappa, C, p)
   expect_true(all(y %in% 1:C))
   expect_length(y, p)

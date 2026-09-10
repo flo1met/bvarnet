@@ -311,7 +311,7 @@ test_that("extract_param includes kappa rows for ordinal", {
   res <- extract_param(obj)
 
   expect_true(any(res$type == "Threshold"))
-  # p=2, C-1=2 cutpoints: expect 4 threshold rows
+  # p=2, C-1=2 thresholds: expect 4 threshold rows
   expect_equal(sum(res$type == "Threshold"),
                obj$standata$p * (obj$standata$C - 1L))
 })

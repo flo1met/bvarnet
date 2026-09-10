@@ -146,7 +146,7 @@ We can do this for any sampled parameter, for example the threshold parameter ka
 kappa_pars <- grep("^kappa", dimnames(fit$draws)[[3]], value = TRUE)[1:4]
 
 mcmc_trace(fit$draws, pars = kappa_pars) +
-  ggplot2::labs(title = "Trace plots — first four cutpoints (kappa)")
+  ggplot2::labs(title = "Trace plots — first four thresholds (kappa)")
 ```
 
 ---

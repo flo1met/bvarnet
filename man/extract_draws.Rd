@@ -32,18 +32,6 @@ The blocks are the fixed effects \code{beta}, the temporal coefficients
 \code{phi}, the random-effect SDs \code{sd_u}, the residual SDs
 \code{sigma}, the ordinal thresholds \code{kappa}, and \code{lp__}, the
 sampler's log density.
-
-Naming a block the model does not have is an error: \code{"sigma"} exists
-only for gaussian models, \code{"kappa"} only for ordinal ones, and
-\code{"sd_u"} only when the model has random effects. \code{"all"} skips
-those blocks instead of failing, and also skips \code{"beta"} when it is
-empty \u2014 a pure ordinal model without covariates has the intercept absorbed
-into \code{kappa} and no covariates left, so Stan declares
-\code{matrix[0, p] beta} and emits no \code{beta[...]} draws.
-
-The subject-level random effects themselves are not among the blocks; use
-\code{\link{extract_random_effects}} with \code{what = "draws_u"}, which
-returns them shaped as \code{[draw, node, subject, re]}.
 }
 \examples{
 \dontrun{
