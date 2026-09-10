@@ -120,8 +120,10 @@ if NULL.</p></dd>
 
 
 <dt id="arg-kappa">kappa<a class="anchor" aria-label="anchor" href="#arg-kappa"></a></dt>
-<dd><p>List of <code>p</code> ordered vectors, each of length <code>C-1</code>.
-Cutpoints per node (ordinal only). Generated if NULL.</p></dd>
+<dd><p>List of <code>p</code> numeric vectors, each of length <code>C-1</code>.
+Adjacent-category thresholds per node (ordinal only). Generated if NULL.
+These are free contrasts between neighbouring categories and need not be
+increasing; pass sorted vectors if ordered thresholds are wanted.</p></dd>
 
 
 <dt id="arg-q">q<a class="anchor" aria-label="anchor" href="#arg-q"></a></dt>

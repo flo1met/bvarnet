@@ -1,11 +1,17 @@
 # Changelog
 
-## bvarnet 1.0.3
+## bvarnet 1.0.3.9000
 
 - Minor bugfix that let to an error when running a model without
   covariates.
+- [`extract_draws()`](https://flo1met.github.io/bvarnet/reference/extract_draws.md)
+  now accepts several parameters at once.
+- Minor documentation fixes
+- Bugfix: Removing order constrained from adjacent category model.
 
 ## bvarnet 1.0.2
+
+CRAN release: 2026-08-31
 
 ### New features
 

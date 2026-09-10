@@ -1,4 +1,4 @@
-# bvarnet: Bayesian Estimation of Dynamic VAR Models using STAN
+# bvarnet: Bayesian Estimation of Dynamic VAR Models using Stan
 
 Bayesian estimation of multilevel Vector Autoregression (VAR) models
 using Stan. Supports Gaussian, Binary, and Ordinal (adjacent category)

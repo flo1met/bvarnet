@@ -73,8 +73,10 @@ sim_var(
 
 - kappa:
 
-  List of `p` ordered vectors, each of length `C-1`. Cutpoints per node
-  (ordinal only). Generated if NULL.
+  List of `p` numeric vectors, each of length `C-1`. Adjacent-category
+  thresholds per node (ordinal only). Generated if NULL. These are free
+  contrasts between neighbouring categories and need not be increasing;
+  pass sorted vectors if ordered thresholds are wanted.
 
 - q:
 

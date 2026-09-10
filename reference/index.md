@@ -26,7 +26,7 @@ Extract and summarize model parameters
 - [`extract_param()`](https://flo1met.github.io/bvarnet/reference/extract_param.md)
   : Extract labelled parameter summaries from a fitted bvarnet model
 - [`extract_draws()`](https://flo1met.github.io/bvarnet/reference/extract_draws.md)
-  : Extract raw posterior draws for a single parameter block
+  : Extract raw posterior draws for one or more parameter blocks
 - [`extract_network_matrix()`](https://flo1met.github.io/bvarnet/reference/extract_network_matrix.md)
   : Extract a network matrix of temporal coefficients
 - [`extract_temporal()`](https://flo1met.github.io/bvarnet/reference/extract_temporal.md)

@@ -26,7 +26,7 @@ prior(family, loc = 0, scale = 1, df = 7)
 
 - df:
 
-  Degrees of freedom for `"student_t"` (default 7). Must be0 when
+  Degrees of freedom for `"student_t"` (default 7). Must be \> 0 when
   `family = "student_t"`.
 
 ## Value

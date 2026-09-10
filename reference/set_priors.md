@@ -47,7 +47,7 @@ set_priors(
 
 - kappa:
 
-  Prior for ordinal cut-points (ordinal models only).
+  Prior for the adjacent-category thresholds (ordinal models only).
 
 - sigma:
 
