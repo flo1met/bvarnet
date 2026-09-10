@@ -4,7 +4,7 @@
 \name{bvarnet-package}
 \alias{bvarnet}
 \alias{bvarnet-package}
-\title{bvarnet: Bayesian Estimation of Dynamic VAR Models using STAN}
+\title{bvarnet: Bayesian Estimation of Dynamic VAR Models using Stan}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 

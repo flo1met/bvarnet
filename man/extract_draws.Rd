@@ -2,21 +2,48 @@
 % Please edit documentation in R/helpers.R
 \name{extract_draws}
 \alias{extract_draws}
-\title{Extract raw posterior draws for a single parameter block}
+\title{Extract raw posterior draws for one or more parameter blocks}
 \usage{
-extract_draws(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa"))
+extract_draws(object, parameter = "all")
 }
 \arguments{
 \item{object}{A \code{bvarnet} object returned by \code{\link{bvar}}.}
 
-\item{parameter}{Character. One of \code{"beta"}, \code{"phi"},
-\code{"sd_u"}, \code{"sigma"}, or \code{"kappa"}.}
+\item{parameter}{Character vector naming one or more of \code{"beta"},
+\code{"phi"}, \code{"sd_u"}, \code{"sigma"}, \code{"kappa"}, or
+\code{"lp__"}; or the single value \code{"all"} (the default), which
+returns every block the fitted model actually has draws for.}
 }
 \value{
-A numeric matrix with one row per posterior draw and one column
-per Stan parameter element.
+A numeric matrix with one row per posterior draw and one column per
+Stan parameter element, named with the Stan index (e.g. \code{"phi[1,2]"}).
+When several blocks are requested, their columns appear in the order the
+blocks were named. Use \code{\link{extract_param}} for a labelled summary
+table instead of raw draws.
 }
 \description{
 Returns an \code{(iterations * chains)} by \code{params} matrix with
 Stan-indexed column names (e.g. \code{"beta[1,1]"}, \code{"phi[2,3]"}).
+Several blocks can be requested at once; their columns are returned
+side by side in one matrix.
+}
+\details{
+The blocks are the fixed effects \code{beta}, the temporal coefficients
+\code{phi}, the random-effect SDs \code{sd_u}, the residual SDs
+\code{sigma}, the ordinal thresholds \code{kappa}, and \code{lp__}, the
+sampler's log density.
+}
+\examples{
+\dontrun{
+# One block
+phi <- extract_draws(fit, "phi")
+
+# Several blocks, side by side in one matrix
+d <- extract_draws(fit, c("phi", "kappa"))
+colnames(d)
+
+# Everything this model has
+d <- extract_draws(fit)
+}
+
 }

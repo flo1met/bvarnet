@@ -51,8 +51,10 @@ if NULL.}
 \item{sigma}{Numeric vector of length \code{p}. Residual SD per node
 (gaussian only). Generated if NULL.}
 
-\item{kappa}{List of \code{p} ordered vectors, each of length \code{C-1}.
-Cutpoints per node (ordinal only). Generated if NULL.}
+\item{kappa}{List of \code{p} numeric vectors, each of length \code{C-1}.
+Adjacent-category thresholds per node (ordinal only). Generated if NULL.
+These are free contrasts between neighbouring categories and need not be
+increasing; pass sorted vectors if ordered thresholds are wanted.}
 
 \item{q}{Integer. Number of covariates (default 0).}
 

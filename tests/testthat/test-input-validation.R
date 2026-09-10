@@ -86,12 +86,13 @@ test_that("sim_var rejects negative burnin", {
 })
 
 
-test_that("sim_var rejects unordered kappa", {
-  expect_error(
+test_that("sim_var accepts non-monotone kappa", {
+  # Adjacent-category thresholds are free contrasts between neighbouring
+  # categories
+  expect_no_error(
     sim_var(N = 3, T_obs = 20, p = 2, family = "ordinal", C = 3,
-            kappa = list(c(1, 0), c(0, 1)),  # first one is unordered
-            seed = 1, burnin = 0),
-    "unsorted|kappa"
+            kappa = list(c(1, 0), c(0, 1)),
+            seed = 1, burnin = 0)
   )
 })
 

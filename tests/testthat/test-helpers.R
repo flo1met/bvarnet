@@ -217,7 +217,7 @@ test_that("build_Z rejects invalid re_cols", {
 
 
 test_that("build_Z creates Intercept column when absent from X (ordinal case)", {
-  # Ordinal X has no Intercept column (absorbed by kappa cutpoints)
+  # Ordinal X has no Intercept column (absorbed by the kappa thresholds)
   X <- matrix(rnorm(20), 10, 2, dimnames = list(NULL, c("x_1", "x_2")))
   B <- matrix(0, 10, 3)
 

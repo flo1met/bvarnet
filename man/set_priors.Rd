@@ -23,7 +23,8 @@ for ordinal models the intercept is absorbed into the kappa (threshold parameter
 
 \item{sd_u}{Prior for random-effect standard deviations (half-prior).}
 
-\item{kappa}{Prior for ordinal cut-points (ordinal models only).}
+\item{kappa}{Prior for the adjacent-category thresholds (ordinal models
+only).}
 
 \item{sigma}{Prior for residual standard deviation (gaussian models only;
 half-prior).}

@@ -25,8 +25,8 @@
 #'   if NULL.
 #' @param sigma Numeric vector of length \code{p}. Residual SD per node
 #'   (gaussian only). Generated if NULL.
-#' @param kappa List of \code{p} ordered vectors, each of length \code{C-1}.
-#'   Cutpoints per node (ordinal only). Generated if NULL.
+#' @param kappa List of \code{p} numeric vectors, each of length \code{C-1}.
+#'   Adjacent-category thresholds per node (ordinal only). Generated if NULL.
 #' @param q Integer. Number of covariates (default 0).
 #' @param x_gen Function \code{f(N, T_obs)} returning an \code{N x T_obs x q}
 #'   array of covariates. If NULL, default generation is used.
@@ -168,7 +168,7 @@ sim_var <- function(
     sigma <- rep(NA_real_, p)
   }
 
-  # Ordinal: cutpoints (NULL for non-ordinal nodes)
+  # Ordinal: adjacent-category thresholds (NULL for non-ordinal nodes)
   ord_idx <- which(family_vec == "ordinal")
   if (length(ord_idx) > 0L) {
     if (is.null(kappa)) {
@@ -180,7 +180,6 @@ sim_var <- function(
     stopifnot(is.list(kappa), length(kappa) == p)
     for (node in ord_idx) {
       stopifnot(length(kappa[[node]]) == C - 1L)
-      stopifnot(!is.unsorted(kappa[[node]], strictly = TRUE))
     }
   } else {
     kappa <- vector("list", p)
@@ -415,10 +414,10 @@ rescale_to_stable <- function(Phi, p, K, target = 0.95) {
 }
 
 
-#' Generate default ordered cutpoints for ordinal model
+#' Generate default adjacent-category thresholds for ordinal model
 #' @noRd
 generate_default_kappa <- function(C) {
-  # C-1 cutpoints evenly spaced from approximately -2 to 2
+  # C-1 thresholds evenly spaced from approximately -2 to 2
   seq(-2, 2, length.out = C - 1L)
 }
 
@@ -449,7 +448,8 @@ generate_response <- function(eta, family, sigma = NULL, kappa = NULL,
 #' @param eta Numeric scalar. Linear predictor for this node.
 #' @param family Character. Family for this node.
 #' @param sigma Numeric scalar (gaussian) or NA.
-#' @param kappa Numeric vector of cutpoints (ordinal) or NULL.
+#' @param kappa Numeric vector of adjacent-category thresholds (ordinal) or
+#'   NULL.
 #' @return Scalar response value.
 #' @noRd
 generate_response_node <- function(eta, family, sigma = NA_real_,

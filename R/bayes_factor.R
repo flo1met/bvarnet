@@ -114,7 +114,7 @@ get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
     stop(
       '`type = "intercepts"` is not valid for ordinal models: ',
       "beta row 1 is a covariate, not an intercept. ",
-      "Cutpoints are stored in `kappa`.",
+      "Thresholds are stored in `kappa`.",
       call. = FALSE
     )
 
@@ -161,7 +161,7 @@ get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
     stop(
       '`type = "intercepts"` is not valid for ordinal models: ',
       "beta row 1 is a covariate, not an intercept. ",
-      "Cutpoints are stored in `kappa`.",
+      "Thresholds are stored in `kappa`.",
       call. = FALSE
     )
 
@@ -394,7 +394,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' \code{beta}/\code{intercept}/\code{sigma} priors by their own outcome SD. And
 #' \code{beta} row 1 is the intercept for gaussian/bernoulli nodes (Stan gives
 #' it \code{intercept_scale}), but a plain covariate for ordinal nodes, whose
-#' intercept column is stripped from X and absorbed by the cutpoints.
+#' intercept column is stripped from X and absorbed by the thresholds.
 #'
 #' @param object A \code{bvarnet} object.
 #' @param param_name A single Stan parameter name.

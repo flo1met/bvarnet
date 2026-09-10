@@ -166,12 +166,51 @@ bvarnet_test_tempdir <- function() {
   dir
 }
 
+#' Build a mock pure-ordinal bvarnet object with no fixed effects
+#'
+#' A pure ordinal model with no covariates has the Intercept stripped from X,
+#' so n_fe == 0 and Stan emits no beta draws at all. Downstream code must cope
+#' with that empty block instead of failing inside quantile().
+make_mock_ordinal_no_fe <- function() {
+  obj <- make_mock_bvarnet("ordinal")
+
+  beta_idx <- grep("^beta\\[", dimnames(obj$draws)[[3]])
+  obj$draws <- obj$draws[, , -beta_idx, drop = FALSE]
+  obj$convergence <- obj$convergence[
+    !grepl("^beta\\[", obj$convergence$variable), , drop = FALSE
+  ]
+
+  obj$standata$X <- obj$standata$X[, 0L, drop = FALSE]
+  obj$standata$n_fe <- 0L
+  obj$standata$design_spec$x_cols <- character(0)
+  obj
+}
+
+#' Append an `lp__` column to a mock's draws array
+#'
+#' make_mock_bvarnet() carries only model parameters; real fits also carry the
+#' sampler's log density as a scalar `lp__` column (see bvar.R), which is the
+#' one draw name that has no `[index]` suffix.
+add_mock_lp <- function(obj) {
+  d  <- obj$draws
+  lp <- array(rnorm(dim(d)[1] * dim(d)[2]),
+              dim = c(dim(d)[1], dim(d)[2], 1L),
+              dimnames = list(NULL, NULL, "lp__"))
+  obj$draws <- abind_simple(d, lp)
+  obj$convergence <- rbind(
+    obj$convergence,
+    data.frame(variable = "lp__", rhat = 1.001, ess_bulk = 3000,
+               ess_tail = 2800, stringsAsFactors = FALSE)
+  )
+  obj
+}
+
 #' Build a mock bvarnet object without running Stan
 #'
 #' Returns a minimal bvarnet list with a synthetic 3D draws array, a matching
 #' summary data.frame, and stubbed diagnostics/timing/metadata fields.
 #' p=2 outcomes, K=1 lag, n_fe=2 (Intercept + x_1).
-#' For ordinal: C=3 (2 cutpoints).  For gaussian: sigma included.
+#' For ordinal: C=3 (2 thresholds).  For gaussian: sigma included.
 #' When \code{n_re > 0}, \code{sd_u} and \code{u} draw columns are added
 #' with \code{J} subjects and \code{n_re} random-effect columns.
 #'
@@ -219,7 +258,7 @@ make_mock_bvarnet <- function(family   = "bernoulli",
   # let the u-ordering bug hide — the fixture must mirror real output, not the
   # order any particular extractor happens to assume.
 
-  # kappa only for ordinal nodes (C=3 → 2 cutpoints each): array[p] ordered[C-1]
+  # kappa only for ordinal nodes (C=3 → 2 thresholds each): array[p] vector[C-1]
   ord_idx <- which(family_vec == "ordinal")
   if (length(ord_idx) > 0L) {
     kappa_nm <- character(0)
@@ -262,15 +301,8 @@ make_mock_bvarnet <- function(family   = "bernoulli",
     draws[, , sigma_idx_arr] <- abs(draws[, , sigma_idx_arr]) + 0.1
   }
 
-  # Make kappa draws ordered (ascending per node)
-  if (length(ord_idx) > 0L) {
-    for (node in ord_idx) {
-      k1 <- paste0("kappa[", node, ",1]")
-      k2 <- paste0("kappa[", node, ",2]")
-      draws[, , k1] <- -1 + runif(n_iter * n_chains, -0.2, 0.2)
-      draws[, , k2] <-  1 + runif(n_iter * n_chains, -0.2, 0.2)
-    }
-  }
+  # kappa draws are left as plain rnorm: adjacent-category thresholds are not
+  # order-constrained, so the mock must not imply that they are.
 
   # Set ordinal beta[1,j] to NA sentinel (D4) — only for mixed-family
   if (!is_pure_ordinal) for (j in ord_idx) {

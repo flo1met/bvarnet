@@ -291,37 +291,151 @@ build_summary_table <- function(draws, row_names, col_names, type,
 
 
 ## ---- extract posterior draws as a matrix (Stan column names preserved) ----
-#' Extract raw posterior draws for a single parameter block
-#'
-#' Returns an \code{(iterations * chains)} by \code{params} matrix with
-#' Stan-indexed column names (e.g. \code{"beta[1,1]"}, \code{"phi[2,3]"}).
-#'
-#' @param object A \code{bvarnet} object returned by \code{\link{bvar}}.
-#' @param parameter Character. One of \code{"beta"}, \code{"phi"},
-#'   \code{"sd_u"}, \code{"sigma"}, or \code{"kappa"}.
-#'
-#' @return A numeric matrix with one row per posterior draw and one column
-#'   per Stan parameter element.
-#'
-#' @export
-extract_draws <- function(object, parameter = c("beta", "phi", "sd_u", "sigma", "kappa")) {
-  stopifnot(inherits(object, "bvarnet"))
-  parameter <- match.arg(parameter, c("beta", "phi", "sd_u", "sigma", "kappa"))
 
+## The blocks extract_draws() offers, in the order "all" returns them. lp__
+## comes last: it is the sampler's log density, not a model parameter. The
+## subject-level random effects `u` are deliberately absent \u2014 they are
+## extract_random_effects()' job, and there are p * J * n_re of them, which
+## would swamp "all". Internally they are still reachable through
+## .extract_draws_block(object, "u"), which does not consult this list.
+#' @keywords internal
+#' @noRd
+.draw_param_choices <- c("beta", "phi", "sd_u", "sigma", "kappa", "lp__")
+
+## Does the model declare this block at all? (sigma/kappa are family-specific,
+## sd_u exists only with random effects; beta and phi are always declared.
+## lp__ is always emitted by the sampler, so it is judged on presence alone.)
+#' @keywords internal
+#' @noRd
+.param_block_declared <- function(object, parameter) {
+  switch(parameter,
+    sigma = .family_has(object, "gaussian"),
+    kappa = .family_has(object, "ordinal"),
+    sd_u  = isTRUE(object$standata$n_re > 0),
+    TRUE
+  )
+}
+
+## Same test, but raising the message the user needs when they asked for the
+## block by name.
+#' @keywords internal
+#' @noRd
+.check_param_block <- function(object, parameter) {
   if (parameter == "sigma" && !.family_has(object, "gaussian"))
     stop("Parameter 'sigma' only exists for gaussian models.")
   if (parameter == "kappa" && !.family_has(object, "ordinal"))
     stop("Parameter 'kappa' only exists for ordinal models.")
   if (parameter == "sd_u" && object$standata$n_re == 0)
     stop("Parameter 'sd_u' not available \u2014 model has no random effects (n_re = 0).")
+  if (parameter == "lp__" && length(.param_block_idx(object, "lp__")) == 0L)
+    stop("Parameter 'lp__' not found in the posterior draws.")
+  invisible(TRUE)
+}
 
+## Stan column indices for one block. A declared block can still be empty:
+## `beta` in a pure ordinal model without covariates is matrix[0, p], so Stan
+## emits no beta[...] columns at all. lp__ is a scalar, so it is the one name
+## matched whole rather than by an `[index]` suffix.
+#' @keywords internal
+#' @noRd
+.param_block_idx <- function(object, parameter) {
+  nms <- dimnames(object$draws)[[3]]
+  if (parameter == "lp__") return(which(nms == "lp__"))
+  grep(paste0("^", parameter, "\\["), nms)
+}
+
+## Pull one block out of the 3D draws array as an (iter * chains) x params matrix.
+#' @keywords internal
+#' @noRd
+.extract_draws_block <- function(object, parameter) {
   draws <- object$draws                        # 3D array: iter x chains x params
-  idx   <- grep(paste0("^", parameter, "\\["), dimnames(draws)[[3]])
+  idx   <- .param_block_idx(object, parameter)
   chunk <- draws[, , idx, drop = FALSE]
   # flatten chains into rows
   dim(chunk) <- c(prod(dim(chunk)[1:2]), dim(chunk)[3])
   colnames(chunk) <- dimnames(draws)[[3]][idx]
   chunk
+}
+
+#' Extract raw posterior draws for one or more parameter blocks
+#'
+#' Returns an \code{(iterations * chains)} by \code{params} matrix with
+#' Stan-indexed column names (e.g. \code{"beta[1,1]"}, \code{"phi[2,3]"}).
+#' Several blocks can be requested at once; their columns are returned
+#' side by side in one matrix.
+#'
+#' @param object A \code{bvarnet} object returned by \code{\link{bvar}}.
+#' @param parameter Character vector naming one or more of \code{"beta"},
+#'   \code{"phi"}, \code{"sd_u"}, \code{"sigma"}, \code{"kappa"}, or
+#'   \code{"lp__"}; or the single value \code{"all"} (the default), which
+#'   returns every block the fitted model actually has draws for.
+#'
+#' @details
+#' The blocks are the fixed effects \code{beta}, the temporal coefficients
+#' \code{phi}, the random-effect SDs \code{sd_u}, the residual SDs
+#' \code{sigma}, the ordinal thresholds \code{kappa}, and \code{lp__}, the
+#' sampler's log density.
+#'
+#' @return A numeric matrix with one row per posterior draw and one column per
+#'   Stan parameter element, named with the Stan index (e.g. \code{"phi[1,2]"}).
+#'   When several blocks are requested, their columns appear in the order the
+#'   blocks were named. Use \code{\link{extract_param}} for a labelled summary
+#'   table instead of raw draws.
+#'
+#' @examples
+#' \dontrun{
+#' # One block
+#' phi <- extract_draws(fit, "phi")
+#'
+#' # Several blocks, side by side in one matrix
+#' d <- extract_draws(fit, c("phi", "kappa"))
+#' colnames(d)
+#'
+#' # Everything this model has
+#' d <- extract_draws(fit)
+#' }
+#'
+#' @export
+extract_draws <- function(object, parameter = "all") {
+  stopifnot(inherits(object, "bvarnet"))
+
+  if (!is.character(parameter) || length(parameter) == 0L || anyNA(parameter))
+    stop("`parameter` must be a non-empty character vector.", call. = FALSE)
+
+  if ("all" %in% parameter) {
+    if (length(parameter) > 1L)
+      stop('"all" cannot be combined with other `parameter` values.', call. = FALSE)
+    # Report only what this fit actually carries, so "all" never trips over a
+    # block another family would have had.
+    parameter <- Filter(
+      function(p) .param_block_declared(object, p) &&
+                  length(.param_block_idx(object, p)) > 0L,
+      .draw_param_choices
+    )
+    if (length(parameter) == 0L)
+      stop("No posterior parameter blocks found in this model.", call. = FALSE)
+  } else {
+    # pmatch() rather than match.arg(several.ok = TRUE): the latter silently
+    # drops unmatched entries as long as one matches, which is how passing the
+    # full choices vector used to collapse to "beta" without complaint.
+    i <- pmatch(parameter, .draw_param_choices, duplicates.ok = TRUE)
+    if (anyNA(i))
+      stop(sprintf(
+        "Unknown `parameter` value(s): %s. Valid arguments are: %s, or \"all\".",
+        paste(dQuote(parameter[is.na(i)], FALSE), collapse = ", "),
+        paste(dQuote(.draw_param_choices, FALSE), collapse = ", ")
+      ), call. = FALSE)
+    parameter <- unique(.draw_param_choices[i])
+    for (p in parameter) .check_param_block(object, p)
+  }
+
+  if (length(parameter) == 1L)
+    return(.extract_draws_block(object, parameter))
+
+  # Every block has the same number of draws, so the blocks bind column-wise
+  # into one matrix; Stan names already carry the block prefix, so columns
+  # stay unambiguous.
+  do.call(cbind, lapply(parameter, function(p) .extract_draws_block(object, p)))
 }
 
 

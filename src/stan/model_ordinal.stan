@@ -53,7 +53,7 @@ data {
     real<lower=0> sd_scale;
     real<lower=0> sd_df;
 
-    // kappa (cutpoints)
+    // kappa (adjacent-category thresholds)
     int<lower=1> prior_kappa_fam;
     real kappa_loc;
     real<lower=0> kappa_scale;
@@ -77,7 +77,8 @@ parameters {
    matrix<lower=0>[p, n_re] sd_u; // RE scales
 
    // --- ordinal-specific ---
-   array[p] ordered[C - 1] kappa; // cutpoints per node (ordered enforces kappa_1 < kappa_2 < ...)
+   // Adjacent-category thresholds, one vector per node, NO order constrain.
+   array[p] vector[C - 1] kappa;
 }
 transformed parameters {
    // random effects precomputation (non-centered)
@@ -97,7 +98,7 @@ model {
     for (node in 1:p)
         target += std_normal_lpdf(to_vector(z_u[node]));
 
-    /// cutpoint priors
+    /// threshold priors
     for (node in 1:p)
         target += set_prior(kappa[node], prior_kappa_fam, kappa_loc, kappa_scale, kappa_df);
 

@@ -123,7 +123,7 @@ test_that("beta row 1 uses the intercept prior on gaussian/bernoulli nodes", {
 
 test_that("beta row 1 uses the beta prior on ordinal nodes", {
   # Ordinal strips the Intercept from X — beta[1,j] is a covariate, and the
-  # intercept is absorbed by the cutpoints.
+  # intercept is absorbed by the thresholds.
   obj <- make_mock_bvarnet(family = "ordinal", n_iter = 1000L, n_chains = 1L)
   eff <- set_priors(intercept = prior("normal", 0, 5))
   obj$priors_effective <- rep(list(eff), 2L)
