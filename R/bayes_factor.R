@@ -202,6 +202,10 @@ get_lag_interaction_indices_by_term <- function(sd) {
   }
   if (length(terms) == 0L) return(list())
 
+  y_names <- colnames(sd$Y) %||% paste0("y", seq_len(p))
+  b_names <- colnames(sd$B) %||%
+    paste0("lag", rep(seq_len(K), each = p), "_", rep(y_names, K))
+
   out <- list()
   for (fac in terms) {
     has_lag <- any(fac == "lag")
@@ -209,11 +213,12 @@ get_lag_interaction_indices_by_term <- function(sd) {
 
     suffix <- paste(fac[fac != "lag"], collapse = ":")
 
-    # Use stored colnames; filter by suffix token
-    term_ic   <- fe_ic[startsWith(fe_ic, "lag") & endsWith(fe_ic, paste0(":", suffix))]
+    # Build the exact column names (as make_term_matrix() does). Suffix
+    # matching would let "x_1" also claim the columns of "x_2:x_1".
+    term_ic   <- paste0(b_names, ":", suffix)
     beta_rows <- match(term_ic, fe_names)
 
-    if (length(term_ic) == 0L || any(is.na(beta_rows)))
+    if (!all(term_ic %in% fe_ic) || any(is.na(beta_rows)))
       stop(sprintf("Lag-interaction columns for term '%s' not found in X.", suffix),
            call. = FALSE)
 
