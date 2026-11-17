@@ -27,7 +27,7 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE,
+  save_data = TRUE,
   ...
 )
 }
@@ -117,10 +117,12 @@ iteration, which can help with difficult posteriors (e.g., funnels in
 hierarchical logistic models) but increases computation. Default
 \code{NULL} (CmdStan default of 10).}
 
-\item{save_data}{Logical. If \code{TRUE}, store the preprocessed (sorted,
-listwise-deleted) estimation data in the \code{data_used} slot of the
-returned object for reproducibility and downstream analyses.
-Default \code{FALSE}.}
+\item{save_data}{Logical. Keep the Stan data used for estimation in the
+returned object's \code{standata} slot? Default \code{TRUE}. Set to
+\code{FALSE} to remove these data from the fitted model before saving or
+sharing it, for example when working with sensitive data. Model dimensions,
+variable labels, posterior draws and effective priors are retained;
+this option does not anonymize posterior results.}
 
 \item{...}{Additional named arguments forwarded to the CmdStanR
 \code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},
@@ -135,10 +137,12 @@ aliases for them) are rejected with an error; use the corresponding
 \value{
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
-\code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-\code{priors}, and \code{priors_effective}.
-If \code{save_data = TRUE}, also
-includes \code{data_used} (the cleaned estimation data frame).
+\code{metadata}, \code{return_codes}, \code{family}, \code{model_info},
+\code{priors}, and \code{priors_effective}. The \code{standata} slot
+contains the estimation data when \code{save_data = TRUE} (default) and
+is \code{NULL} when \code{save_data = FALSE}. The \code{model_info} slot
+retains only dimensions and variable/interaction labels needed for
+summaries and parameter extraction. No additional data frame is stored.
 }
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.

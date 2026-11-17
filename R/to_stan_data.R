@@ -70,7 +70,6 @@ to_stan_data <- function(data,
                          K,
                          na_action = c("listwise"), # add automatic LW deletion
                          priors = set_priors(),
-                         save_data = FALSE,
                          beep_col = NULL) {
 
   ## Use shared helper for all family-agnostic data wrangling
@@ -81,7 +80,7 @@ to_stan_data <- function(data,
     y_cols = y_cols, x_cols = x_cols, center_x = center_x,
     fe_interactions = fe_interactions, re_interactions = re_interactions,
     re_cols = re_cols, re_temporal = re_temporal, K = K,
-    na_action = na_action, save_data = save_data, beep_col = beep_col
+    na_action = na_action, beep_col = beep_col
   )
 
   ## Family-specific Y casting
@@ -159,7 +158,6 @@ to_stan_data <- function(data,
   out$x_center_means <- shared$x_center_means
   out$row_map <- shared$row_map
   out$n_rows_data <- shared$n_rows_data
-  out$data_used <- shared$data_used
   out$design_spec <- shared$design_spec
 
   if (family == "ordinal") {
@@ -214,7 +212,7 @@ to_stan_data <- function(data,
                                   center_x = FALSE, fe_interactions = NULL,
                                   re_interactions = NULL, re_cols = character(0),
                                   re_temporal = FALSE, K, na_action = "listwise",
-                                  save_data = FALSE, beep_col = NULL) {
+                                  beep_col = NULL) {
 
   if (!is.numeric(K) || length(K) != 1L || !is.finite(K) ||
       K < 1 || K != floor(K) || K > .Machine$integer.max)
@@ -268,9 +266,6 @@ to_stan_data <- function(data,
   p <- length(y_cols)
   q <- length(x_cols)
   PK <- p * K
-
-  # Snapshot the cleaned data (post-sort, post-NA-deletion) if requested
-  data_used <- if (isTRUE(save_data)) data else NULL
 
   n_rows_data <- nrow(data)
   id_all <- match(data[[id_col]], ids_unique)
@@ -338,7 +333,6 @@ to_stan_data <- function(data,
     id_levels = as.character(ids_unique),
     x_center_means = x_center_means,
     row_map = row_map, n_rows_data = n_rows_data,
-    data_used = data_used,
     design_spec = list(
       id_col = id_col, time_col = time_col, beep_col = beep_col,
       y_cols = y_cols, x_cols = x_cols,

@@ -65,10 +65,10 @@
 #'   iteration, which can help with difficult posteriors (e.g., funnels in
 #'   hierarchical logistic models) but increases computation. Default
 #'   \code{NULL} (CmdStan default of 10).
-#' @param save_data Logical. If \code{TRUE}, store the preprocessed (sorted,
-#'   listwise-deleted) estimation data in the \code{data_used} slot of the
-#'   returned object for reproducibility and downstream analyses.
-#'   Default \code{FALSE}.
+#' @param save_data Logical. Keep the Stan data used for estimation in the
+#'   returned object's \code{standata} slot. Default \code{TRUE}. Set to
+#'   \code{FALSE} to remove these data from the fitted model before saving or
+#'   sharing it.
 #' @param ... Additional named arguments forwarded to the CmdStanR
 #'   \code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},
 #'   \code{step_size}, or \code{show_messages}. See
@@ -111,10 +111,12 @@
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
-#'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-#'   \code{priors}, and \code{priors_effective}.
-#'   If \code{save_data = TRUE}, also
-#'   includes \code{data_used} (the cleaned estimation data frame).
+#'   \code{metadata}, \code{return_codes}, \code{family}, \code{model_info},
+#'   \code{priors}, and \code{priors_effective}. The \code{standata} slot
+#'   contains the estimation data when \code{save_data = TRUE} (default) and
+#'   is \code{NULL} when \code{save_data = FALSE}. The \code{model_info} slot
+#'   retains only dimensions and variable/interaction labels needed for
+#'   summaries and parameter extraction. No additional data frame is stored.
 #'
 #' @section Requested versus effective priors:
 #' \code{priors} holds the priors as you specified them. \code{priors_effective}
@@ -182,10 +184,13 @@ bvar <- function(id_col,
                  seed = NULL,
                  adapt_delta = NULL,
                  max_treedepth = NULL,
-                 save_data = FALSE,
+                 save_data = TRUE,
                  ...
 
   ) {
+
+  if (!is.logical(save_data) || length(save_data) != 1L || is.na(save_data))
+    stop("save_data must be TRUE or FALSE.", call. = FALSE)
 
   dots <- .check_sampler_dots(...)
 
@@ -231,8 +236,7 @@ bvar <- function(id_col,
                             K = K,
                             na_action = na_action,
                             beep_col = beep_col,
-                            priors = priors,
-                            save_data = save_data
+                            priors = priors
                            )
 
   # Prior warnings (uses actual n_re from built design)
@@ -254,7 +258,6 @@ bvar <- function(id_col,
                                     "index_obs",
                                     "row_map",
                                     "n_rows_data",
-                                    "data_used",
                                     "design_spec")],
            seed = seed,
            iter_warmup = warmup,
@@ -300,7 +303,8 @@ bvar <- function(id_col,
       metadata      = metadata,
       return_codes  = return_codes,
       family        = family_vec,
-      standata      = standata,
+      standata      = if (save_data) standata else NULL,
+      model_info    = .bvarnet_model_info(standata),
       priors        = priors,
       # One s_y scales every outcome in the joint path, so all nodes share the
       # same effective prior. Stored per node anyway, to match the mixed path.
@@ -308,8 +312,7 @@ bvar <- function(id_col,
         rep(list(attr(standata, "priors_effective")), length(family_vec)),
         names(family_vec)
       ),
-      priors_needed = priors_needed,
-      data_used     = standata$data_used
+      priors_needed = priors_needed
     ),
     class = "bvarnet"
   )
@@ -368,7 +371,7 @@ bvar <- function(id_col,
                            data, family_vec, priors,
                            iter, warmup, chains, cores,
                            seed, adapt_delta, max_treedepth,
-                           save_data = FALSE, dots = list()) {
+                           save_data = TRUE, dots = list()) {
   p <- length(y_cols)
 
   # --- Shared matrices (D3) ---
@@ -377,7 +380,7 @@ bvar <- function(id_col,
     y_cols = y_cols, x_cols = x_cols, center_x = center_x,
     fe_interactions = fe_interactions, re_interactions = re_interactions,
     re_cols = re_cols, re_temporal = re_temporal, K = K,
-    na_action = na_action, beep_col = beep_col, save_data = save_data
+    na_action = na_action, beep_col = beep_col
   )
 
   # Prior warnings (uses actual n_re from built design)
@@ -439,7 +442,7 @@ bvar <- function(id_col,
     lapply(sd_nodes, attr, "priors_effective"), names(family_vec)
   )
   .combine_nodewise_fits(fits, family_vec, shared, priors, priors_effective,
-                         priors_needed, iter, chains)
+                         priors_needed, iter, chains, save_data = save_data)
 }
 
 
@@ -448,7 +451,7 @@ bvar <- function(id_col,
 #' @keywords internal
 .combine_nodewise_fits <- function(fits, family_vec, shared, priors,
                                    priors_effective, priors_needed,
-                                   iter, chains) {
+                                   iter, chains, save_data = TRUE) {
   p <- length(family_vec)
   n_fe_full <- shared$n_fe   # includes Intercept
 
@@ -561,12 +564,12 @@ bvar <- function(id_col,
       metadata         = metadata,
       return_codes     = return_codes,
       family           = family_vec,
-      standata         = standata_full,
+      standata         = if (save_data) standata_full else NULL,
+      model_info       = .bvarnet_model_info(standata_full),
       priors           = priors,
       # Per node: each Gaussian node scaled its defaults by its own sd(Y_node).
       priors_effective = priors_effective,
-      priors_needed    = priors_needed,
-      data_used        = shared$data_used
+      priors_needed    = priors_needed
     ),
     class = "bvarnet"
   )

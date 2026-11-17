@@ -36,7 +36,7 @@ summary.bvarnet <- function(object, bayes_factor = FALSE, null_value = 0, ...,
                         null_value   = null_value,
                         ci_level     = ci_level)
 
-  sd   <- object$standata
+  sd   <- .bvarnet_model_structure(object)
   conv <- object$convergence
   diag <- object$diagnostics
 

@@ -595,7 +595,7 @@ compare_to_truth <- function(fit, truth, ci_width = 0.95,
   # ── beta (intercept + covariates) ────────────────────────────────────────
   draws_beta <- extract_draws(fit, "beta")
   # Stan layout: beta[fe_idx, node]
-  n_fe <- fit$standata$n_fe
+  n_fe <- .bvarnet_model_structure(fit)$n_fe
   for (node in seq_len(p)) {
     family_node <- family_vec[node]
     for (fe in seq_len(n_fe)) {

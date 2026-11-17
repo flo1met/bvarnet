@@ -43,7 +43,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
       ), call. = FALSE)
   }
 
-  sd   <- object$standata
+  sd   <- .bvarnet_model_structure(object)
   nm   <- get_param_names(sd)
   smry <- object$convergence   # data.frame: variable, rhat, ess_bulk, ess_tail
 
@@ -67,7 +67,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   # Sentinels only exist in mixed-family models where X retains the Intercept
   # row; pure ordinal strips the Intercept so beta[1,j] is a real covariate.
   beta_cols <- colnames(draws_beta)
-  has_intercept <- "Intercept" %in% colnames(sd$X)
+  has_intercept <- "Intercept" %in% get_param_names(sd)$fe
   if (has_intercept) {
     ord_indices <- which(object$family == "ordinal")
     sentinel_cols <- paste0("beta[1,", ord_indices, "]")

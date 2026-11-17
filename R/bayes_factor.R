@@ -106,7 +106,7 @@ get_beta_indices <- function(sd, type = c("intercepts", "fe")) {
   type  <- match.arg(type)
   p     <- sd$p
   n_fe  <- sd$n_fe
-  has_intercept <- "Intercept" %in% colnames(sd$X)
+  has_intercept <- "Intercept" %in% (sd$param_names$fe %||% colnames(sd$X))
 
   # Guard: ordinal models have no intercept in X
 
@@ -152,7 +152,7 @@ get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
   type  <- match.arg(type)
   p     <- sd$p
   n_fe  <- sd$n_fe
-  fe_names <- colnames(sd$X)
+  fe_names <- (sd$param_names$fe %||% colnames(sd$X))
   if (is.null(fe_names)) fe_names <- paste0("fe", seq_len(n_fe))
   has_intercept <- "Intercept" %in% fe_names
 
@@ -193,7 +193,7 @@ get_beta_indices_by_predictor <- function(sd, type = c("fe", "intercepts")) {
 get_lag_interaction_indices_by_term <- function(sd) {
   terms    <- sd$fe_interaction_terms
   fe_ic    <- sd$fe_interaction_colnames
-  fe_names <- colnames(sd$X)
+  fe_names <- (sd$param_names$fe %||% colnames(sd$X))
   p <- sd$p; K <- sd$K
 
   if (is.null(terms)) {
@@ -202,8 +202,8 @@ get_lag_interaction_indices_by_term <- function(sd) {
   }
   if (length(terms) == 0L) return(list())
 
-  y_names <- colnames(sd$Y) %||% paste0("y", seq_len(p))
-  b_names <- colnames(sd$B) %||%
+  y_names <- (sd$param_names$y %||% colnames(sd$Y)) %||% paste0("y", seq_len(p))
+  b_names <- (sd$param_names$b %||% colnames(sd$B)) %||%
     paste0("lag", rep(seq_len(K), each = p), "_", rep(y_names, K))
 
   out <- list()
@@ -362,7 +362,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
           "back to the unscaled priors. For Gaussian outcomes with default ",
           "priors these are biased by roughly sd(y); refit to get correct ",
           "values.", call. = FALSE)
-  rep(list(object$priors), object$standata$p)
+  rep(list(object$priors), .bvarnet_model_structure(object)$p)
 }
 
 
@@ -374,7 +374,7 @@ get_lag_interaction_indices_by_term <- function(sd) {
 #' @keywords internal
 #' @noRd
 .node_family <- function(object, node) {
-  rep_len(unname(object$family), object$standata$p)[[node]]
+  rep_len(unname(object$family), .bvarnet_model_structure(object)$p)[[node]]
 }
 
 
@@ -564,8 +564,8 @@ savage_dickey <- function(object, params, null_value = 0,
 #' @keywords internal
 #' @noRd
 .classify_variable <- function(sd, variable) {
-  y_names <- colnames(sd$Y)
-  x_names <- colnames(sd$X)
+  y_names <- (sd$param_names$y %||% colnames(sd$Y))
+  x_names <- (sd$param_names$fe %||% colnames(sd$X))
   # Base covariates: exclude Intercept and interaction columns
   x_base <- x_names[!grepl(":", x_names) & x_names != "Intercept"]
 
@@ -756,7 +756,7 @@ bf_table <- function(object,
   if (!is.null(variable)) {
     stopifnot(is.character(variable), length(variable) >= 1L)
     variable <- unique(variable)
-    sd_tmp <- object$standata
+    sd_tmp <- .bvarnet_model_structure(object)
     vclass <- .classify_variable(sd_tmp, variable)
     var_idx <- vclass$y_idx
     var_x   <- vclass$x_names
@@ -782,9 +782,9 @@ bf_table <- function(object,
   }
 
   # ---- Type mode (existing logic) ----
-  sd <- object$standata
+  sd <- .bvarnet_model_structure(object)
   nm <- get_param_names(sd)
-  has_intercept <- "Intercept" %in% colnames(sd$X)
+  has_intercept <- "Intercept" %in% (sd$param_names$fe %||% colnames(sd$X))
   # Minimum n_fe to have non-intercept FE: 2 with intercept, 1 without
   fe_min <- if (has_intercept) 2L else 1L
 

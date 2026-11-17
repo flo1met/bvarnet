@@ -3,10 +3,11 @@ test_that("day/beep lag windows match exact scheduled predecessors at every orde
   d$y <- seq_len(nrow(d))
   for (K in 1:3) {
     sd <- suppressMessages(to_stan_data(d, "gaussian", "id", "day", "y",
-                                       character(), K = K, beep_col = "beep", save_data = TRUE))
+                                       character(), K = K, beep_col = "beep"))
     expect_equal(sd$n_obs, 4 * (6 - K))
     expect_equal(sd$J, 2)
-    expect_equal(sd$index_obs, sd$data_used[sd$row_map, c("id", "day", "beep")], ignore_attr = TRUE)
+    sorted <- d[do.call(order, unname(d[c("id", "day", "beep")])), ]
+    expect_equal(sd$index_obs, sorted[sd$row_map, c("id", "day", "beep")], ignore_attr = TRUE)
     for (r in seq_len(sd$n_obs)) for (lag in seq_len(K)) {
       ix <- sd$index_obs[r, ]
       expected <- d$y[d$id == ix$id & d$day == ix$day & d$beep == ix$beep - lag]

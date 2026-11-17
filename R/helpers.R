@@ -168,9 +168,26 @@
 }
 
 
+## ---- model structure without observation data ----
+#' @noRd
+.bvarnet_model_info <- function(standata) {
+  fields <- c("p", "J", "K", "n_obs", "n_fe", "n_re", "C", "C_per_node",
+              "fe_interaction_terms", "fe_interaction_colnames")
+  info <- standata[intersect(fields, names(standata))]
+  info$param_names <- get_param_names(standata)
+  info
+}
+
+#' @noRd
+.bvarnet_model_structure <- function(object) {
+  object$standata %||% object$model_info
+}
+
+
 ## ---- resolve variable names from standata ----
 #' @keywords internal
 get_param_names <- function(sd) {
+  if (!is.null(sd$param_names)) return(sd$param_names)
   p    <- sd$p
   K    <- sd$K
   n_fe <- sd$n_fe
@@ -271,7 +288,7 @@ build_summary_table <- function(draws, row_names, col_names, type,
 #' @keywords internal
 #' @noRd
 .sd_u_summary_table <- function(object, probs) {
-  nm       <- get_param_names(object$standata)
+  nm       <- get_param_names(.bvarnet_model_structure(object))
   draws_sd <- extract_draws(object, "sd_u")
   cn       <- colnames(draws_sd)
 
@@ -317,7 +334,7 @@ build_summary_table <- function(draws, row_names, col_names, type,
   switch(parameter,
     sigma = .family_has(object, "gaussian"),
     kappa = .family_has(object, "ordinal"),
-    sd_u  = isTRUE(object$standata$n_re > 0),
+    sd_u  = isTRUE(.bvarnet_model_structure(object)$n_re > 0),
     TRUE
   )
 }
@@ -331,7 +348,7 @@ build_summary_table <- function(draws, row_names, col_names, type,
     stop("Parameter 'sigma' only exists for gaussian models.")
   if (parameter == "kappa" && !.family_has(object, "ordinal"))
     stop("Parameter 'kappa' only exists for ordinal models.")
-  if (parameter == "sd_u" && object$standata$n_re == 0)
+  if (parameter == "sd_u" && .bvarnet_model_structure(object)$n_re == 0)
     stop("Parameter 'sd_u' not available \u2014 model has no random effects (n_re = 0).")
   if (parameter == "lp__" && length(.param_block_idx(object, "lp__")) == 0L)
     stop("Parameter 'lp__' not found in the posterior draws.")
@@ -465,7 +482,7 @@ extract_draws <- function(object, parameter = "all") {
 #' @noRd
 .extract_u_draws <- function(object) {
   stopifnot(inherits(object, "bvarnet"))
-  sd <- object$standata
+  sd <- .bvarnet_model_structure(object)
   if (sd$n_re == 0L)
     stop("No random effects in this model (n_re = 0).", call. = FALSE)
 
@@ -509,9 +526,9 @@ extract_draws <- function(object, parameter = "all") {
 
   dimnames(out) <- list(
     draw    = NULL,
-    node    = colnames(sd$Y),
+    node    = get_param_names(sd)$y,
     subject = seq_len(J),
-    re      = if (n_re > 0L && !is.null(colnames(sd$Z))) colnames(sd$Z) else paste0("re", seq_len(n_re))
+    re      = get_param_names(sd)$re
   )
 
   out
@@ -588,7 +605,7 @@ extract_draws <- function(object, parameter = "all") {
 #' @return \code{x} invisibly.
 #' @export
 print.bvarnet <- function(x, ...) {
-  sd <- x$standata
+  sd <- .bvarnet_model_structure(x)
 
   cat("BVAR Network fit\n")
   cat(strrep("=", 40), "\n")

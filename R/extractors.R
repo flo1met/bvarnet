@@ -96,7 +96,7 @@ extract_random_effects <- function(object,
   .ci_probs(ci_level)  # validate regardless of `what`, for consistency with
                         # every other entry point in this API
 
-  if (object$standata$n_re == 0L)
+  if (.bvarnet_model_structure(object)$n_re == 0L)
     stop("No random effects in this model (n_re = 0).", call. = FALSE)
 
   switch(what,
@@ -134,7 +134,7 @@ extract_network_matrix <- function(object,
   stopifnot(inherits(object, "bvarnet"))
   stat <- match.arg(stat)
 
-  sd <- object$standata
+  sd <- .bvarnet_model_structure(object)
   p  <- sd$p
   K  <- sd$K
   stopifnot(lag >= 1L, lag <= K)
