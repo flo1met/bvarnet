@@ -30,7 +30,7 @@ data {
     array[n_obs, p] int<lower=0, upper=1> Y; // outcome matrix in long format
 
     matrix[n_obs, p*K] B; // design matrix lagged parameters
-    matrix[n_obs, n_fe] X; // design matrix fixed effects (centered!)
+    matrix[n_obs, n_fe] X; // public fixed-effect design, including intercept
     matrix[n_obs, n_re] Z; // design matrix random effects
 
     /// PRIORS: 1=normal, 2=t, 3=chauchy
@@ -57,18 +57,27 @@ data {
     real<lower=0> sd_df;
 }
 transformed data {
-   matrix[n_obs, n_fe + p*K] X_fixed = append_col(X,B); // intercept correct? yes, as long as its in X!
+   matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
+   row_vector[n_fe + p*K] fixed_means = rep_row_vector(0, n_fe + p*K);
+   // Leave the intercept and Z unchanged; center completed predictor columns.
+   for (k in 2:(n_fe + p*K)) {
+       fixed_means[k] = mean(X_fixed[,k]);
+       X_fixed[,k] -= rep_vector(fixed_means[k], n_obs);
+   }
 }
 parameters {
    matrix[p*K, p] phi; // lag coefficient matrix. Flat for glm 
-   matrix[n_fe, p] beta; // fixed effects
+   matrix[n_fe, p] beta_centered; // sampled intercept at fixed-design means
 
    array[p] matrix[J, n_re] z_u; // non-centered parametrisation, latent parameter
    matrix<lower=0>[p, n_re] sd_u; // RE scales
 }
 transformed parameters {
+   // Original-scale coefficients and priors; the shear has log Jacobian zero.
+   matrix[n_fe, p] beta = beta_centered;
    // random effects precomputation // optimise regarding loops and vectorisation
    array[p] matrix[J, n_re] u;
+   beta[1,] = beta_centered[1,] - fixed_means * append_row(beta_centered, phi);
    for (node in 1:p)
         u[node] = diag_post_multiply(z_u[node], sd_u[node,]');
 }
@@ -98,7 +107,7 @@ model {
             : rep_vector (0.0, n_obs);
 
         // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
+        b_fixed[1:n_fe] = beta_centered[,node];
         b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
 

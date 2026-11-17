@@ -116,12 +116,38 @@ aliases for them) are rejected with an error; use the corresponding
 A \code{bvarnet} object (a named list) with slots:
 \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-\code{priors}, \code{priors_effective}. If \code{save_data = TRUE}, also
+\code{priors}, and \code{priors_effective}.
+If \code{save_data = TRUE}, also
 includes \code{data_used} (the cleaned estimation data frame).
 }
 \description{
 The \code{bvar} function estimates the posterior distribution of the specified Bayesian (Multilevel) Vector Autoregression.
 }
+\section{Internal predictor centering}{
+
+Stan samples intercepts (Gaussian/Bernoulli) or thresholds (ordinal) using
+centered completed fixed-effect and lag columns. Reported \code{beta},
+\code{kappa}, priors and Bayes-factor hypotheses retain the reference of
+the public design produced with the requested \code{center_x} setting.
+Random-effect designs and priors are unchanged. This coordinate change can
+improve sampling, but does not guarantee a speed improvement.
+
+Custom \code{init} lists, functions and JSON files must supply complete
+public \code{beta} and \code{phi} matrices, plus \code{kappa} for ordinal
+models (a node-by-threshold matrix or list of node vectors). Other sampled
+blocks may be omitted. A single named parameter list is reused for all
+chains; a list of chain lists must have length \code{chains}. Functions may
+take \code{chain_id}; in mixed fits they may additionally take \code{node_id}
+and must return the corresponding node's public parameters with \code{p=1}
+and all lag rows. Ordinal node beta excludes the intercept. Initializers are
+mapped before sampling; partial location/slope specifications, internal
+centered names and fit/draw-based warm starts error. A zero-width ordinal
+beta can be omitted. A numeric initialization radius applies to the new
+sampled coordinates; equal radii/seeds do not reproduce old public starts,
+except \code{init=0}. Previously adapted metrics and step sizes also depend
+on sampling coordinates and should be adapted afresh after this change.
+}
+
 \section{Requested versus effective priors}{
 
 \code{priors} holds the priors as you specified them. \code{priors_effective}

@@ -116,6 +116,9 @@
     stop("Duplicated argument(s) passed to bvar() via '...': ",
          paste0("'", dup, "'", collapse = ", "), call. = FALSE)
 
+  # Intercept init even when R would partially match it in $sample().
+  if (any(nms %in% c("i", "in", "ini")))
+    stop("Spell 'init' in full when supplying initialization via '...'.", call. = FALSE)
   dots
 }
 

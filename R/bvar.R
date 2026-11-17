@@ -57,12 +57,21 @@
 #'   \code{iter_sampling}, \code{chains}, \code{parallel_chains},
 #'   \code{adapt_delta}, \code{max_treedepth}, and CmdStanR's deprecated
 #'   aliases for them) are rejected with an error; use the corresponding
-#'   \code{bvar()} argument instead. 
+#'   \code{bvar()} argument instead.
+#'
+#' @section Internal predictor centering:
+#' Stan samples intercepts (Gaussian/Bernoulli) or thresholds (ordinal) using
+#' centered completed fixed-effect and lag columns. Reported \code{beta},
+#' \code{kappa}, priors and Bayes-factor hypotheses retain the reference of
+#' the public design produced with the requested \code{center_x} setting.
+#' Random-effect designs and priors are unchanged. This coordinate change can
+#' improve sampling, but does not guarantee a speed improvement.
 #'
 #' @return A \code{bvarnet} object (a named list) with slots:
 #'   \code{draws}, \code{convergence}, \code{diagnostics}, \code{timing},
 #'   \code{metadata}, \code{return_codes}, \code{family}, \code{standata},
-#'   \code{priors}, \code{priors_effective}. If \code{save_data = TRUE}, also
+#'   \code{priors}, and \code{priors_effective}.
+#'   If \code{save_data = TRUE}, also
 #'   includes \code{data_used} (the cleaned estimation data frame).
 #'
 #' @section Requested versus effective priors:
@@ -183,6 +192,9 @@ bvar <- function(id_col,
   # Prior warnings (uses actual n_re from built design)
   priors_needed <- .prior_warnings(priors, family_vec, standata$n_re)
 
+  if ("init" %in% names(dots))
+    dots$init <- .bvarnet_centered_init(dots$init, standata, family, chains)
+
   sample_call <- function() {
     do.call(stanmodel$sample, c(
       list(data = standata[!names(standata) %in%
@@ -213,7 +225,7 @@ bvar <- function(id_col,
 
   # Extract everything from CmdStanMCMC into plain base-R objects, then discard
   # the fit object (CSV refs, compiled binary, lazy draws) to keep memory lean.
-  raw_draws   <- stanfit$draws(format = "array")
+  raw_draws   <- .bvarnet_public_draws(stanfit$draws(format = "array"))
   draws       <- unclass(raw_draws)         # strip draws_array class; dimnames preserved
   attr(draws, "class") <- NULL              # ensure it is a plain array
 
@@ -335,10 +347,20 @@ bvar <- function(id_col,
   sd_nodes <- lapply(seq_len(p), function(j)
     .to_stan_data_node(shared, j, family_vec[j], priors))
 
+  # Resolve every initializer before starting any node, so a malformed later
+  # node cannot leave an expensive partially fitted model behind.
+  dots_nodes <- lapply(seq_len(p), function(j) {
+    node_dots <- .bvarnet_node_dots(dots, j)
+    if ("init" %in% names(node_dots))
+      node_dots$init <- .bvarnet_centered_init(node_dots$init, sd_nodes[[j]],
+                                             family_vec[j], chains, node_id = j)
+    node_dots
+  })
+
   run_sampling <- function() {
     out <- vector("list", p)
     for (j in seq_len(p)) {
-      node_dots <- .bvarnet_node_dots(dots, j)
+      node_dots <- dots_nodes[[j]]
       out[[j]] <- do.call(resolved[[j]]$model$sample, c(
         list(
           data            = sd_nodes[[j]],
@@ -385,7 +407,7 @@ bvar <- function(id_col,
   conv_chunks <- vector("list", p)
 
   for (j in seq_len(p)) {
-    raw_draws <- fits[[j]]$draws(format = "array")
+    raw_draws <- .bvarnet_public_draws(fits[[j]]$draws(format = "array"))
     arr <- unclass(raw_draws)
     attr(arr, "class") <- NULL
     par_names <- dimnames(arr)[[3]]

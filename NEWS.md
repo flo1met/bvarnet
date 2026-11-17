@@ -1,3 +1,10 @@
+# bvarnet 1.0.3.9000
+
+* Switching to a completely centered backend. The Stan models now center all fixed effects parameter internally. This can lead to improved posterior geometry in complex models. This does not change parameter estimates or Bayes factors!
+* Internal centered blocks are excluded from stored public draws/diagnostics.
+* Custom initial values are mapped to fit the transformation.
+
+
 # bvarnet 1.0.3
 
 * Bugfix: Bayes factors for interaction effects were sometimes displayed wrong.
