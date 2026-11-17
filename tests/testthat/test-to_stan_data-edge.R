@@ -197,33 +197,12 @@ test_that("multiple time gaps within one subject are handled correctly", {
     y_1 = c(0, 1, 1, 0, 1, 0, 1)
   )
 
-  # skip_lag = TRUE: keep rows, zero B at gaps
+  sd <- suppressMessages(to_stan_data(df, "bernoulli", "id", "t",
+                                      "y_1", character(0), K = 1))
+  expect_equal(sd$time_obs, c(2, 6, 7, 11))
+  expect_equal(unname(sd$B[, 1]), c(0, 1, 0, 0))
+  expect_equal(sd$n_obs, 4L)
 
-  sd_skip <- to_stan_data(df, "bernoulli", "id", "t",
-                          "y_1", character(0), K = 1, skip_lag = TRUE)
-
-  # Modeled rows: t=2,5,6,7,10,11 (6 rows, indices start at K+1=2)
-  expect_equal(sd_skip$n_obs, 6L)
-
-  # B for t=5 (gap from t=2, diff=3) should be zero
-  # t=5 is the 2nd modeled row
-  expect_equal(unname(sd_skip$B[2, 1]), 0)
-
-  # B for t=10 (gap from t=7, diff=3) should be zero
-  # t=10 is the 5th modeled row
-  expect_equal(unname(sd_skip$B[5, 1]), 0)
-
-  # B for t=6 (lag from t=5, diff=1) should be non-zero
-  # t=6 is the 3rd modeled row
-  expect_equal(unname(sd_skip$B[3, 1]), 1)  # y_1 at t=5
-
-  # skip_lag = FALSE: drop gap rows
-  sd_drop <- suppressMessages(
-    to_stan_data(df, "bernoulli", "id", "t",
-                 "y_1", character(0), K = 1, skip_lag = FALSE)
-  )
-  # Rows with valid lags: t=2, t=6, t=7, t=11 → 4 rows
-  expect_equal(sd_drop$n_obs, 4L)
 })
 
 # ═══════════════════════════════════════════════════════════════════════════════

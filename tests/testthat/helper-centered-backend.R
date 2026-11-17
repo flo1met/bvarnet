@@ -9,7 +9,7 @@ centered_fixture <- function(family, n_re = 2L, prior_family = 1L, empty_x = FAL
   B <- matrix(seq_len(24) / 10, 6, 4)
   if (family == "bernoulli") B <- matrix(as.numeric(seq_len(24) %% 3 == 0), 6, 4)
   if (family == "ordinal") B <- matrix(rep(1:4, 6), 6, 4)
-  B[2, ] <- 0 # a legacy gap row: centering must not reset it to zero
+  B[2, ] <- 0 # genuine observed zeros need the same centering as other rows
   Z <- if (n_re > 0) cbind(x, B[, 1]) else matrix(numeric(), 6, 0)
   Y <- switch(family, gaussian = matrix(seq_len(12) / 3, 6, 2),
               bernoulli = matrix(rep(c(0L, 1L), 6), 6, 2),

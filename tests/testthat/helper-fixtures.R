@@ -364,7 +364,6 @@ make_mock_bvarnet <- function(family   = "bernoulli",
       re_cols    = character(0),
       re_temporal = FALSE,
       K          = K,
-      skip_lag   = TRUE,
       na_action  = "listwise"
     )
   )

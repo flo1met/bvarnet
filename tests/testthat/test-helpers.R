@@ -444,15 +444,15 @@ test_that(".check_sampler_dots() still allows genuine abbreviations of non-reser
 })
 
 test_that(".check_sampler_dots() degrades to exact-name matching without cmdstanr", {
-  testthat::local_mocked_bindings(
-    .bvarnet_sample_partial_pool = function() character(0)
-  )
+  guard <- .check_sampler_dots
+  environment(guard) <- list2env(list(.bvarnet_sample_partial_pool = function() character(0)),
+                                parent = environment(.check_sampler_dots))
   # No partial-match pool available: exact reserved/alias names are still
   # rejected, but an abbreviation can no longer be resolved and silently
   # passes the guard (it will fail later at do.call(), same as before this
   # fix existed).
-  expect_error(.check_sampler_dots(num_warmup = 50), "use bvar\\(warmup = ")
-  expect_identical(.check_sampler_dots(num_warm = 50), list(num_warm = 50))
+  expect_error(guard(num_warmup = 50), "use bvar\\(warmup = ")
+  expect_identical(guard(num_warm = 50), list(num_warm = 50))
 })
 
 

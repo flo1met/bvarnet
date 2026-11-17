@@ -101,9 +101,11 @@ test_that("modeled-row means align for user centering, interactions, missingness
                    y1 = seq_len(16) / 10, y2 = rev(seq_len(16)) / 7,
                    x1 = rep(c(-3, -2, -1, 0, 0, 1, 2, 3), 2), x2 = rep(c(1, 3), 8))
   df$x2[4] <- NA_real_
-  for (center_x in c(FALSE, TRUE)) for (skip_lag in c(FALSE, TRUE)) {
-    sd <- to_stan_data(df, "gaussian", "id", "t", c("y1", "y2"), c("x1", "x2"),
-                       K = 2, center_x = center_x, skip_lag = skip_lag,
+  df$day <- rep(rep(c("a", "b"), each = 4), 2)
+  df$beep <- rep(1:4, 4)
+  for (center_x in c(FALSE, TRUE)) for (split_day in c(FALSE, TRUE)) {
+    sd <- to_stan_data(df, "gaussian", "id", if (split_day) "day" else "t", c("y1", "y2"), c("x1", "x2"),
+                       K = 2, center_x = center_x, beep_col = if (split_day) "beep" else NULL,
                        fe_interactions = list(c("x1", "x2"), c("lag", "x1")),
                        re_cols = "x1", re_temporal = TRUE,
                        re_interactions = list(c("x1", "x2")))
@@ -120,5 +122,53 @@ test_that("modeled-row means align for user centering, interactions, missingness
     expect_identical(sd$Z, Z); expect_identical(sd$X, X); expect_identical(sd$B, B)
     expect_equal(priors$intercept$scale, sd$intercept_scale)
     expect_true(any(colMeans(sd$B) != 0))
+  }
+})
+
+test_that("all family targets agree with the public density after day/beep filtering", {
+  skip_if_not_installed("Rcpp")
+  df <- expand.grid(beep = 1:9, day = 1:2, id = 1:2)
+  df$x <- seq_len(nrow(df))/15
+  df$y1 <- rep(1:3, length.out = nrow(df))
+  df$y2 <- rep(c(3,1,2), length.out = nrow(df))
+  df$y1[df$beep == 4] <- NA_real_
+  for (family in c("gaussian", "bernoulli", "ordinal")) {
+    skip_if_no_stan_compile(.bvarnet_model_for_family(family))
+    data <- df
+    if (family == "bernoulli") data[c("y1", "y2")] <- data[c("y1", "y2")] %% 2
+    for (center_x in c(FALSE, TRUE)) {
+      sd <- suppressMessages(to_stan_data(data, family, "id", "day", c("y1","y2"), "x",
+        K = 2, beep_col = "beep", center_x = center_x,
+        re_cols = "Intercept", re_temporal = TRUE, fe_interactions = list(c("lag", "x"))))
+      expect_equal(sort(unique(sd$index_obs$beep)), c(3,7,8,9))
+      sd <- sd[.stan_data_names(family)]
+      pars <- list(beta = matrix(0.12, sd$n_fe, sd$p),
+        phi = matrix(0.08, sd$p * sd$K, sd$p), sd_u = matrix(0.4, sd$p, sd$n_re),
+        z_u = array(0.1, c(sd$p, sd$J, sd$n_re)))
+      if (family == "gaussian") pars$sigma <- c(1,1.2)
+      if (family == "ordinal") pars$kappa <- matrix(0.3, sd$p, sd$C - 1L)
+      fit <- centered_fixed_fit(sd, pars, family)
+      uv <- fit$unconstrain_variables(.bvarnet_centered_init(pars, sd, family, 1)[[1]])
+      expect_equal(fit$log_prob(uv, jacobian = FALSE),
+                   reference_density(pars, sd, family)[["total"]], tolerance = 1e-9)
+      public <- natural_stan_parameters(fit$constrain_variables(uv), sd)
+      expect_equal(public$phi, pars$phi, tolerance = 1e-12, ignore_attr = TRUE)
+      expect_equal(public$beta, pars$beta, tolerance = 1e-12, ignore_attr = TRUE)
+      if (family == "ordinal") expect_equal(public$kappa, pars$kappa, tolerance = 1e-12, ignore_attr = TRUE)
+      target <- function(v) {
+        sampled <- fit$constrain_variables(v, transformed_parameters = FALSE, generated_quantities = FALSE)
+        reference <- reference_from_sampled(sampled, sd, family)
+        reference_density(reference, sd, family)[["total"]] + sum(log(reference$sd_u)) +
+          if (family == "gaussian") sum(log(reference$sigma)) else 0
+      }
+      numeric_gradient <- vapply(seq_along(uv), function(i) {
+        step <- 1e-5 * max(1, abs(uv[i]))
+        plus <- minus <- uv
+        plus[i] <- plus[i] + step; minus[i] <- minus[i] - step
+        (target(plus) - target(minus)) / (2 * step)
+      }, numeric(1))
+      gradient <- fit$grad_log_prob(uv, jacobian = TRUE)
+      expect_true(all(abs(gradient - numeric_gradient) <= 2e-5 * (1 + abs(numeric_gradient))))
+    }
   }
 })

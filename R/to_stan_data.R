@@ -37,7 +37,11 @@
 #' @param family Character. \code{"bernoulli"}, \code{"ordinal"}, or
 #'   \code{"gaussian"}.
 #' @param id_col Character. Subject/group identifier column name.
-#' @param time_col Character. Time column name.
+#' @param time_col Character. Scheduled occasion column when `beep_col` is NULL;
+#'   otherwise the day/session label column. Lags never cross day/session labels.
+#' @param beep_col Optional scheduled occasion column within each day/session.
+#'   With NULL, `time_col` supplies the integer occasion index. With both supplied,
+#'   only consecutive integer beeps within the same subject and segment are used.
 #' @param y_cols Character vector. Outcome column names.
 #' @param x_cols Character vector. Covariate column names.
 #' @param center_x Logical. Grand-mean centre X. Default \code{FALSE}.
@@ -47,11 +51,6 @@
 #' @param re_temporal Logical. Random slopes on lag predictors. Default FALSE.
 #' @param K Integer. AR order.
 #' @param na_action Character. Only \code{"listwise"} currently supported.
-#' @param skip_lag Logical. If \code{TRUE} (default), rows whose lag is not
-#'   exactly \code{K} consecutive time steps back are kept with their lag
-#'   predictors zero-filled; if \code{FALSE}, such rows are dropped from the
-#'   likelihood entirely. \code{time_col} must be integer-valued (one time
-#'   unit = one lag step); non-integer values error.
 #' @param priors A \code{bvarnet_priors} object. Defaults to \code{set_priors()}.
 #'
 #' @return A named list ready to pass to \code{CmdStanModel$sample()}.
@@ -70,9 +69,9 @@ to_stan_data <- function(data,
                          re_temporal = FALSE,
                          K,
                          na_action = c("listwise"), # add automatic LW deletion
-                         skip_lag = TRUE,           # skipping lag mechanism on/off
                          priors = set_priors(),
-                         save_data = FALSE) {
+                         save_data = FALSE,
+                         beep_col = NULL) {
 
   ## Use shared helper for all family-agnostic data wrangling
   family <- match.arg(family, choices = c("bernoulli", "ordinal", "gaussian"))
@@ -82,7 +81,7 @@ to_stan_data <- function(data,
     y_cols = y_cols, x_cols = x_cols, center_x = center_x,
     fe_interactions = fe_interactions, re_interactions = re_interactions,
     re_cols = re_cols, re_temporal = re_temporal, K = K,
-    na_action = na_action, skip_lag = skip_lag, save_data = save_data
+    na_action = na_action, save_data = save_data, beep_col = beep_col
   )
 
   ## Family-specific Y casting
@@ -156,6 +155,7 @@ to_stan_data <- function(data,
   ## prediction metadata (not passed to Stan)
   out$id_levels <- shared$id_levels
   out$time_obs <- shared$time_obs
+  out$index_obs <- shared$index_obs
   out$x_center_means <- shared$x_center_means
   out$row_map <- shared$row_map
   out$n_rows_data <- shared$n_rows_data
@@ -201,8 +201,9 @@ to_stan_data <- function(data,
 #' family-specific type casting. Used by both \code{to_stan_data()} (joint
 #' path) and \code{.bvar_nodewise()} (mixed path).
 #'
-#' The time column must be integer-valued (one time unit = one lag step);
-#' non-integer values error.
+#' The occasion index (time_col alone, or beep_col within day/session labels)
+#' must be integer-valued. Every required predecessor must exist in the same
+#' subject and segment. Incomplete windows are always excluded as responses.
 #'
 #' @return A list with p, J, K, n_obs, n_fe, n_re, id, Y, X, B, Z,
 #'   id_levels, x_center_means, row_map, n_rows_data, design_spec,
@@ -213,12 +214,40 @@ to_stan_data <- function(data,
                                   center_x = FALSE, fe_interactions = NULL,
                                   re_interactions = NULL, re_cols = character(0),
                                   re_temporal = FALSE, K, na_action = "listwise",
-                                  skip_lag = TRUE, save_data = FALSE) {
+                                  save_data = FALSE, beep_col = NULL) {
 
+  if (!is.numeric(K) || length(K) != 1L || !is.finite(K) ||
+      K < 1 || K != floor(K) || K > .Machine$integer.max)
+    stop("K must be a positive integer.", call. = FALSE)
   K <- as.integer(K)
-  stopifnot(is.logical(skip_lag), length(skip_lag) == 1L, !is.na(skip_lag))
-
-  data <- data[order(data[[id_col]], data[[time_col]]), ]
+  if (!is.data.frame(data)) stop("data must be a data frame.", call. = FALSE)
+  keys <- c(id_col, time_col, beep_col)
+  for (name in c("id_col", "time_col", "beep_col")) {
+    value <- get(name)
+    if (name == "beep_col" && is.null(value)) next
+    if (!is.character(value) || length(value) != 1L || is.na(value) || !nzchar(value))
+      stop(name, " must name one column in data.", call. = FALSE)
+  }
+  if (anyDuplicated(keys)) stop("Subject, time and beep columns must be distinct.", call. = FALSE)
+  required <- unique(c(keys, y_cols, x_cols))
+  absent <- setdiff(required, names(data))
+  if (length(absent)) stop("Columns not found in data: ", paste(absent, collapse = ", "), call. = FALSE)
+  if (!length(y_cols)) stop("y_cols must select at least one outcome.", call. = FALSE)
+  for (key in keys) {
+    value <- data[[key]]
+    if (!(is.numeric(value) || is.character(value) || is.factor(value) || inherits(value, "Date")) ||
+        !is.null(dim(value)) || anyNA(value) ||
+        ((is.numeric(value) || inherits(value, "Date")) && any(!is.finite(value))))
+      stop("Index column '", key, "' must contain nonmissing finite numeric, Date, or character/factor labels.", call. = FALSE)
+  }
+  occasion_col <- if (is.null(beep_col)) time_col else beep_col
+  tt <- data[[occasion_col]]
+  if (!is.numeric(tt) || is.object(tt) || any(abs(tt - round(tt)) > 1e-6))
+    stop("`", occasion_col, "` must be integer-valued: one time unit = one lag step. ",
+         "Rescale to the scheduled grid and preserve missing occasion numbers.", call. = FALSE)
+  data[[occasion_col]] <- round(tt)
+  data <- data[do.call(order, unname(data[keys])), , drop = FALSE]
+  n_input <- nrow(data)
 
   na_action <- match.arg(na_action, "listwise")
   if (na_action == "listwise") {
@@ -227,39 +256,11 @@ to_stan_data <- function(data,
     data <- data[complete, , drop = FALSE]
   }
 
-  # Ensure integer only
-  tt <- data[[time_col]]
-  bad <- abs(tt - round(tt)) > 1e-6
-  if (any(bad)) {
-    stop(sprintf(
-      paste0("`%s` must be integer-valued: one time unit = one lag step. ",
-             "Rescale your time column so consecutive observations are 1 ",
-             "apart (e.g. divide by the beep interval). Found non-integer ",
-             "value: %s. Lag construction has no meaning on a non-integer ",
-             "grid."),
-      time_col, format(tt[bad][1])), call. = FALSE)
-  }
-  data[[time_col]] <- round(tt)
-
-  # check for duplicated (id, time) rows 
-  key <- interaction(data[[id_col]], data[[time_col]], drop = TRUE, lex.order = TRUE)
-  dup <- duplicated(key) | duplicated(key, fromLast = TRUE)
+  # Validate retained keys, preserving the listwise-deletion duplicate contract.
+  dup <- duplicated(data[keys]) | duplicated(data[keys], fromLast = TRUE)
   if (any(dup)) {
-    ex <- unique(data[dup, c(id_col, time_col), drop = FALSE])
-    ex <- ex[order(ex[[id_col]], ex[[time_col]]), , drop = FALSE]
-    n_show <- min(5L, nrow(ex))
-    pairs <- paste(sprintf("(%s=%s, %s=%s)",
-                           id_col, as.character(ex[[id_col]][seq_len(n_show)]),
-                           time_col, as.character(ex[[time_col]][seq_len(n_show)])),
-                   collapse = "; ")
-    stop(sprintf(
-      paste0("Duplicate (%s, %s) rows found: %d row(s) at %d time point(s). ",
-             "Each (id, time) must be unique. ",
-             "Deduplicate or aggregate to one row per (id, time) before ",
-             "fitting.%s First: %s"),
-      id_col, time_col, sum(dup), nrow(ex),
-      if (nrow(ex) > n_show) sprintf(" (%d shown)", n_show) else "",
-      pairs), call. = FALSE)
+    stop("Duplicate (", paste(keys, collapse = ", "), ") rows found. ",
+         "Each retained subject/occasion key must be unique; deduplicate or aggregate before fitting.", call. = FALSE)
   }
 
   ids_unique <- unique(data[[id_col]])
@@ -272,106 +273,39 @@ to_stan_data <- function(data,
   data_used <- if (isTRUE(save_data)) data else NULL
 
   n_rows_data <- nrow(data)
-  data$.orig_row <- seq_len(n_rows_data)
-  df_split <- split(data, data[[id_col]])
-
-  n_obs_initial <- n_obs <- sum(vapply(df_split, function(sub) max(0L, nrow(sub) - K), integer(1)))
-
-  # Y stored as real (family-agnostic)
-  Y <- matrix(NA_real_, n_obs, p)
-  X <- matrix(NA_real_, n_obs, q)
-  B <- matrix(0, n_obs, PK)
-  id_out <- integer(n_obs)
-  time_obs <- rep(NA_real_, n_obs)
-  row_map <- integer(n_obs)
-
-  n_gap <- 0L
-
-  row <- 0L
-  for (jj in seq_len(J)) {
-    this_id <- ids_unique[jj]
-    df_sub <- df_split[[as.character(this_id)]]
-    df_sub <- df_sub[order(df_sub[[time_col]]), , drop = FALSE]
-
-    Ti <- nrow(df_sub)
-    if (Ti <= K) next
-
-    times <- df_sub[[time_col]]
-    Ymat <- as.matrix(df_sub[, y_cols, drop = FALSE])
-    Xmat <- as.matrix(df_sub[, x_cols, drop = FALSE])
-
-    for (t in (K + 1L):Ti) {
-      row <- row + 1L
-      id_out[row] <- jj
-      time_obs[row] <- times[t]
-      row_map[row] <- df_sub$.orig_row[t]
-      Y[row, ] <- Ymat[t, ]
-      X[row, ] <- Xmat[t, ]
-
-      valid <- TRUE
-      for (lag in 1:K) {
-        if ((times[t] - times[t - lag]) != lag) {
-          valid <- FALSE
-          break
-        }
-      }
-
-      if (valid) {
-        for (lag in 1:K) {
-          B[row, ((lag - 1L) * p + 1L):(lag * p)] <- Ymat[t - lag, ]
-        }
-      } else if (!skip_lag) {
-        row <- row - 1L
-        next
-      } else {
-        n_gap <- n_gap + 1L
-      }
+  id_all <- match(data[[id_col]], ids_unique)
+  segment <- if (is.null(beep_col)) rep(1L, n_rows_data) else
+    match(data[[time_col]], unique(data[[time_col]]))
+  groups <- split(seq_len(n_rows_data), interaction(id_all, segment, drop = TRUE))
+  predecessors <- matrix(NA_integer_, n_rows_data, K)
+  occasions <- data[[occasion_col]]
+  for (group in groups) {
+    for (lag in seq_len(K)) {
+      predecessors[group, lag] <- group[match(occasions[group] - lag, occasions[group])]
     }
   }
-
-  if (row < n_obs) {
-    Y <- Y[seq_len(row), , drop = FALSE]
-    X <- X[seq_len(row), , drop = FALSE]
-    B <- B[seq_len(row), , drop = FALSE]
-    id_out <- id_out[seq_len(row)]
-    time_obs <- time_obs[seq_len(row)]
-    row_map <- row_map[seq_len(row)]
-    n_obs <- row
-  }
-
+  row_map <- which(rowSums(is.na(predecessors)) == 0L)
+  n_obs <- length(row_map)
   if (n_obs == 0L) {
     stop("All observations removed after missing-data handling. ",
-         "Check your data for NAs and irregular time gaps.")
+         "No complete lag window exists within a subject/segment. ",
+         "Check missingness, K and the scheduled index spacing.", call. = FALSE)
   }
-
-  # Identifiability guard: if every modelled row is a gap row, phi has zero
-  # informative rows and is identified only by its prior
-  if (skip_lag && n_gap == n_obs) {
-    stop(sprintf(
-      paste0("No observation has a valid lag: every modelled row's time ",
-             "gap is irregular for K = %d. `phi` is not identified from ",
-             "the data. Check K and the spacing of `%s`; if your grid is ",
-             "coarser than 1 unit, rescale so one step = 1."),
-      K, time_col), call. = FALSE)
-  }
-
-  n_dropped <- n_obs_initial - n_obs
-  if (n_dropped > 0) {
-    message(sprintf("bvarnet: %d row(s) removed (na_action = '%s', skip_lag = %s). %d rows remain.",
-                    n_dropped, na_action, skip_lag, n_obs))
-  }
-  if (skip_lag && n_gap > 0) {
-    k_note <- if (K >= 2) {
-      sprintf(" %d of %d row(s) have all %d lag(s) valid.",
-              n_obs - n_gap, n_obs, K)
-    } else {
-      ""
-    }
-    message(sprintf(
-      paste0("bvarnet: %d of %d row(s) had an irregular time gap; their ",
-             "lag predictors were zero-filled (skip_lag = TRUE).%s"),
-      n_gap, n_obs, k_note))
-  }
+  Y <- as.matrix(data[row_map, y_cols, drop = FALSE])
+  X <- as.matrix(data[row_map, x_cols, drop = FALSE])
+  B <- do.call(cbind, lapply(seq_len(K), function(lag)
+    as.matrix(data[predecessors[row_map, lag], y_cols, drop = FALSE])))
+  rownames(Y) <- rownames(X) <- rownames(B) <- NULL
+  id_out <- id_all[row_map]
+  time_obs <- data[[time_col]][row_map]
+  index_obs <- data[row_map, keys, drop = FALSE]
+  rownames(index_obs) <- NULL
+  message(sprintf(paste0("bvarnet: %d incomplete occasion(s) and %d unavailable lag window(s) ",
+                         "excluded; %d responses remain."),
+                  n_input - n_rows_data, n_rows_data - n_obs, n_obs))
+  empty_subjects <- J - length(unique(id_out))
+  if (empty_subjects > 0L)
+    message(sprintf("bvarnet: %d subject(s) have no contributing responses.", empty_subjects))
 
   x_center_means <- NULL
   if (isTRUE(center_x)) {
@@ -400,19 +334,19 @@ to_stan_data <- function(data,
   list(
     p = p, J = J, K = K, n_obs = n_obs,
     n_fe = ncol(X), n_re = ncol(Z),
-    id = id_out, time_obs = time_obs, Y = Y, X = X, B = B, Z = Z,
+    id = id_out, time_obs = time_obs, index_obs = index_obs, Y = Y, X = X, B = B, Z = Z,
     id_levels = as.character(ids_unique),
     x_center_means = x_center_means,
     row_map = row_map, n_rows_data = n_rows_data,
     data_used = data_used,
     design_spec = list(
-      id_col = id_col, time_col = time_col,
+      id_col = id_col, time_col = time_col, beep_col = beep_col,
       y_cols = y_cols, x_cols = x_cols,
       center_x = center_x,
       fe_interactions = fe_interactions,
       re_interactions = re_interactions,
       re_cols = re_cols, re_temporal = re_temporal,
-      K = K, skip_lag = skip_lag, na_action = na_action
+      K = K, na_action = na_action
     ),
     fe_interaction_terms = fe_interaction_terms,
     fe_interaction_colnames = fe_interaction_colnames

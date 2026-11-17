@@ -320,6 +320,6 @@ make_oracle_standata <- function(family, C = 4L, N = 8L, T_obs = 40L,
     data = sim$data, family = family,
     id_col = "id", time_col = "t",
     y_cols = paste0("y_", 1:2), x_cols = paste0("x_", 1:2),
-    K = 1L, skip_lag = FALSE
+    K = 1L
   )
 }

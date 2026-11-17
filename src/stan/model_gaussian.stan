@@ -67,7 +67,7 @@ data {
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
    row_vector[n_fe + p*K] fixed_means = rep_row_vector(0, n_fe + p*K);
-   // Center completed columns, including interactions and zero-filled lags.
+   // Center completed columns on the final eligible responses, including interactions.
    // The intercept and the random-effect design Z retain their original coding.
    for (k in 2:(n_fe + p*K)) {
        fixed_means[k] = mean(X_fixed[,k]);
