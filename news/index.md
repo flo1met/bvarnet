@@ -21,6 +21,7 @@
 - Internal centered blocks are excluded from stored public
   draws/diagnostics.
 - Custom initial values are mapped to fit the transformation.
+- Bugfix: `save_data` argument now works correctly.
 
 ## bvarnet 1.0.3
 

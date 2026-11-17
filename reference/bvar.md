@@ -29,7 +29,7 @@ bvar(
   seed = NULL,
   adapt_delta = NULL,
   max_treedepth = NULL,
-  save_data = FALSE,
+  save_data = TRUE,
   ...
 )
 ```
@@ -173,9 +173,12 @@ bvar(
 
 - save_data:
 
-  Logical. If `TRUE`, store the preprocessed (sorted, listwise-deleted)
-  estimation data in the `data_used` slot of the returned object for
-  reproducibility and downstream analyses. Default `FALSE`.
+  Logical. Keep the Stan data used for estimation in the returned
+  object's `standata` slot? Default `TRUE`. Set to `FALSE` to remove
+  these data from the fitted model before saving or sharing it, for
+  example when working with sensitive data. Model dimensions, variable
+  labels, posterior draws and effective priors are retained; this option
+  does not anonymize posterior results.
 
 - ...:
 
@@ -193,8 +196,11 @@ bvar(
 
 A `bvarnet` object (a named list) with slots: `draws`, `convergence`,
 `diagnostics`, `timing`, `metadata`, `return_codes`, `family`,
-`standata`, `priors`, and `priors_effective`. If `save_data = TRUE`,
-also includes `data_used` (the cleaned estimation data frame).
+`model_info`, `priors`, and `priors_effective`. The `standata` slot
+contains the estimation data when `save_data = TRUE` (default) and is
+`NULL` when `save_data = FALSE`. The `model_info` slot retains only
+dimensions and variable/interaction labels needed for summaries and
+parameter extraction. No additional data frame is stored.
 
 ## Scheduled time and missing observations
 

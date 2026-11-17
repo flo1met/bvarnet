@@ -70,7 +70,7 @@
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  adapt_delta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  max_treedepth <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  save_data <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  save_data <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -206,10 +206,12 @@ hierarchical logistic models) but increases computation. Default
 
 
 <dt id="arg-save-data">save_data<a class="anchor" aria-label="anchor" href="#arg-save-data"></a></dt>
-<dd><p>Logical. If <code>TRUE</code>, store the preprocessed (sorted,
-listwise-deleted) estimation data in the <code>data_used</code> slot of the
-returned object for reproducibility and downstream analyses.
-Default <code>FALSE</code>.</p></dd>
+<dd><p>Logical. Keep the Stan data used for estimation in the
+returned object's <code>standata</code> slot? Default <code>TRUE</code>. Set to
+<code>FALSE</code> to remove these data from the fitted model before saving or
+sharing it, for example when working with sensitive data. Model dimensions,
+variable labels, posterior draws and effective priors are retained;
+this option does not anonymize posterior results.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -228,10 +230,12 @@ aliases for them) are rejected with an error; use the corresponding
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>bvarnet</code> object (a named list) with slots:
 <code>draws</code>, <code>convergence</code>, <code>diagnostics</code>, <code>timing</code>,
-<code>metadata</code>, <code>return_codes</code>, <code>family</code>, <code>standata</code>,
-<code>priors</code>, and <code>priors_effective</code>.
-If <code>save_data = TRUE</code>, also
-includes <code>data_used</code> (the cleaned estimation data frame).</p>
+<code>metadata</code>, <code>return_codes</code>, <code>family</code>, <code>model_info</code>,
+<code>priors</code>, and <code>priors_effective</code>. The <code>standata</code> slot
+contains the estimation data when <code>save_data = TRUE</code> (default) and
+is <code>NULL</code> when <code>save_data = FALSE</code>. The <code>model_info</code> slot
+retains only dimensions and variable/interaction labels needed for
+summaries and parameter extraction. No additional data frame is stored.</p>
     </div>
     <div class="section level2">
     <h2 id="scheduled-time-and-missing-observations">Scheduled time and missing observations<a class="anchor" aria-label="anchor" href="#scheduled-time-and-missing-observations"></a></h2>
