@@ -550,6 +550,66 @@ test_that("bf_table lag_fe: p=2, K=2 → 3 rows (2 per-lag + 1 omnibus)", {
   expect_equal(nrow(omnibus), 1)
 })
 
+test_that("lag interaction terms sharing a suffix get their own columns", {
+  # Regression: "x_1" used to match by suffix and also claim "x_2:x_1"
+  # columns, silently testing the wrong coefficients when listed second.
+  make_mock <- function(terms) {
+    p <- 2L; K <- 1L; n_re <- 0L
+    ic_names <- unlist(lapply(terms, function(f) {
+      paste0(c("lag1_y_1", "lag1_y_2"), ":", paste(f[f != "lag"], collapse = ":"))
+    }))
+    fe_names <- c("Intercept", "x_1", "x_2", ic_names)
+    n_fe <- length(fe_names)
+    beta_nm <- sprintf("beta[%d,%d]", rep(1:n_fe, times = p), rep(1:p, each = n_fe))
+    phi_nm  <- c("phi[1,1]", "phi[2,1]", "phi[1,2]", "phi[2,2]")
+    par_nms <- c(beta_nm, phi_nm, "sigma[1]", "sigma[2]")
+
+    set.seed(95L)
+    draws <- array(rnorm(200 * 2 * length(par_nms)),
+                   dim = c(200L, 2L, length(par_nms)),
+                   dimnames = list(NULL, NULL, par_nms))
+
+    structure(list(
+      draws     = draws,
+      standata  = list(
+        p = p, K = K, n_fe = n_fe, n_re = n_re,
+        Y = matrix(0, 10, p, dimnames = list(NULL, c("y_1", "y_2"))),
+        X = matrix(0, 10, n_fe, dimnames = list(NULL, fe_names)),
+        B = matrix(0, 10, p * K, dimnames = list(NULL, c("lag1_y_1", "lag1_y_2"))),
+        Z = matrix(0, 10, 0),
+        fe_interaction_terms    = terms,
+        fe_interaction_colnames = ic_names
+      ),
+      priors    = set_priors(),
+      priors_effective = rep(list(set_priors()), p),
+      family    = "gaussian"
+    ), class = "bvarnet")
+  }
+
+  row_of <- function(v) as.integer(sub(",.*", "", sub("beta[", "", v, fixed = TRUE)))
+  terms <- list(c("lag", "x_2", "x_1"), c("lag", "x_1"))
+
+  for (tt in list(terms, rev(terms))) {
+    mock <- make_mock(tt)
+    sd   <- mock$standata
+    g    <- get_lag_interaction_indices_by_term(sd)
+
+    for (suffix in c("x_1", "x_2:x_1")) {
+      used <- unique(colnames(sd$X)[row_of(g[[suffix]]$full)])
+      expect_setequal(used, paste0(c("lag1_y_1", "lag1_y_2"), ":", suffix))
+    }
+    expect_length(intersect(g[["x_1"]]$full, g[["x_2:x_1"]]$full), 0L)
+
+    res <- bf_table(mock, type = c("temporal", "lag_fe"), round = NULL)
+    per_lag <- res[res$type == "Lag Interaction (per lag)", ]
+    expect_false(isTRUE(all.equal(
+      per_lag$BF10[per_lag$predictor == "lag1:x_1"],
+      per_lag$BF10[per_lag$predictor == "lag1:x_2:x_1"]
+    )))
+    expect_true(is.finite(res$BF10[res$type == "Temporal + Interactions (joint)"]))
+  }
+})
+
 test_that("bf_table lag_fe errors when no lag interactions present", {
   mock <- make_mock_bvarnet("gaussian")
   expect_error(

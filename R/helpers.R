@@ -81,6 +81,9 @@
   if (length(dots) == 0L) return(list())
 
   nms <- names(dots)
+  if ("skip_lag" %in% nms)
+    stop("'skip_lag' was removed because zero-filled gap rows can bias inference. ",
+         "Incomplete lag windows are now always excluded. Omit this argument.", call. = FALSE)
   if (is.null(nms) || !all(nzchar(nms)))
     stop("All arguments passed to bvar() via '...' must be named. ",
          "They are forwarded to the CmdStanR $sample() method.", call. = FALSE)
@@ -116,6 +119,9 @@
     stop("Duplicated argument(s) passed to bvar() via '...': ",
          paste0("'", dup, "'", collapse = ", "), call. = FALSE)
 
+  # Intercept init even when R would partially match it in $sample().
+  if (any(nms %in% c("i", "in", "ini")))
+    stop("Spell 'init' in full when supplying initialization via '...'.", call. = FALSE)
   dots
 }
 

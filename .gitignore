@@ -17,6 +17,8 @@ src/stan/**/*.exe
 src/stan/**/*.EXE
 
 dev/
+plans/
+experiments/
 
 AGENTS.md
 docs/

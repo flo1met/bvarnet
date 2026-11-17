@@ -51,8 +51,17 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   # stan_colnames: character vector aligned with rows of tab.
   join_convergence <- function(tab, stan_colnames) .join_convergence(tab, stan_colnames, smry)
 
+  # The rectangular summary builders expect first-index-fastest order. Resolve
+  # that order by name: sampled/transformed blocks and saved draws can differ.
+  order_draws <- function(draws) {
+    if (ncol(draws) < 2L) return(draws)
+    indices <- .stan_indices(colnames(draws))
+    keys <- as.data.frame(indices[, rev(seq_len(ncol(indices))), drop = FALSE])
+    draws[, do.call(order, keys), drop = FALSE]
+  }
+
   # ---------- Intercepts & fixed effects (beta) ----------
-  draws_beta <- extract_draws(object, "beta")
+  draws_beta <- order_draws(extract_draws(object, "beta"))
 
   # Remove ordinal-intercept NA sentinel columns (D4) BEFORE summary.
   # Sentinels only exist in mixed-family models where X retains the Intercept
@@ -94,7 +103,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   }
 
   # ---------- Autoregressive & Cross-lagged effects (phi) ----------
-  draws_phi <- extract_draws(object, "phi")
+  draws_phi <- order_draws(extract_draws(object, "phi"))
   phi_tab   <- build_summary_table(draws_phi, nm$b, nm$y, "placeholder",
                                    probs = probs)
 
@@ -116,7 +125,7 @@ extract_param <- function(object, bayes_factor = FALSE, null_value = 0,
   # ---------- Residual SD (sigma, gaussian only) ----------
   gauss_idx <- .family_which(object, "gaussian")
   sigma_tab <- if (length(gauss_idx) > 0) {
-    draws_sigma <- extract_draws(object, "sigma")
+    draws_sigma <- order_draws(extract_draws(object, "sigma"))
     gauss_names <- nm$y[gauss_idx]
     tab <- build_summary_table(draws_sigma, gauss_names, "sigma", "Residual SD",
                                probs = probs)

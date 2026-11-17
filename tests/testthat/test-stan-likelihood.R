@@ -33,25 +33,6 @@ expect_stan_matches_oracle <- function(family, model_name, tolerance = 1e-3) {
   invisible(list(stan = stan_est, oracle = oracle_est))
 }
 
-#' Which standata elements the Stan program actually declares
-#' (to_stan_data() also carries R-side prediction metadata)
-.stan_data_names <- function(family) {
-  base <- c("p", "J", "K", "n_obs", "n_fe", "n_re", "id", "Y", "X", "B", "Z",
-            "prior_beta_fam", "beta_loc", "beta_scale", "beta_df",
-            "prior_phi_fam", "phi_loc", "phi_scale", "phi_df",
-            "prior_sd_fam", "sd_loc", "sd_scale", "sd_df")
-  if (family %in% c("bernoulli", "gaussian"))
-    base <- c(base, "prior_intercept_fam", "intercept_loc",
-              "intercept_scale", "intercept_df")
-  if (family == "gaussian")
-    base <- c(base, "prior_sigma_fam", "sigma_loc", "sigma_scale", "sigma_df")
-  if (family == "ordinal")
-    base <- c(base, "C", "prior_kappa_fam", "kappa_loc",
-              "kappa_scale", "kappa_df")
-  base
-}
-
-
 test_that("model_binary computes the bernoulli-logit log posterior", {
   expect_stan_matches_oracle("bernoulli", "model_binary")
 })

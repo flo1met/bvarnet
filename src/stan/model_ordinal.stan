@@ -61,6 +61,12 @@ data {
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
+   row_vector[n_fe + p*K] fixed_means;
+   // No intercept column, including when n_fe = 0. Z is not centered.
+   for (k in 1:(n_fe + p*K)) {
+       fixed_means[k] = mean(X_fixed[,k]);
+       X_fixed[,k] -= rep_vector(fixed_means[k], n_obs);
+   }
 
    // Fixed 1×C coefficient matrix encoding the adjacent-category constraint:
    // beta_adj[1, c] = c - 1  so that  alpha[c] + eta[n] * (c-1) = lambda[n,c]
@@ -78,11 +84,19 @@ parameters {
 
    // --- ordinal-specific ---
    // Adjacent-category thresholds, one vector per node, NO order constrain.
-   array[p] vector[C - 1] kappa;
+   array[p] vector[C - 1] kappa_centered;
 }
 transformed parameters {
+   array[p] vector[C - 1] kappa;
    // random effects precomputation (non-centered)
    array[p] matrix[J, n_re] u;
+   // Restore public thresholds before evaluating their original priors.
+   // Slopes are unchanged, so this shear has log absolute Jacobian zero.
+   {
+       row_vector[p] shift = fixed_means * append_row(beta, phi);
+       for (node in 1:p)
+           kappa[node] = kappa_centered[node] + shift[node];
+   }
    for (node in 1:p)
         u[node] = diag_post_multiply(z_u[node], sd_u[node,]');
 }
@@ -113,7 +127,8 @@ model {
             : rep_vector(0.0, n_obs);
 
         // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
+        if (n_fe > 0)
+            b_fixed[1:n_fe] = beta[,node];
         b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
         // linear predictor (no intercept — absorbed into kappa)
@@ -136,7 +151,7 @@ model {
         vector[C] kappa_cumsum;
         kappa_cumsum[1] = 0;
         for (c in 2:C)
-            kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa[node][c - 1];
+            kappa_cumsum[c] = kappa_cumsum[c - 1] + kappa_centered[node][c - 1];
 
         vector[C] alpha_cat = -kappa_cumsum;
         alpha_cat[1] = 0; // kappa_cumsum[1] = 0 so this is a no-op, but explicit

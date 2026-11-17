@@ -66,10 +66,17 @@ data {
 }
 transformed data {
    matrix[n_obs, n_fe + p*K] X_fixed = append_col(X, B);
+   row_vector[n_fe + p*K] fixed_means = rep_row_vector(0, n_fe + p*K);
+   // Center completed columns on the final eligible responses, including interactions.
+   // The intercept and the random-effect design Z retain their original coding.
+   for (k in 2:(n_fe + p*K)) {
+       fixed_means[k] = mean(X_fixed[,k]);
+       X_fixed[,k] -= rep_vector(fixed_means[k], n_obs);
+   }
 }
 parameters {
    matrix[p*K, p] phi; // lag coefficient matrix
-   matrix[n_fe, p] beta; // fixed effects (incl intercept row)
+   matrix[n_fe, p] beta_centered; // sampled intercept at fixed-design means
 
    array[p] matrix[J, n_re] z_u; // non-centered parametrisation, latent parameter
    matrix<lower=0>[p, n_re] sd_u; // RE scales
@@ -78,8 +85,11 @@ parameters {
    vector<lower=0>[p] sigma; // per-node residual SD
 }
 transformed parameters {
+   // Unit-determinant shear: apply the original prior to the public beta.
+   matrix[n_fe, p] beta = beta_centered;
    // random effects precomputation (non-centered)
    array[p] matrix[J, n_re] u;
+   beta[1,] = beta_centered[1,] - fixed_means * append_row(beta_centered, phi);
    for (node in 1:p)
         u[node] = diag_post_multiply(z_u[node], sd_u[node,]');
 }
@@ -111,7 +121,7 @@ model {
             : rep_vector(0.0, n_obs);
 
         // get combined FE vector
-        b_fixed[1:n_fe] = beta[,node];
+        b_fixed[1:n_fe] = beta_centered[,node];
         b_fixed[(n_fe + 1):(n_fe + p*K)] = phi[,node];
 
         // GLM form: normal_id_glm fuses X*b + offset into one kernel

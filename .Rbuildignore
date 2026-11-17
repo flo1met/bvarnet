@@ -12,3 +12,5 @@
 ^\.claude$
 ^\.vscode$
 ^CONTRIBUTING\.md$
+^plans$
+^experiments$

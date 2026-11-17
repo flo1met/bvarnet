@@ -236,47 +236,20 @@ test_that("center_x = TRUE centers covariate columns but not intercept", {
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# §6 Time gap handling (skip_lag)
+# §6 Complete temporal windows
 # ═══════════════════════════════════════════════════════════════════════════════
 
-test_that("skip_lag = TRUE zeros out B rows with time gaps", {
+test_that("time gaps exclude responses but preserve later predictors", {
   df <- make_test_df(N = 1, T_obs = 10, p = 2, family = "bernoulli")
 
   # Introduce a gap: remove time point 5
   df <- df[df$t != 5, ]
 
   sd <- to_stan_data(df, "bernoulli", "id", "t",
-                     paste0("y_", 1:2), character(0), K = 1,
-                     skip_lag = TRUE)
-
-  # Time 6 → lag should be zeroed because t[6] - t[5] != 1 (gap)
-  # Row for t=6 is the 5th modeled row (t=2,3,4,6,7,8,9,10 → modeled from t=2)
-  # After removing t=5, the sub has 9 rows; first modeled row is t=2 → row 1
-  # t=6 comes after removing t=5: raw rows are t=1,2,3,4,6,7,8,9,10
-  # modeled rows start from t=2: t=2(1),t=3(2),t=4(3),t=6(4),...
-  # Row 4 in the modeled data is t=6 whose lag is t=4 (gap of 2)
-  gap_row <- 4  # t=6 in modeled data
-  expect_true(all(sd$B[gap_row, ] == 0),
-              info = "B row with time gap should be zeroed")
-})
-
-
-test_that("skip_lag = FALSE removes rows with time gaps", {
-  df <- make_test_df(N = 1, T_obs = 10, p = 2, family = "bernoulli")
-
-  # Introduce a gap
-  df <- df[df$t != 5, ]
-
-  sd_skip <- to_stan_data(df, "bernoulli", "id", "t",
-                          paste0("y_", 1:2), character(0), K = 1,
-                          skip_lag = TRUE)
-
-  sd_noskip <- to_stan_data(df, "bernoulli", "id", "t",
-                            paste0("y_", 1:2), character(0), K = 1,
-                            skip_lag = FALSE)
-
-  # skip_lag = FALSE should have fewer rows (gaps removed)
-  expect_lt(sd_noskip$n_obs, sd_skip$n_obs)
+                     paste0("y_", 1:2), character(0), K = 1)
+  expect_equal(sd$time_obs, c(2:4, 7:10))
+  expect_equal(unname(sd$B[sd$time_obs == 7, ]),
+               unname(unlist(df[df$t == 6, c("y_1", "y_2")], use.names = FALSE)))
 })
 
 
@@ -289,7 +262,7 @@ test_that("duplicate (id, time) rows are rejected", {
 
   expect_error(
     to_stan_data(df_dup, "bernoulli", "id", "t",
-                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE),
+                 paste0("y_", 1:2), character(0), K = 1),
     regexp = "Duplicate \\(id, t\\) rows found"
   )
 })
@@ -302,7 +275,7 @@ test_that("duplicate check ignores gaps and NA-deleted duplicates", {
   df_gap <- df[df$t != 4, ]
   expect_no_error(
     to_stan_data(df_gap, "gaussian", "id", "t",
-                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE)
+                 paste0("y_", 1:2), character(0), K = 1)
   )
 
   # (b) a duplicated (id, time) whose second copy is dropped by listwise
@@ -312,7 +285,7 @@ test_that("duplicate check ignores gaps and NA-deleted duplicates", {
   df_na <- rbind(df, dup)
   expect_no_error(
     to_stan_data(df_na, "gaussian", "id", "t",
-                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE)
+                 paste0("y_", 1:2), character(0), K = 1)
   )
 })
 
@@ -348,7 +321,7 @@ test_that("float-noise integers are snapped and not treated as gaps", {
 })
 
 
-test_that("no valid lag at all errors with an identifiability message", {
+test_that("no valid lag at all errors before centering", {
   # Uniform step of 2: passes the integer-grid check but never yields a
   # consecutive lag at K = 1.
   df <- data.frame(id = 1L, t = seq(2, 20, by = 2),
@@ -356,38 +329,27 @@ test_that("no valid lag at all errors with an identifiability message", {
 
   expect_error(
     to_stan_data(df, "gaussian", "id", "t",
-                 paste0("y_", 1:2), character(0), K = 1, skip_lag = TRUE),
-    regexp = "not identified"
-  )
-
-  # skip_lag = FALSE hits the pre-existing "all rows removed" guard instead
-  expect_error(
-    to_stan_data(df, "gaussian", "id", "t",
-                 paste0("y_", 1:2), character(0), K = 1, skip_lag = FALSE),
+                 paste0("y_", 1:2), character(0), K = 1),
     regexp = "All observations removed"
   )
 })
 
 
-test_that("K >= 2: a partially-gapped row has its whole lag block zeroed", {
+test_that("K >= 2: incomplete windows are excluded in their entirety", {
   # t = 1,2,3,5,6,7 (missing 4). At K=2: t=6 has a valid lag-1 (from t=5)
-  # but a missing lag-2 (t=4) -- the all-or-nothing convention zeroes the
-  # whole row, not just the lag-2 block.
+  # but a missing lag-2 (t=4); neither t=5 nor t=6 is a valid response.
   df <- data.frame(id = 1L, t = c(1, 2, 3, 5, 6, 7),
                    y_1 = c(10, 20, 30, 50, 60, 70))
 
   sd <- suppressMessages(
     to_stan_data(df, "gaussian", "id", "t", "y_1", character(0),
-                 K = 2, skip_lag = TRUE)
+                 K = 2)
   )
 
   rownames(sd$B) <- paste0("t=", sd$time_obs)
 
-  expect_true(all(sd$B["t=5", ] == 0))
-  expect_true(all(sd$B["t=6", ] == 0),
-              info = "t=6 has a valid lag-1 but missing lag-2: whole row zeroed")
-  expect_true(all(sd$B["t=3", ] != 0))
-  expect_true(all(sd$B["t=7", ] != 0))
+  expect_equal(sd$time_obs, c(3, 7))
+  expect_equal(unname(sd$B), rbind(c(20, 10), c(60, 50)))
 })
 
 

@@ -12,6 +12,8 @@ jobs:
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      NOT_CRAN: "true"
+      BVARNET_REQUIRE_STAN_TESTS: "true"
 
     steps:
       - uses: actions/checkout@v4

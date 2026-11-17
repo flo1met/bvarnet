@@ -59,6 +59,13 @@ bvarnet_stan_source <- function(model_name) {
 #' Skip unless we can compile a Stan source here
 #' @noRd
 skip_if_no_stan_compile <- function(model_name) {
+  if (identical(Sys.getenv("BVARNET_REQUIRE_STAN_TESTS"), "true")) {
+    if (!identical(Sys.getenv("NOT_CRAN"), "true") ||
+        !requireNamespace("cmdstanr", quietly = TRUE) ||
+        !requireNamespace("Rcpp", quietly = TRUE) ||
+        !instantiate::stan_cmdstan_exists() || is.na(bvarnet_stan_source(model_name)))
+      stop("Required compiled Stan tests cannot run: check NOT_CRAN, CmdStan and model sources.")
+  }
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("cmdstanr")
   testthat::skip_if_not(instantiate::stan_cmdstan_exists(), "CmdStan not found")
@@ -83,6 +90,21 @@ compile_stan_source <- function(model_name) {
            envir = .test_cache)
   }
   get(key, envir = .test_cache)
+}
+
+# Only the fields declared by the Stan programs (exclude R-side metadata).
+.stan_data_names <- function(family) {
+  base <- c("p", "J", "K", "n_obs", "n_fe", "n_re", "id", "Y", "X", "B", "Z",
+            "prior_beta_fam", "beta_loc", "beta_scale", "beta_df",
+            "prior_phi_fam", "phi_loc", "phi_scale", "phi_df",
+            "prior_sd_fam", "sd_loc", "sd_scale", "sd_df")
+  if (family %in% c("bernoulli", "gaussian"))
+    base <- c(base, "prior_intercept_fam", "intercept_loc", "intercept_scale", "intercept_df")
+  if (family == "gaussian")
+    base <- c(base, "prior_sigma_fam", "sigma_loc", "sigma_scale", "sigma_df")
+  if (family == "ordinal")
+    base <- c(base, "C", "prior_kappa_fam", "kappa_loc", "kappa_scale", "kappa_df")
+  base
 }
 
 #' Penalised-MLE (MAP) fit of a compiled Stan model
@@ -298,6 +320,6 @@ make_oracle_standata <- function(family, C = 4L, N = 8L, T_obs = 40L,
     data = sim$data, family = family,
     id_col = "id", time_col = "t",
     y_cols = paste0("y_", 1:2), x_cols = paste0("x_", 1:2),
-    K = 1L, skip_lag = FALSE
+    K = 1L
   )
 }

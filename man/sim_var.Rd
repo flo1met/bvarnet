@@ -52,9 +52,7 @@ if NULL.}
 (gaussian only). Generated if NULL.}
 
 \item{kappa}{List of \code{p} numeric vectors, each of length \code{C-1}.
-Adjacent-category thresholds per node (ordinal only). Generated if NULL.
-These are free contrasts between neighbouring categories and need not be
-increasing; pass sorted vectors if ordered thresholds are wanted.}
+Adjacent-category thresholds per node (ordinal only). Generated if NULL.}
 
 \item{q}{Integer. Number of covariates (default 0).}
 
