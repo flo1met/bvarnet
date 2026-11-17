@@ -114,7 +114,10 @@ reference_from_sampled <- function(sampled, sd, family) {
 centered_fixed_fit <- function(sd, pars, family) {
   init <- .bvarnet_centered_init(pars, sd, family, 1)[[1]]
   model <- compile_stan_source(.bvarnet_model_for_family(family))
-  model$sample(data = sd, init = list(init), fixed_param = TRUE,
+  fit <- model$sample(data = sd, init = list(init), fixed_param = TRUE,
                chains = 1, parallel_chains = 1, iter_warmup = 0, iter_sampling = 1,
                seed = 1, refresh = 0, sig_figs = 18, show_messages = FALSE)
+  # Some CmdStanR versions require this before density/gradient transformations.
+  fit$init_model_methods()
+  fit
 }
