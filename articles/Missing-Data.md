@@ -43,7 +43,7 @@ head(studentlife)
 
 If we look at the subset of variables that we use in the
 `Vignette("bvarnet")` c(“anxious”, “calm”, “conventional”, “critical”,
-“dependable”), we see there is approximately $90\%$ of missing data:
+“dependable”), we see there is approximately $`90\%`$ of missing data:
 
 ``` r
 sum(is.na(studentlife[c("anxious", "calm", "conventional", "critical", "dependable")])) / (5*nrow(studentlife))
@@ -64,9 +64,9 @@ differ systematically from the omitted observations. Missing completely
 at random (MCAR) provides a straightforward justification for this
 procedure, although its validity ultimately depends on the missingness
 process, model, and estimand. After listwise deletion, bvarnet
-constructs the lagged predictors. For a VAR($K$) model, the outcome at
-time $t$ has a valid lag window only when observations are available at
-every required time $t - 1,\ldots,t - K$. The time_col variable must
+constructs the lagged predictors. For a VAR($`K`$) model, the outcome at
+time $`t`$ has a valid lag window only when observations are available
+at every required time $`t-1,\ldots,t-K`$. The time_col variable must
 therefore be integer-valued, with one unit corresponding to one lag
 step. When skip_lag = TRUE (the default), a current observation with an
 incomplete lag window is retained, but its entire set of lagged
@@ -184,8 +184,8 @@ summary(fit_skip_lag)
 
 For the demonstrated VAR(1) model, an observation has a valid lag only
 when an observation is available exactly one time unit earlier. More
-generally, a VAR($K$) model requires observations at every time
-$t - 1,\ldots,t - K$.
+generally, a VAR($`K`$) model requires observations at every time
+$`t-1,\ldots,t-K`$.
 
 When `skip_lag = FALSE`, a current observation with an incomplete lag
 window is removed from the likelihood. When `skip_lag = TRUE`, the
@@ -196,7 +196,7 @@ involving lagged predictors. It can still inform the non-temporal
 components of the model.
 
 The reported number of observations is the number of rows entering the
-likelihood after listwise deletion, removal of the first $K$
+likelihood after listwise deletion, removal of the first $`K`$
 observations per subject, and application of the selected skip-lag rule.
 
 ### Practical implications
@@ -210,7 +210,7 @@ observations per subject, and application of the selected skip-lag rule.
 - **`skip_lag = TRUE`** — Current observations with incomplete lag
   windows remain available for estimating non-temporal model components,
   while their temporal contribution is set to zero. These rows provide
-  no direct information about $\phi$, although they can affect its
+  no direct information about $`\phi`$, although they can affect its
   marginal posterior indirectly through posterior dependence with shared
   model parameters.
 

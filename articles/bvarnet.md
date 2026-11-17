@@ -55,8 +55,8 @@ First we need to specify the prior distributions that we want to use on
 the parameters. For this we can use the
 [`set_priors()`](https://flo1met.github.io/bvarnet/reference/set_priors.md)
 function. As we are running a ordinal model, without covariates, we have
-to specify priors on the temporal structure (denoted by the $\Phi$
-matrix) and on the category threshold parameters ($\kappa$) which is
+to specify priors on the temporal structure (denoted by the $`\Phi`$
+matrix) and on the category threshold parameters ($`\kappa`$) which is
 specific to the adjacent category ordinal model.
 
 ``` r
@@ -211,7 +211,7 @@ summary(fit)
 ### Extracting Parameters
 
 Here we can see, that we can not see all category threshold parameters
-($\kappa$). To inspect them completely we have to extract them using
+($`\kappa`$). To inspect them completely we have to extract them using
 `extract_param(fit, type = "Threshold")`:
 
 ``` r

@@ -131,17 +131,19 @@ To estimate Bayes factors for a single parameter, or a set of
 parameters, we can use the
 [`bf_table()`](https://flo1met.github.io/bvarnet/reference/bf_table.md)
 function. Bayes factors are computed via the **Savage–Dickey density
-ratio** (SDDR), which, for a point null $H_{0}:\theta = \theta_{0}$
-nested in $H_{1}:\theta \neq \theta_{0}$ with shared nuisance
+ratio** (SDDR), which, for a point null $`H_0 : \theta = \theta_0`$
+nested in $`H_1 : \theta \neq \theta_0`$ with shared nuisance
 parameters, gives
 
-$${BF}_{01}\; = \;\frac{p\left( \theta = \theta_{0} \mid y \right)}{p\left( \theta = \theta_{0} \right)},$$
+``` math
+\mathrm{BF}_{01} \;=\; \frac{p(\theta = \theta_0 \mid y)}{p(\theta = \theta_0)},
+```
 
 i.e. the ratio of the posterior to the prior density evaluated at the
 null value.
 [`bf_table()`](https://flo1met.github.io/bvarnet/reference/bf_table.md)
-reports ${BF}_{10} = 1/{BF}_{01}$ by approximating the posterior density
-at $\theta_{0} = 0$ from the MCMC draws.
+reports $`\mathrm{BF}_{10} = 1 / \mathrm{BF}_{01}`$ by approximating the
+posterior density at $`\theta_0 = 0`$ from the MCMC draws.
 
 To perform a hypothesis test on effects involving a specific variable,
 we can call the

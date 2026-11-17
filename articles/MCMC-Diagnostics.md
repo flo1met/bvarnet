@@ -92,14 +92,14 @@ print(fit)
 
 ## R-hat: Between-Chain Convergence
 
-**R-hat** ($\widehat{R}$) measures whether independent chains have
+**R-hat** ($`\hat{R}`$) measures whether independent chains have
 converged to the same distribution by comparing within-chain to
-between-chain variance. A value of $\widehat{R} \approx 1$ indicates
-that all chains are exploring the same region of parameter space.
+between-chain variance. A value of $`\hat{R} \approx 1`$ indicates that
+all chains are exploring the same region of parameter space.
 
-**Rule of thumb:** $\widehat{R} \leq 1.01$ is the modern criterion.
-Values above 1.01 suggest the chains have *not* converged and longer
-sampling is needed.
+**Rule of thumb:** $`\hat{R} \leq 1.01`$ is the modern criterion. Values
+above 1.01 suggest the chains have *not* converged and longer sampling
+is needed.
 
 The convergence table is stored in `fit$convergence` as a data frame
 with one row per parameter, alongside bulk-ESS and tail-ESS.
@@ -134,8 +134,8 @@ sequence is worth. `bvarnet` stores two variants:
 
 | Statistic  | Targets                                  | Minimum recommended |
 |------------|------------------------------------------|---------------------|
-| `ess_bulk` | Central tendency (mean, median)          | $\geq 400$          |
-| `ess_tail` | Tail quantiles, credible interval bounds | $\geq 400$          |
+| `ess_bulk` | Central tendency (mean, median)          | $`\geq 400`$        |
+| `ess_tail` | Tail quantiles, credible interval bounds | $`\geq 400`$        |
 
 ``` r
 ess_bulk <- fit$convergence$ess_bulk
@@ -254,10 +254,10 @@ warning.
 [`bvar()`](https://flo1met.github.io/bvarnet/reference/bvar.md) exposes
 two length arguments:
 
-| Argument | Default | Role                                                                                   |
-|----------|---------|----------------------------------------------------------------------------------------|
-| `warmup` | 1000    | Iterations used for adaptation (step-size, mass matrix). **Discarded** from inference. |
-| `iter`   | 4000    | Post-warmup (sampling) iterations *per chain*. Used for inference.                     |
+| Argument | Default | Role |
+|----|----|----|
+| `warmup` | 1000 | Iterations used for adaptation (step-size, mass matrix). **Discarded** from inference. |
+| `iter` | 4000 | Post-warmup (sampling) iterations *per chain*. Used for inference. |
 
 The total number of draws available for inference is `iter × chains` (16
 000 with the defaults above). Increasing `iter` directly improves ESS at
@@ -290,7 +290,8 @@ For full details see the [Stan reference on
 ### `max_treedepth`: Controlling Trajectory Length
 
 `max_treedepth` (default 10) caps the doubling steps NUTS may take. The
-maximum trajectory length is $2^{\text{max\_treedepth}}$ leapfrog steps.
+maximum trajectory length is $`2^{\text{max\_treedepth}}`$ leapfrog
+steps.
 
 Increase this when `fit$diagnostics` shows a non-trivial number of
 iterations hitting the tree-depth limit. Each additional level doubles
@@ -306,9 +307,9 @@ For full details see the [Stan reference on
 
 Before reporting results from a `bvarnet` model:
 
-1.  **R-hat**: all parameters $\leq 1.01$.
-2.  **ESS**: `ess_bulk` and `ess_tail` $\geq 400$ for all parameters of
-    interest.
+1.  **R-hat**: all parameters $`\leq 1.01`$.
+2.  **ESS**: `ess_bulk` and `ess_tail` $`\geq 400`$ for all parameters
+    of interest.
 3.  **Trace plots**: caterpillar-like mixing, no trends or stuck chains.
 4.  **Divergences**: zero, or investigate with higher `adapt_delta`.
 5.  **Tree-depth warnings**: none, or increase `max_treedepth`.

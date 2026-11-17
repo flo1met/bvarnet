@@ -9,6 +9,7 @@ specified Bayesian (Multilevel) Vector Autoregression.
 bvar(
   id_col,
   time_col,
+  beep_col = NULL,
   y_cols,
   x_cols = NULL,
   center_x = FALSE,
@@ -18,7 +19,6 @@ bvar(
   re_temporal = FALSE,
   K = 1,
   na_action = c("listwise"),
-  skip_lag = TRUE,
   data,
   family = c("bernoulli", "ordinal", "gaussian"),
   priors = set_priors(),
@@ -42,8 +42,40 @@ bvar(
 
 - time_col:
 
-  Character. Name of the time column. Must be integer-valued (one time
-  unit = one lag step); non-integer values error.
+  Character scalar naming the time-index column in `data`. Its meaning
+  depends on `beep_col`:
+
+  - If `beep_col = NULL` (default), this column contains the scheduled
+    occasion index for one sequence per subject. Values must be finite
+    and integer-valued, with one unit representing one scheduled lag
+    step. Indices must continue across the subject's sequence rather
+    than restart each day. For lag k, the predecessor must have index
+    `time - k`. No separate day or overnight boundary is inferred in
+    this mode.
+
+  - If `beep_col` names a column, `time_col` identifies the day or
+    session. `beep_col` then contains finite integer-valued beep indices
+    within each day/session, with one unit representing one scheduled
+    lag step. Beep indices may restart in each day/session. For lag k,
+    the predecessor must have index `beep - k` in the same subject and
+    day/session.
+
+  Preserve the original scheduled labels when observations are missing.
+  Rows without a complete, correctly spaced lag window are excluded as
+  responses from the likelihood; their observed outcomes may still be
+  used as predictors for later eligible responses.
+
+- beep_col:
+
+  NULL (default), or a character scalar naming the scheduled occasion
+  index within each day/session, specified in the `time_col` column. If
+  NULL, `time_col` itself supplies the occasion index for one sequence
+  per subject, and no day/session splitting is performed. If supplied,
+  `time_col` must identify the day/session and this column must contain
+  finite integer-valued beep indices, with one unit representing one
+  scheduled lag step. Beep indices may restart in each day/session. For
+  lag k, the predecessor must have index `beep - k` in the same subject
+  and day/session.
 
 - y_cols:
 
@@ -84,13 +116,6 @@ bvar(
 - na_action:
 
   Character. Missing-data strategy; currently only `"listwise"`.
-
-- skip_lag:
-
-  Logical. If `TRUE` (default), rows with irregular time gaps have their
-  lag predictors zero-filled rather than being dropped. For this,
-  `time_col` should be scaled so that each step has a length of one
-  (e.g., integer days, weeks, or months). Non-integer values error.
 
 - data:
 
@@ -168,8 +193,42 @@ bvar(
 
 A `bvarnet` object (a named list) with slots: `draws`, `convergence`,
 `diagnostics`, `timing`, `metadata`, `return_codes`, `family`,
-`standata`, `priors`, `priors_effective`. If `save_data = TRUE`, also
-includes `data_used` (the cleaned estimation data frame).
+`standata`, `priors`, and `priors_effective`. If `save_data = TRUE`,
+also includes `data_used` (the cleaned estimation data frame).
+
+## Scheduled time and missing observations
+
+Index columns identify eligible transitions; they do not automatically
+add time or day effects as covariates. A daily series with one
+observation per day can use `time_col = "day"` alone: consecutive days
+are ordinary lag steps. With multiple observations per day, supply both
+day and beep columns to exclude overnight transitions. Day/session
+labels may be numeric, character, factor or Date; occasion indices must
+be numeric integers. Retained keys must be unique within subject (and
+day/session when supplied), with no missing keys.
+
+Only complete lag windows enter the likelihood. For indices
+`1, 2, 4, 5`, a VAR(1) uses `1 -> 2` and `4 -> 5`, excluding `2 -> 4`.
+With day/beep indices, day 1 beep 5 never predicts day 2 beep 1, while
+day 2 beep 1 can predict day 2 beep 2. Subject random effects remain
+shared across that subject's days. Occasion-level listwise deletion is
+applied to all selected outcomes and covariates before constructing
+lags. This is not a general correction for missingness under MAR or
+MNAR.
+
+The former `skip_lag` argument and zero-filled gap likelihood were
+removed because they could bias temporal and non-temporal parameters.
+Passing the removed argument is an error. Fits may use fewer responses
+and give different estimates than the former default.
+
+## Internal predictor centering
+
+Stan samples intercepts (Gaussian/Bernoulli) or thresholds (ordinal)
+using centered completed fixed-effect and lag columns. Reported `beta`,
+`kappa`, priors and Bayes-factor hypotheses retain the reference of the
+public design produced with the requested `center_x` setting.
+Random-effect designs and priors are unchanged. This coordinate change
+can improve sampling, but does not guarantee a speed improvement.
 
 ## Requested versus effective priors
 
@@ -199,6 +258,12 @@ compiling them locally).
 ## Examples
 
 ``` r
+# Scheduled indices retain missing occasions rather than compressing time.
+single_index <- data.frame(id = 1, occasion = c(1, 2, 4, 5), y = c(1, 2, 3, 4))
+# time_col = "occasion": transitions 1 -> 2 and 4 -> 5 are eligible.
+day_beep <- data.frame(id = 1, day = c(1, 1, 1, 2, 2),
+                       beep = c(1, 2, 4, 1, 2), y = c(1, 2, 3, 4, 5))
+# time_col = "day", beep_col = "beep": only within-day beeps 1 -> 2.
 if (FALSE) { # \dontrun{
 # Run bvar on studentlife data
 data(studentlife, package = "bvarnet")

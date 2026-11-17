@@ -41,11 +41,11 @@ CRAN) needs a matching release + `manifest.json`, or
 `bvarnet_setup_models(method = "download")` 404s and silently falls back
 to compile-from-source for that version’s entire user base.
 
-| Change                                                   | Publish a release + assets?      | New model binaries?                     |
-|----------------------------------------------------------|----------------------------------|-----------------------------------------|
-| Update that edits a `.stan` file                         | **Yes**                          | Yes – new `source_hash`                 |
-| Patch (R code only) shipped to users                     | **Yes**                          | No – same `source_hash`, rebuilt copies |
-| Intermediate commit / `.9000` dev version, never shipped | No (404 -\> compile-from-source) | n/a                                     |
+| Change | Publish a release + assets? | New model binaries? |
+|----|----|----|
+| Update that edits a `.stan` file | **Yes** | Yes – new `source_hash` |
+| Patch (R code only) shipped to users | **Yes** | No – same `source_hash`, rebuilt copies |
+| Intermediate commit / `.9000` dev version, never shipped | No (404 -\> compile-from-source) | n/a |
 
 - **Don’t micro-release.** Batch small fixes into fewer, meaningful
   versions. Every released version costs one full asset set (~150-220 MB
