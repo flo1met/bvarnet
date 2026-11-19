@@ -1,6 +1,6 @@
 # Changelog
 
-## bvarnet 1.0.3.9000
+## bvarnet 1.0.4
 
 - Removed `skip_lag` immediately, including its zero-filled gap
   likelihood, which could bias shared parameters and temporal estimates.
