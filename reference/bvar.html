@@ -37,7 +37,7 @@
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
       <img src="../logo.png" class="logo" alt=""><h1>Fit a Bayesian multilevel VAR network model</h1>
-      <small class="dont-index">Source: <a href="https://github.com/flo1met/bvarnet/blob/v1.0.4/R/bvar.R" class="external-link"><code>R/bvar.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/flo1met/bvarnet/blob/main/R/bvar.R" class="external-link"><code>R/bvar.R</code></a></small>
       <div class="d-none name"><code>bvar.Rd</code></div>
     </div>
 
@@ -207,11 +207,9 @@ hierarchical logistic models) but increases computation. Default
 
 <dt id="arg-save-data">save_data<a class="anchor" aria-label="anchor" href="#arg-save-data"></a></dt>
 <dd><p>Logical. Keep the Stan data used for estimation in the
-returned object's <code>standata</code> slot? Default <code>TRUE</code>. Set to
+returned object's <code>standata</code> slot. Default <code>TRUE</code>. Set to
 <code>FALSE</code> to remove these data from the fitted model before saving or
-sharing it, for example when working with sensitive data. Model dimensions,
-variable labels, posterior draws and effective priors are retained;
-this option does not anonymize posterior results.</p></dd>
+sharing it.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>

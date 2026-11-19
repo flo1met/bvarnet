@@ -174,11 +174,8 @@ bvar(
 - save_data:
 
   Logical. Keep the Stan data used for estimation in the returned
-  object's `standata` slot? Default `TRUE`. Set to `FALSE` to remove
-  these data from the fitted model before saving or sharing it, for
-  example when working with sensitive data. Model dimensions, variable
-  labels, posterior draws and effective priors are retained; this option
-  does not anonymize posterior results.
+  object's `standata` slot. Default `TRUE`. Set to `FALSE` to remove
+  these data from the fitted model before saving or sharing it.
 
 - ...:
 
