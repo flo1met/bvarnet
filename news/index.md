@@ -29,11 +29,6 @@ CRAN release: 2026-09-10
 
 - Bugfix: Bayes factors for interaction effects were sometimes displayed
   wrong.
-
-## bvarnet 1.0.3
-
-CRAN release: 2026-09-10
-
 - Minor bugfix that let to an error when running a model without
   covariates.
 - [`extract_draws()`](https://flo1met.github.io/bvarnet/reference/extract_draws.md)
