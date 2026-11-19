@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use bvarnet, please cite it as below."
+type: software
+title: "bvarnet: Bayesian Estimation of Dynamic VAR Models using Stan"
+authors:
+  - family-names: "Metwaly"
+    given-names: "Florian"
+    orcid: "https://orcid.org/0009-0001-8357-7870"
+version: "1.0.4"
+url: "https://github.com/flo1met/bvarnet"
