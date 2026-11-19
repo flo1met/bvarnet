@@ -44,45 +44,18 @@ If we look at the subset of variables that we use in the `Vignette("bvarnet")` c
 sum(is.na(studentlife[c("anxious", "calm", "conventional", "critical", "dependable")])) / (5*nrow(studentlife))
 ```
 
-## The Skipping-Lag Mechanism
+## Fitting the Model
 
-Before constructing lagged predictors, bvarnet applies listwise deletion at the measurement-occasion level. Within each subject, a row is removed if any selected outcome or covariate is missing. The subject is not removed simply because one or more measurement occasions are incomplete. Entirely absent time points and rows removed through listwise deletion can therefore create gaps in the remaining time series.
-Listwise deletion is computationally simple, but it reduces the available sample size and can produce biased estimates when the retained observations differ systematically from the omitted observations. Missing completely at random (MCAR) provides a straightforward justification for this procedure, although its validity ultimately depends on the missingness process, model, and estimand.
-After listwise deletion, bvarnet constructs the lagged predictors. For a VAR(\(K\)) model, the outcome at time \(t\) has a valid lag window only when observations are available at every required time \(t-1,\ldots,t-K\). The time_col variable must therefore be integer-valued, with one unit corresponding to one lag step.
-When skip_lag = TRUE (the default), a current observation with an incomplete lag window is retained, but its entire set of lagged predictors is set to zero. Consequently, that row provides no direct information about the temporal coefficients. It can still inform non-temporal components of the model, such as covariate effects and non-temporal random effects. In Gaussian and binary models, it can also inform the intercept; in ordinal models, it can inform the category thresholds. Gaussian observations additionally inform the residual standard deviation.
-When skip_lag = FALSE, a current observation with an incomplete lag window is removed from the likelihood. Thus, all retained observations have a complete and correctly spaced lag window. This prevents effects spanning irregular time gaps from being interpreted as ordinary one-step or higher-order lagged relationships.
-This mechanism does not impute missing values or recover temporal information from incomplete lag windows. It determines whether current observations with unavailable lagged predictors are retained for estimating the non-temporal parts of the model.
-
-## Comparison: With and Without Lag Skipping
-
-In the `bvar` function the skipping-lag mechanism can be turned on and off by using the `skip_lag` argument. To illustrate this, we can fit the model once using the lag skipping mechanism, and once without:
+We fit the model using the usual call
 ```{r, eval = has_cmdstan, results='hide', message=FALSE}
-fit_no_skip_lag <- bvar(
+fit <- bvar(
   id_col = "id",
   time_col = "day",
   y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
   x_cols = NULL,
+  re_cols = NULL,
   re_temporal = FALSE,
   K = 1,
-  skip_lag = FALSE,
-  data = studentlife,
-  family = c("ordinal"),
-  priors = set_priors(),
-  iter = 4000,
-  warmup = 1000,
-  chains = 4,
-  cores = 4,
-  seed = 1337
-)
-
-fit_skip_lag <- bvar(
-  id_col = "id",
-  time_col = "day",
-  y_cols = c("anxious", "calm", "conventional", "critical", "dependable"),
-  x_cols = NULL,
-  re_temporal = FALSE,
-  K = 1,
-  skip_lag = TRUE,
   data = studentlife,
   family = c("ordinal"),
   priors = set_priors(),
@@ -94,12 +67,21 @@ fit_skip_lag <- bvar(
 )
 ```
 
+
+## Missing Data Handling
+
+Currently, `bvarnet` is handling missing data by restricting estimation to completem correctly soaced time-series.
+Before constructing lagged predictors, `bvarnet` applies listwise deletion at the measurement-occasion level. Within each subject, a row is removed if any selected outcome or covariate is missing. The subject is not removed completely simply because one or more measurement occasions are incomplete (complete-case analysis). Entirely absent time points and rows removed through listwise deletion can therefore create gaps in the remaining time series.
+After listwise deletion, the gaps are preserved rather than compressed. To illustrate this we have the following example: suppose complete observations are available at occasions $1$, $2$, $4$, and $5$. So the observation at occasion $3$ is missing. A VAR($1$) model uses the transitions $1 \rightarrow 2$ and $4 \rightarrow 5$. It does not treat $2 \rightarrow 4$ as a one-step transition. Occasion $4$ is therefore excluded as a response because occasion $3$ is unavailable, but occasion $4$'s observed outcomes can still predict occasion $5$. Excluding an observation as a response therefore does **not** automatically remove it from subsequent lagged predictors.
+The scheduled occasion index must be integer-valued, with one unit representing one lag step. This index is supplied by `time_col`, or by `beep_col` when separate day/session labels are used. Original occasion numbers must be retained when measurements are missing.
+Listwise deletion is computationally simple, but it reduces the available sample size and can produce biased estimates when the retained observations differ systematically from the omitted observations. 
+This procedure does not impute missing values or estimate relationships across incomplete lag windows. It reduces the information available for estimating both temporal and non-temporal parameters, and retaining correctly spaced transitions does not itself guarantee unbiased estimates. Results still depend on the missingness process and on how the retained observations differ from those omitted.
+
 ## Model Output
 
-We can print an overview of the models we just ran using the `print(fit)` functions:
+We can print an overview of the the model we just fitted using the `print(fit)` functions:
 ```{r, eval = has_cmdstan}
-print(fit_no_skip_lag)
-print(fit_skip_lag)
+print(fit)
 ```
 
 Here we get information about the number of variables and lags, the number of observations and some first indications if the model did converge.
@@ -107,23 +89,11 @@ Here we get information about the number of variables and lags, the number of ob
 To further inspect the model parameters we can use the `summary(fit)` function:
 
 ```{r, eval = has_cmdstan}
-summary(fit_no_skip_lag)
-summary(fit_skip_lag)
+summary(fit)
 ```
-
-### Why does `skip_lag = FALSE` produce fewer observations?
-
-For the demonstrated VAR(1) model, an observation has a valid lag only when an observation is available exactly one time unit earlier. More generally, a VAR(\(K\)) model requires observations at every time \(t-1,\ldots,t-K\).
-
-When `skip_lag = FALSE`, a current observation with an incomplete lag window is removed from the likelihood. When `skip_lag = TRUE`, the current observation is retained, but all its lagged predictors are set to zero. The row therefore provides no direct information about the temporal coefficients, temporal random effects, or interactions involving lagged predictors. It can still inform the non-temporal components of the model.
-
-The reported number of observations is the number of rows entering the likelihood after listwise deletion, removal of the first \(K\) observations per subject, and application of the selected skip-lag rule.
 
 ### Practical implications
 
-* **`skip_lag = FALSE`** — Only observations with a complete and correctly spaced lag window enter the likelihood. This preserves the intended timing of all retained lagged relationships, but it may substantially reduce the number of observations available for estimating both temporal and non-temporal parameters.
-
-* **`skip_lag = TRUE`** — Current observations with incomplete lag windows remain available for estimating non-temporal model components, while their temporal contribution is set to zero. These rows provide no direct information about \(\phi\), although they can affect its marginal posterior indirectly through posterior dependence with shared model parameters.
-
-Neither option imputes missing values or recovers temporal information from incomplete lag windows. If listwise deletion is inappropriate for the missingness process, users should consider a suitable imputation procedure or an explicit model for the missing data.
+Only observations with a complete and correctly spaced lag window enter the likelihood. This preserves the intended timing of all retained lagged relationships, but it may substantially reduce the number of observations available for estimating both temporal and non-temporal parameters.
+This procedure does not impute missing values or recovers temporal information from incomplete lag windows. If listwise deletion is inappropriate for the missingness process, users should consider a suitable imputation procedure or an explicit model for the missing data.
 
