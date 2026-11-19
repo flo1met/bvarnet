@@ -118,11 +118,9 @@ hierarchical logistic models) but increases computation. Default
 \code{NULL} (CmdStan default of 10).}
 
 \item{save_data}{Logical. Keep the Stan data used for estimation in the
-returned object's \code{standata} slot? Default \code{TRUE}. Set to
+returned object's \code{standata} slot. Default \code{TRUE}. Set to
 \code{FALSE} to remove these data from the fitted model before saving or
-sharing it, for example when working with sensitive data. Model dimensions,
-variable labels, posterior draws and effective priors are retained;
-this option does not anonymize posterior results.}
+sharing it.}
 
 \item{...}{Additional named arguments forwarded to the CmdStanR
 \code{$sample()} method, e.g. \code{init}, \code{refresh}, \code{thin},

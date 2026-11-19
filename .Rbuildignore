@@ -14,3 +14,6 @@
 ^CONTRIBUTING\.md$
 ^plans$
 ^experiments$
+^vignettes/.*\.Rmd\.orig$
+^tests/testthat/_problems$
+^tests/testthat/testthat-problems\.rds$
