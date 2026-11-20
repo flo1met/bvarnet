@@ -2,7 +2,7 @@
 
 ## Setup
 
-First, lets load the package:
+First, let’s load the package:
 
 ``` r
 library(bvarnet)
@@ -77,7 +77,7 @@ fit <- bvar(
 ## Missing Data Handling
 
 Currently, `bvarnet` is handling missing data by restricting estimation
-to completem correctly spaced time-series. Before constructing lagged
+to complete, correctly spaced time-series. Before constructing lagged
 predictors, `bvarnet` applies listwise deletion at the
 measurement-occasion level. Within each subject, a row is removed if any
 selected outcome or covariate is missing. The subject is not removed
@@ -110,7 +110,7 @@ the retained observations differ from those omitted.
 
 ## Model Output
 
-We can print an overview of the the model we just fitted using the
+We can print an overview of the model we just fitted using the
 `print(fit)` functions:
 
 ``` r

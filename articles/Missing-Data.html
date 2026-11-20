@@ -71,7 +71,7 @@
 <div class="section level2">
 <h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
 </h2>
-<p>First, lets load the package:</p>
+<p>First, let’s load the package:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://flo1met.github.io/bvarnet/">bvarnet</a></span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -141,7 +141,7 @@ of missing data:</p>
 <h2 id="missing-data-handling">Missing Data Handling<a class="anchor" aria-label="anchor" href="#missing-data-handling"></a>
 </h2>
 <p>Currently, <code>bvarnet</code> is handling missing data by
-restricting estimation to completem correctly spaced time-series. Before
+restricting estimation to complete, correctly spaced time-series. Before
 constructing lagged predictors, <code>bvarnet</code> applies listwise
 deletion at the measurement-occasion level. Within each subject, a row
 is removed if any selected outcome or covariate is missing. The subject
@@ -195,7 +195,7 @@ omitted.</p>
 <div class="section level2">
 <h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
 </h2>
-<p>We can print an overview of the the model we just fitted using the
+<p>We can print an overview of the model we just fitted using the
 <code>print(fit)</code> functions:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
