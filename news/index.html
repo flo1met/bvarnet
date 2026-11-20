@@ -41,7 +41,7 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.0.4" id="bvarnet-104">bvarnet 1.0.4<a class="anchor" aria-label="anchor" href="#bvarnet-104"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.0.4" id="bvarnet-104">bvarnet 1.0.4<a class="anchor" aria-label="anchor" href="#bvarnet-104"></a></h2><p class="text-muted">CRAN release: 2026-11-19</p>
 <ul><li>Removed <code>skip_lag</code> immediately, including its zero-filled gap likelihood, which could bias shared parameters and temporal estimates. Passing this argument now errors for any value. All model families use complete-transition analysis: responses with any unavailable required lag are excluded from the likelihood. Observation counts and estimates can therefore differ from the former default.</li>
 <li>Added <code>beep_col</code>. With <code>beep_col = NULL</code>, <code>time_col</code> is the scheduled integer occasion index within a subject. With both supplied, <code>time_col</code> labels days or sessions and <code>beep_col</code> indexes scheduled occasions within them. Temporal lags never cross subject/day boundaries or missing scheduled occasions. Subject random effects remain shared across days.</li>
 <li>Switching to a completely centered backend. The Stan models now center all fixed effects parameter internally. This can lead to improved posterior geometry in complex models. This does not change parameter estimates or Bayes factors!</li>

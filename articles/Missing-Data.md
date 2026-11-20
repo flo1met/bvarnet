@@ -77,7 +77,7 @@ fit <- bvar(
 ## Missing Data Handling
 
 Currently, `bvarnet` is handling missing data by restricting estimation
-to completem correctly soaced time-series. Before constructing lagged
+to completem correctly spaced time-series. Before constructing lagged
 predictors, `bvarnet` applies listwise deletion at the
 measurement-occasion level. Within each subject, a row is removed if any
 selected outcome or covariate is missing. The subject is not removed
