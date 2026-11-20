@@ -85,7 +85,7 @@ fit <- bvar(
 
 ## Missing Data Handling
 
-Currently, `bvarnet` is handling missing data by restricting estimation to completem correctly soaced time-series.
+Currently, `bvarnet` is handling missing data by restricting estimation to completem correctly spaced time-series.
 Before constructing lagged predictors, `bvarnet` applies listwise deletion at the measurement-occasion level. Within each subject, a row is removed if any selected outcome or covariate is missing. The subject is not removed completely simply because one or more measurement occasions are incomplete (complete-case analysis). Entirely absent time points and rows removed through listwise deletion can therefore create gaps in the remaining time series.
 After listwise deletion, the gaps are preserved rather than compressed. To illustrate this we have the following example: suppose complete observations are available at occasions $1$, $2$, $4$, and $5$. So the observation at occasion $3$ is missing. A VAR($1$) model uses the transitions $1 \rightarrow 2$ and $4 \rightarrow 5$. It does not treat $2 \rightarrow 4$ as a one-step transition. Occasion $4$ is therefore excluded as a response because occasion $3$ is unavailable, but occasion $4$'s observed outcomes can still predict occasion $5$. Excluding an observation as a response therefore does **not** automatically remove it from subsequent lagged predictors.
 The scheduled occasion index must be integer-valued, with one unit representing one lag step. This index is supplied by `time_col`, or by `beep_col` when separate day/session labels are used. Original occasion numbers must be retained when measurements are missing.
