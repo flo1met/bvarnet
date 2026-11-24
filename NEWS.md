@@ -1,3 +1,7 @@
+# bvarnet 1.0.4.9000
+
+* `studentlife` documentation fix
+
 # bvarnet 1.0.4
 
 * Removed `skip_lag` immediately, including its zero-filled gap likelihood, which could bias shared parameters and temporal estimates. Passing this argument now errors for any value. All model families use complete-transition analysis: responses with any unavailable required lag are excluded from the likelihood. Observation counts and estimates can therefore differ from the former default.

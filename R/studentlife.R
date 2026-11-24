@@ -6,7 +6,7 @@
 #' Proceedings of the 2014 ACM International Joint Conference on Pervasive and Ubiquitous Computing, 3–14. https://doi.org/10.1145/2632048.2632054
 #'
 #' @format ## `studentlife`
-#' A data frame with 1912 rows and 72 columns:
+#' A data frame with 1912 rows and 76 columns:
 #'
 #' @source https://openesmdata.org/datasets/0004_wang/
 #' @source https://doi.org/10.1145/2632048.2632054
