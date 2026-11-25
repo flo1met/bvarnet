@@ -74,9 +74,9 @@ priors
 ```
 
 Currently, three prior families are implemented: normal, student-t and
-chauchy. For standart deviations and random effects all of these priors
+chauchy. For standard deviations and random effects all of these priors
 are automatically scaled to half-priors. For each distribution, the
-location and scale parameters can be specified. For the student-t
+location and scale parameters can be specified. For the student-$`t`$
 distribution, the degrees of freedom can also be specified.
 
 ## Model Estimation
